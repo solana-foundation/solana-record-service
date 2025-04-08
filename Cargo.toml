@@ -1,0 +1,10 @@
+[package]
+name = "srs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+arraystring = "0.3.0"
+pinocchio = "0.8.1"
+pinocchio-system = "0.2.3"
+solana-nostd-sha256 = "0.1.3"

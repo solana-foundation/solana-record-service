@@ -1,0 +1,14 @@
+{
+  "name": "srs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "codama": "npx tsx codama.ts"
+  },
+  "dependencies": {
+    "@codama/renderers": "^1.0.19",
+    "codama": "^1.2.11",
+    "tsx": "^4.19.3"
+  }
+}
