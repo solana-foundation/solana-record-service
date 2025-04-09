@@ -5,6 +5,8 @@ use sdk::Context;
 pub mod instructions;
 pub mod accounts;
 pub mod sdk;
+#[cfg(test)]
+pub mod tests;
 
 entrypoint!(process_instruction);
 

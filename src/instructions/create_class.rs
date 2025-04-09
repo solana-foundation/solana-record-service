@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use pinocchio::{account_info::{self, AccountInfo}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
 use crate::{accounts::Class, sdk::Context};
@@ -19,10 +19,8 @@ use crate::{accounts::Class, sdk::Context};
 /// Authority (signer)
 /// Class PDA
 /// System Program
-
 pub struct CreateClass<'info> {
     accounts: CreateClassAccounts<'info>,
-    is_permissioned: bool,
     name: &'info str,
     metadata: &'info str,
 }
@@ -30,6 +28,7 @@ pub struct CreateClass<'info> {
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
+    credential: Option<&'info AccountInfo>
 }
 
 pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() + size_of::<u8>();
@@ -38,13 +37,13 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+        // Deserialize our accounts array
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
 
         // Check ix data has minimum length of at least 5 for boolean and length bytes
         if ctx.data.len() < CREATE_CLASS_MIN_IX_LENGTH {
             return Err(ProgramError::InvalidInstructionData);
         }
-        let is_permissioned = ctx.data[0] == 1;
         let name_len = ctx.data[1] as usize;
 
         // Check IX data matches our name length
@@ -56,11 +55,10 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         let name = str::from_utf8(&ctx.data[CREATE_CLASS_MIN_IX_LENGTH..CREATE_CLASS_MIN_IX_LENGTH+name_len]).map_err(|_| ProgramError::InvalidInstructionData)?;
 
         // Get metadata slice (could be empty)
-        let metadata= str::from_utf8(&ctx.data[CREATE_CLASS_MIN_IX_LENGTH+name_len..]).map_err(|_| ProgramError::InvalidInstructionData)?;;
+        let metadata= str::from_utf8(&ctx.data[CREATE_CLASS_MIN_IX_LENGTH+name_len..]).map_err(|_| ProgramError::InvalidInstructionData)?;
 
         Ok( Self { 
-            accounts, 
-            is_permissioned, 
+            accounts,
             name, 
             metadata
         })
@@ -107,7 +105,7 @@ impl <'info> CreateClass<'info> {
             &signers
         )?;
 
-        let new_class = Class {
+        let class = Class {
             authority: *self.accounts.authority.key(),
             is_frozen: false,
             credential_account: if self.is_permissioned {
@@ -119,8 +117,7 @@ impl <'info> CreateClass<'info> {
             metadata: self.metadata
         };
 
-        let mut data: account_info::RefMut<'_, [u8]> = self.accounts.class.try_borrow_mut_data()?;
-        new_class.initialize(&mut data)
+        class.initialize(self.accounts.class)
     }
 }
 
@@ -128,18 +125,28 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, _system_program] = accounts else {
+        let [authority, class, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
+
+        let credential = rest.first();
 
         // Account Checks
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // If a credential account exists, check that it belongs to our program
+        if let Some(credential_account) = credential {
+            if unsafe { credential_account.owner().ne(&crate::ID)  } {
+                return Err(ProgramError::InvalidAccountOwner);
+            }
+        }
+
         Ok(Self {
             authority,
-            class
+            class,
+            credential
         })
     }
 }

@@ -1,6 +1,6 @@
 use core::str;
 
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C)]
 pub struct Class<'info> {
@@ -12,6 +12,7 @@ pub struct Class<'info> {
 }
 
 impl<'info> Class<'info> {
+    pub const DISCRIMINATOR: u8 = 1;
     pub fn load(&self, buffer: &'info [u8]) -> Result<Self, ProgramError> {
         let authority: Pubkey = buffer[..32].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
         let is_frozen: bool = buffer[32] == 1;
@@ -33,27 +34,75 @@ impl<'info> Class<'info> {
         })
     }
 
-    pub fn freeze(&mut self)
+    pub fn update_is_frozen(&self, account_info: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut data = account_info.try_borrow_mut_data()?;
 
-    pub fn initialize(&self, buffer: &'info mut [u8]) -> Result<(), ProgramError> {
-        buffer[..32].clone_from_slice(&self.authority);
-        buffer[32] = 0;
-        let mut offset = match self.credential_account {
-            Some(credential) => {
-                buffer[32] = self.credential_account.is_some() as u8;
-                buffer[33..65].clone_from_slice(&credential);
-                65
-            },
-            None => {
-                buffer[32] = 0;
-                33
-            }
+        // Write our discriminator
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update is_frozen
+        data[33] = is_frozen as u8;
+
+        Ok(())
+    }
+
+    pub fn update_metadata(&self, account_info: &'info AccountInfo, is_frozen: bool, metadata: &'info str) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut data = account_info.try_borrow_mut_data()?;
+
+        // Write our discriminator
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update is_frozen
+        data[33] = is_frozen as u8;
+
+        Ok(())
+    }
+
+
+    pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut data = account_info.try_borrow_mut_data()?;
+
+        // Write our discriminator
+        data[0] = Self::DISCRIMINATOR;
+        
+        // Write our authority
+        data[1..33].clone_from_slice(&self.authority);
+
+        // Set is_frozen to false
+        data[33] = false as u8;
+
+        // Set credential byte
+        data[34] = self.credential_account.is_some() as u8;
+
+        // Write credential if exists and update offset
+        let mut offset = if let Some(credential) = self.credential_account {
+            data[35..67].clone_from_slice(&credential);
+            67
+        } else {
+            35
         };
-        buffer[offset] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+        // Write the length of our name or error if overflowed
+        data[offset] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+        // Add 1 to our offset
         offset += 1;
-        buffer[offset..offset + self.name.len()].clone_from_slice(self.name.as_bytes());
+
+        // Write our name
+        data[offset..offset + self.name.len()].clone_from_slice(self.name.as_bytes());
+
+        // Add name length to our offset to write metadata
         offset += self.name.len();
-        buffer[offset..].clone_from_slice(self.metadata.as_bytes());
+
+        // Write metadata if exists
+        data[offset..].clone_from_slice(self.metadata.as_bytes());
         Ok(())
     }
 }

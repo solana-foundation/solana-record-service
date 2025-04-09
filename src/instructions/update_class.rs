@@ -4,23 +4,21 @@ use pinocchio_system::instructions::CreateAccount;
 
 use crate::{accounts::Class, sdk::Context};
 
-/// # CreateClass
+/// # UpdateClass
 /// 
 /// Create a new namespace for records 
 /// 
 /// Callers: D3, Ecosystem Partners
 /// 
 /// Parameters:
-/// is_permissioned: bool 
-/// name: String 
+/// is_frozen: bool 
 /// metadata: Option<String>
 /// 
 /// Accounts:
 /// Authority (signer)
 /// Class PDA
 /// System Program
-
-pub struct CreateClass<'info> {
+pub struct UpdateClass<'info> {
     accounts: CreateClassAccounts<'info>,
     is_permissioned: bool,
     name: &'info str,

@@ -4,11 +4,16 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "codama": "npx tsx codama.ts"
+    "codama": "npx tsx codama.ts",
+    "test": "mocha --import=tsx ./tests/test.spec.ts"
   },
   "dependencies": {
     "@codama/renderers": "^1.0.19",
+    "@solana/kit": "^2.1.0",
+    "@types/mocha": "^10.0.10",
     "codama": "^1.2.11",
+    "gill": "^0.8.2",
+    "mocha": "^11.1.0",
     "tsx": "^4.19.3"
   }
 }

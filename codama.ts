@@ -1,5 +1,5 @@
 import { renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
-import { accountNode, booleanTypeNode, CODAMA_ERROR__UNRECOGNIZED_NUMBER_FORMAT, constantDiscriminatorNode, constantValueNode, createFromRoot, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, programNode, publicKeyTypeNode, publicKeyValueNode, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, STANDALONE_VALUE_NODE_KINDS, stringTypeNode, structFieldTypeNode, structTypeNode, TYPE_NODES } from "codama"
+import { accountNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, programNode, publicKeyTypeNode, publicKeyValueNode, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, structFieldTypeNode, structTypeNode } from "codama"
 
 const root = rootNode(
     programNode({
@@ -53,6 +53,14 @@ const root = rootNode(
                         defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
                         isSigner: false,
                         isWritable: false,
+                        docs: ["System Program used to open our new class account"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        isOptional: true,
                         docs: ["System Program used to open our new class account"]
                     })
                 ]
