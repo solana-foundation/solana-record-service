@@ -1,9 +1,9 @@
-use instructions::CreateClass;
+use instructions::{CreateClass, UpdateClassMetadata, UpdateClassPermission};
 use pinocchio::{account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use sdk::Context;
 
 pub mod instructions;
-pub mod accounts;
+pub mod state;
 pub mod sdk;
 #[cfg(test)]
 pub mod tests;
@@ -20,6 +20,8 @@ fn process_instruction(
     let (discriminator, data) = instruction_data.split_first().ok_or(ProgramError::InvalidInstructionData)?;
     match discriminator {
         0 => CreateClass::process(Context { accounts, data }),
+        1 => UpdateClassMetadata::process(Context { accounts, data}),
+        2 => UpdateClassPermission::process(Context { accounts, data}),
         _ => Err(ProgramError::InvalidInstructionData)
     }
 

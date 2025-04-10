@@ -2,70 +2,47 @@ use core::mem::size_of;
 use pinocchio::{account_info::{self, AccountInfo}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{accounts::Class, sdk::Context};
+use crate::{state::Class, sdk::Context};
 
 /// # UpdateClass
 /// 
-/// Create a new namespace for records 
+/// Authority can update the metadata or permission of a class based on two 
+/// different instructions.
 /// 
 /// Callers: D3, Ecosystem Partners
 /// 
 /// Parameters:
-/// is_frozen: bool 
-/// metadata: Option<String>
+/// metadata: String for UpdateClassMetadata
+/// is_frozen: bool for UpdateClassPermission
 /// 
 /// Accounts:
 /// Authority (signer)
 /// Class PDA
 /// System Program
-pub struct UpdateClass<'info> {
-    accounts: CreateClassAccounts<'info>,
-    is_permissioned: bool,
-    name: &'info str,
+pub struct UpdateClassMetadata<'info> {
+    accounts: UpdateClassAccounts<'info>,
     metadata: &'info str,
 }
 
-pub struct CreateClassAccounts<'info> {
-    authority: &'info AccountInfo,
-    class: &'info AccountInfo,
-}
+pub const UPDATE_CLASS_METADATA_MIN_LENGTH: usize = size_of::<u8>();
 
-pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() + size_of::<u8>();
-
-impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
+impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
+        let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length of at least 5 for boolean and length bytes
-        if ctx.data.len() < CREATE_CLASS_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        let is_permissioned = ctx.data[0] == 1;
-        let name_len = ctx.data[1] as usize;
-
-        // Check IX data matches our name length
-        if ctx.data.len() < CREATE_CLASS_MIN_IX_LENGTH + name_len {
+        if ctx.data.len() < UPDATE_CLASS_METADATA_MIN_LENGTH {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        // Get name slice
-        let name = str::from_utf8(&ctx.data[CREATE_CLASS_MIN_IX_LENGTH..CREATE_CLASS_MIN_IX_LENGTH+name_len]).map_err(|_| ProgramError::InvalidInstructionData)?;
+        let metadata = str::from_utf8(&ctx.data[UPDATE_CLASS_METADATA_MIN_LENGTH..]).map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        // Get metadata slice (could be empty)
-        let metadata= str::from_utf8(&ctx.data[CREATE_CLASS_MIN_IX_LENGTH+name_len..]).map_err(|_| ProgramError::InvalidInstructionData)?;;
-
-        Ok( Self { 
-            accounts, 
-            is_permissioned, 
-            name, 
-            metadata
-        })
+        return Ok(UpdateClassMetadata { accounts, metadata });
     }
 }
 
-impl <'info> CreateClass<'info> {
+impl <'info> UpdateClassMetadata<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
@@ -122,7 +99,20 @@ impl <'info> CreateClass<'info> {
     }
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
+
+pub struct UpdateClassPermission<'info> {
+    accounts: UpdateClassAccounts<'info>,
+    is_permissioned: bool,
+}
+
+pub const UPDATE_CLASS_PERMISSION_LENGTH: usize = size_of::<bool>();
+
+pub struct UpdateClassAccounts<'info> {
+    authority: &'info AccountInfo,
+    class: &'info AccountInfo,
+}
+
+impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
