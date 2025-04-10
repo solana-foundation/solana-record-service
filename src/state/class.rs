@@ -37,11 +37,8 @@ impl<'info> Class<'info> {
 
         let mut offset = Self::MINIMUM_CLASS_SIZE;
 
-        if data.len() <= offset {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
         let name_len = data[offset] as usize;
+        
         offset += 1;
 
         if data.len() < offset + name_len {
