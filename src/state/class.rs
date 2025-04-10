@@ -20,7 +20,11 @@ impl<'info> Class<'info> {
         + 32                                // credential_account (pubkey)
         + 1;                                // name_len
 
-    pub fn load(&self, data: &'info [u8]) -> Result<Self, ProgramError> {
+    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
+        if data.len() < Self::MINIMUM_CLASS_SIZE {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+
         let authority: Pubkey = data[..32].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
         let is_frozen: bool = data[32] == 1;
@@ -33,16 +37,25 @@ impl<'info> Class<'info> {
 
         let mut offset = Self::MINIMUM_CLASS_SIZE;
 
-        let name_len = data[offset] as usize;
+        if data.len() <= offset {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
 
+        let name_len = data[offset] as usize;
         offset += 1;
+
+        if data.len() < offset + name_len {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
 
         let name: &'info str = str::from_utf8(
             &data[offset..offset + name_len]
         ).map_err(|_| ProgramError::InvalidAccountData)?;
 
+        offset += name_len;
+
         let metadata: &'info str = str::from_utf8(
-            &data[offset+name_len..]
+            &data[offset..]
         ).map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(Self {
@@ -132,6 +145,4 @@ impl<'info> Class<'info> {
 
         Ok(())
     }
-
-
 }

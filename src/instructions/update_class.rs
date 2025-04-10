@@ -1,8 +1,7 @@
 use core::mem::size_of;
-use pinocchio::{account_info::{self, AccountInfo}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
-use pinocchio_system::instructions::CreateAccount;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::{state::Class, sdk::Context};
+use crate::{state::Class, sdk::Context, utils::resize_account};
 
 /// # UpdateClass
 /// 
@@ -19,93 +18,6 @@ use crate::{state::Class, sdk::Context};
 /// Authority (signer)
 /// Class PDA
 /// System Program
-pub struct UpdateClassMetadata<'info> {
-    accounts: UpdateClassAccounts<'info>,
-    metadata: &'info str,
-}
-
-pub const UPDATE_CLASS_METADATA_MIN_LENGTH: usize = size_of::<u8>();
-
-impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
-    type Error = ProgramError;
-
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
-
-        if ctx.data.len() < UPDATE_CLASS_METADATA_MIN_LENGTH {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let metadata = str::from_utf8(&ctx.data[UPDATE_CLASS_METADATA_MIN_LENGTH..]).map_err(|_| ProgramError::InvalidInstructionData)?;
-
-        return Ok(UpdateClassMetadata { accounts, metadata });
-    }
-}
-
-impl <'info> UpdateClassMetadata<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        Self::try_from(ctx)?.execute()
-    }
-
-    pub fn execute(&self) -> ProgramResult {
-        let space = self.name.len() + self.metadata.len() + 3;
-        let rent = Rent::get()?.minimum_balance(space);
-
-        let lamports = rent.saturating_sub(self.accounts.class.lamports());
-
-        let name_hash = solana_nostd_sha256::hash(self.name.as_bytes());
-
-        let seeds = [
-            b"class",
-            self.accounts.authority.key().as_ref(),
-            &name_hash,
-        ];
-            
-        let bump: [u8;1] = [try_find_program_address(&seeds,&crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
-
-        let seeds = [
-            Seed::from(b"class"),
-            Seed::from(self.accounts.authority.key()),
-            Seed::from(&name_hash),
-            Seed::from(&bump)
-        ];
-
-        let signers = [Signer::from(&seeds)];
-
-        CreateAccount {
-            from: self.accounts.authority,
-            to: self.accounts.class,
-            lamports,
-            space: space as u64,
-            owner: &crate::ID
-        }.invoke_signed(
-            &signers
-        )?;
-
-        let new_class = Class {
-            authority: *self.accounts.authority.key(),
-            is_frozen: false,
-            credential_account: if self.is_permissioned {
-               Some(*self.accounts.authority.key())
-            } else {
-                None
-            },
-            name: self.name,
-            metadata: self.metadata
-        };
-
-        let mut data: account_info::RefMut<'_, [u8]> = self.accounts.class.try_borrow_mut_data()?;
-        new_class.initialize(&mut data)
-    }
-}
-
-
-pub struct UpdateClassPermission<'info> {
-    accounts: UpdateClassAccounts<'info>,
-    is_permissioned: bool,
-}
-
-pub const UPDATE_CLASS_PERMISSION_LENGTH: usize = size_of::<bool>();
 
 pub struct UpdateClassAccounts<'info> {
     authority: &'info AccountInfo,
@@ -125,9 +37,109 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        if unsafe { class.owner().ne(&crate::ID) } {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        if unsafe { class.borrow_data_unchecked() }[0].ne(&Class::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         Ok(Self {
             authority,
             class
         })
+    }
+}
+
+pub struct UpdateClassMetadata<'info> {
+    accounts: UpdateClassAccounts<'info>,
+    metadata: &'info str,
+}
+
+pub const UPDATE_CLASS_METADATA_MIN_LENGTH: usize = size_of::<u8>();
+
+impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
+    type Error = ProgramError;
+
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+        let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
+
+        if ctx.data.len() < UPDATE_CLASS_METADATA_MIN_LENGTH {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let metadata = std::str::from_utf8(&ctx.data[UPDATE_CLASS_METADATA_MIN_LENGTH..]).map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        return Ok(UpdateClassMetadata { accounts, metadata });
+    }
+}
+
+impl <'info> UpdateClassMetadata<'info> {
+    pub fn process(ctx: Context<'info>) -> ProgramResult {
+        Self::try_from(ctx)?.execute()
+    }
+
+    pub fn execute(&self) -> ProgramResult {
+        let class_data = self.accounts.class.try_borrow_data()?;
+        let class = Class::from_bytes(&class_data)?;
+
+        // Calculate new account size based on metadata length difference
+        let current_metadata_len = class.metadata.len();
+        let new_metadata_len = self.metadata.len();
+        let size_diff = new_metadata_len.saturating_sub(current_metadata_len);
+        let new_account_size = class_data.len().saturating_add(size_diff);
+
+        // Resize the account if needed
+        resize_account(
+            self.accounts.class,
+            self.accounts.authority,
+            new_account_size,
+            new_metadata_len < current_metadata_len,
+        )?;
+
+        // Update the metadata
+        class.update_metadata(self.accounts.class, self.metadata)?;
+
+        Ok(())
+    }
+}
+
+const UPDATE_CLASS_PERMISSION_MIN_LENGTH: usize = size_of::<bool>();
+
+pub struct UpdateClassPermission<'info> {
+    accounts: UpdateClassAccounts<'info>,
+    is_permissioned: bool,
+}
+
+impl<'info> TryFrom<Context<'info>> for UpdateClassPermission<'info> {
+    type Error = ProgramError;
+
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+        let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
+
+        if ctx.data.len() < UPDATE_CLASS_PERMISSION_MIN_LENGTH {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let is_permissioned = ctx.data[UPDATE_CLASS_PERMISSION_MIN_LENGTH] == 1;
+
+        return Ok(UpdateClassPermission { accounts, is_permissioned });
+    }
+}
+
+impl <'info> UpdateClassPermission<'info> {
+    pub fn process(ctx: Context<'info>) -> ProgramResult {
+        Self::try_from(ctx)?.execute()
+    }
+
+    pub fn execute(&self) -> ProgramResult {
+        let class_data = self.accounts.class.try_borrow_data()?;
+        let class = Class::from_bytes(&class_data)?;
+
+        // Update the permission
+        class.update_is_frozen(self.accounts.class, self.is_permissioned)?;
+
+        Ok(())
     }
 }

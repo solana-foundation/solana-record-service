@@ -2,7 +2,7 @@ use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{state::Class, sdk::Context};
+use crate::{sdk::Context, state::{Class, Credential}};
 
 /// # CreateClass
 /// 
@@ -41,10 +41,14 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // If a credential account exists, check that it belongs to our program
+        // If a credential account exists, check that it belongs to our program and that it has the correct discriminator
         if let Some(credential_account) = credential {
             if unsafe { credential_account.owner().ne(&crate::ID)  } {
                 return Err(ProgramError::InvalidAccountOwner);
+            }
+
+            if unsafe { credential_account.borrow_data_unchecked() }[0].ne(&Credential::DISCRIMINATOR) {
+                return Err(ProgramError::InvalidAccountData);
             }
         }
 
@@ -160,7 +164,7 @@ impl <'info> CreateClass<'info> {
             authority: *self.accounts.authority.key(),
             is_frozen: false,
             credential_account: if self.is_permissioned {
-               Some(*self.accounts.authority.key())
+               Some(*self.accounts.credential.unwrap().key())
             } else {
                 None
             },

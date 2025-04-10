@@ -5,6 +5,7 @@ use sdk::Context;
 pub mod instructions;
 pub mod state;
 pub mod sdk;
+pub mod utils;
 #[cfg(test)]
 pub mod tests;
 
