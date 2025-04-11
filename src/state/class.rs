@@ -1,6 +1,7 @@
 use core::str;
 
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use crate::state::Credential;
 
 #[repr(C)]
 pub struct Class<'info> {
@@ -96,6 +97,43 @@ impl<'info> Class<'info> {
         offset += 1;
 
         data[offset + name_len..].clone_from_slice(metadata.as_bytes());
+
+        Ok(())
+    }
+
+    /// Validates that a credential account and its authority are properly configured
+    /// 
+    /// # Arguments
+    /// 
+    /// * `credential_account` - The account info for the credential
+    /// * `credential_authority` - The account info for the credential authority
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `Ok(())` if the validation passes, otherwise returns an appropriate `ProgramError`
+    pub fn validate_credential(
+        &self,
+        credential_account: &'info AccountInfo,
+        credential_authority: &'info AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Verify the credential account matches the one in the class
+        if credential_account.key().ne(&self.credential_account.unwrap()) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Verify the credential authority is a signer
+        if !credential_authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Verify the credential authority is authorized
+        let credential_borrowed_data = credential_account.try_borrow_data()?;
+        let credential_data = Credential::from_bytes(credential_borrowed_data.as_ref())?;
+        
+        // Check if the credential authority is either the credential's authority OR in the authorized signers list
+        if credential_authority.key().ne(&credential_data.authority) && !credential_data.authorized_signers.contains(credential_authority.key()) {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         Ok(())
     }

@@ -23,7 +23,8 @@ use crate::{sdk::Context, state::{Class, Credential}};
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
-    credential: Option<&'info AccountInfo>
+    credential: Option<&'info AccountInfo>,
+    credential_authority: Option<&'info AccountInfo>
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
@@ -35,27 +36,18 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
         };
 
         let credential = rest.first();
+        let credential_authority = rest.get(1);
 
         // Account Checks
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // If a credential account exists, check that it belongs to our program and that it has the correct discriminator
-        if let Some(credential_account) = credential {
-            if unsafe { credential_account.owner().ne(&crate::ID)  } {
-                return Err(ProgramError::InvalidAccountOwner);
-            }
-
-            if unsafe { credential_account.borrow_data_unchecked() }[0].ne(&Credential::DISCRIMINATOR) {
-                return Err(ProgramError::InvalidAccountData);
-            }
-        }
-
         Ok(Self {
             authority,
             class,
-            credential
+            credential,
+            credential_authority
         })
     }
 }
@@ -81,6 +73,27 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         }
 
         let is_permissioned = ctx.data[0] == 1;
+        
+        if is_permissioned {
+            if accounts.credential.is_none() || accounts.credential_authority.is_none() {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            let credential_account = accounts.credential.unwrap();
+            let credential_authority = accounts.credential_authority.unwrap();
+
+            // Verify the credential authority is a signer
+            if !credential_authority.is_signer() {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
+
+            // Verify the credential authority is authorized
+            let credential_borrowed_data = credential_account.try_borrow_data()?;
+            let credential_data = Credential::from_bytes(credential_borrowed_data.as_ref())?;
+            if credential_authority.key().ne(&credential_data.authority) && !credential_data.authorized_signers.contains(credential_authority.key()) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
         let name_len = ctx.data[1] as usize;
 
         // Check IX data matches our name length

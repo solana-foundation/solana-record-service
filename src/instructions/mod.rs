@@ -9,3 +9,6 @@ pub use create_credential::*;
 
 pub mod update_credential;
 pub use update_credential::*;
+
+pub mod create_record;
+pub use create_record::*;
