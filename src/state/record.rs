@@ -183,4 +183,40 @@ impl<'info> Record<'info> {
 
         Ok(())
     }
+
+    pub fn update_data(&self, account_info: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut account_data = account_info.try_borrow_mut_data()?;
+
+        // Write our discriminator
+        if account_data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update metadata
+        let mut offset = Self::MINIMUM_CLASS_SIZE;
+
+        let name_len: usize = account_data[offset] as usize;
+
+        offset += 1;
+
+        account_data[offset + name_len..].clone_from_slice(data.as_bytes());
+
+        Ok(())
+    }
+
+    pub fn update_owner(&self, account_info: &'info AccountInfo, new_owner: Pubkey) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut data = account_info.try_borrow_mut_data()?;
+
+        // Write our discriminator
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update is_frozen
+        data[33..65].clone_from_slice(&new_owner);
+
+        Ok(())
+    }
 }

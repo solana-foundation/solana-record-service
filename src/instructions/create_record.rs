@@ -2,7 +2,7 @@ use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{sdk::Context, state::{Record, Class, Credential}};
+use crate::{sdk::Context, state::{Record, Class}};
 
 /// # CreateRecord
 /// 
