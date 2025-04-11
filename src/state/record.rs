@@ -219,4 +219,19 @@ impl<'info> Record<'info> {
 
         Ok(())
     }
+
+    pub fn update_is_frozen(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        // Borrow our account data
+        let mut data = account_info.try_borrow_mut_data()?;
+
+        // Write our discriminator
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update is_frozen to the opposite of current value
+        data[65] = if data[65] == 1 { 0 } else { 1 };
+
+        Ok(())
+    }
 }

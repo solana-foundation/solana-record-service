@@ -1,25 +1,21 @@
-use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
 use crate::{sdk::Context, state::{Record, RecordAuthorityExtension}};
 
-/// # TransferRecord
+/// # FreezeRecord
 /// 
-/// Transfers the ownership of a record to a new owner. Performed by
+/// Freezes or unfreezes a record to prevent modifications. Performed by
 /// the owner of the record or by the record_delegate.
 /// 
 /// Accounts:
-/// 1. Authority            [signer, mut]
+/// 1. Authority             [signer, mut]
 /// 2. record               [mut]
 /// 3. record_delegate      [optional]
-/// 
-/// Parameters:
-/// 1. new_owner            [Pubkey]
-pub struct TransferRecordAccounts<'info> {
+pub struct FreezeRecordAccounts<'info> {
     record: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
+impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
@@ -44,7 +40,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
                 let delegate_data = record_delegate.try_borrow_data()?;
                 let record_authority_extension = RecordAuthorityExtension::from_bytes(&delegate_data)?;
                 
-                if record_authority_extension.transfer_authority != *authority.key() {
+                if record_authority_extension.freeze_authority != *authority.key() {
                     return Err(ProgramError::InvalidAccountData);
                 }
             } else {
@@ -58,35 +54,24 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
     }
 }
 
-pub struct TransferRecord<'info> {
-    accounts: TransferRecordAccounts<'info>,
-    new_owner: Pubkey,
+pub struct FreezeRecord<'info> {
+    accounts: FreezeRecordAccounts<'info>,
 }
 
-pub const TRANSFER_RECORD_MIN_IX_LENGTH: usize = size_of::<Pubkey>();
-
-impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
-        let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
-
-        // Check ix data has minimum length
-        if ctx.data.len() < TRANSFER_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let new_owner: Pubkey = ctx.data[0..32].try_into().map_err(|_| ProgramError::InvalidInstructionData)?;
+        let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self {
             accounts,
-            new_owner
         })
     }
 }
 
-impl<'info> TransferRecord<'info> {
+impl<'info> FreezeRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
@@ -95,7 +80,8 @@ impl<'info> TransferRecord<'info> {
         let record_data = self.accounts.record.try_borrow_data()?;
         let record = Record::from_bytes(&record_data)?;
 
-        record.update_owner(self.accounts.record, self.new_owner)?;
+        // Update the is_frozen
+        record.update_is_frozen(self.accounts.record)?;
 
         Ok(())
     }

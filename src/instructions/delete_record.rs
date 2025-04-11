@@ -1,12 +1,12 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::{sdk::Context, state::{Record, RecordAuthorityExtension}};
+use crate::{sdk::Context, state::{Record, RecordAuthorityExtension}, utils::resize_account};
 
-/// # TransferRecord
+/// # DeleteRecord
 /// 
-/// Transfers the ownership of a record to a new owner. Performed by
-/// the owner of the record or by the record_delegate.
+/// Marks a record as deleted and closes the account. Performed by
+/// the authority of the record or by the record_delegate.
 /// 
 /// Accounts:
 /// 1. Authority            [signer, mut]
@@ -14,12 +14,13 @@ use crate::{sdk::Context, state::{Record, RecordAuthorityExtension}};
 /// 3. record_delegate      [optional]
 /// 
 /// Parameters:
-/// 1. new_owner            [Pubkey]
-pub struct TransferRecordAccounts<'info> {
+/// 1. data                 [str]
+pub struct DeleteRecordAccounts<'info> {
+    authority: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
+impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
@@ -44,7 +45,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
                 let delegate_data = record_delegate.try_borrow_data()?;
                 let record_authority_extension = RecordAuthorityExtension::from_bytes(&delegate_data)?;
                 
-                if record_authority_extension.transfer_authority != *authority.key() {
+                if record_authority_extension.burn_authority != *authority.key() {
                     return Err(ProgramError::InvalidAccountData);
                 }
             } else {
@@ -53,49 +54,46 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
         }
 
         Ok(Self {
+            authority,
             record,
         })
     }
 }
 
-pub struct TransferRecord<'info> {
-    accounts: TransferRecordAccounts<'info>,
-    new_owner: Pubkey,
+pub struct DeleteRecord<'info> {
+    accounts: DeleteRecordAccounts<'info>,
 }
 
-pub const TRANSFER_RECORD_MIN_IX_LENGTH: usize = size_of::<Pubkey>();
+pub const UPDATE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for DeleteRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
-        let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
-
-        // Check ix data has minimum length
-        if ctx.data.len() < TRANSFER_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let new_owner: Pubkey = ctx.data[0..32].try_into().map_err(|_| ProgramError::InvalidInstructionData)?;
+        let accounts = DeleteRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self {
             accounts,
-            new_owner
         })
     }
 }
 
-impl<'info> TransferRecord<'info> {
+impl<'info> DeleteRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let record_data = self.accounts.record.try_borrow_data()?;
-        let record = Record::from_bytes(&record_data)?;
+        // Realloc the record account data to 0 bytes
+        self.accounts.record.realloc(0, true)?;
 
-        record.update_owner(self.accounts.record, self.new_owner)?;
+        // Transfer the lamports from the record to the authority
+        *self.accounts.authority.try_borrow_mut_lamports()? += *self.accounts.record.try_borrow_lamports()?;
+        *self.accounts.record.try_borrow_mut_lamports()? = 0;
+
+        // Close the record account
+        self.accounts.record.close()?;
 
         Ok(())
     }
