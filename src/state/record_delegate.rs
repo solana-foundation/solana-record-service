@@ -12,7 +12,7 @@ pub struct RecordAuthorityExtension {
 
 impl RecordAuthorityExtension {
     pub const DISCRIMINATOR: u8 = 3;
-    pub const MINIMUM_CLASS_SIZE: usize = 1 // discriminator
+    pub const MINIMUM_RECORD_SIZE: usize = 1 // discriminator
         + 32                                // record
         + 32                                // update_authority
         + 32                                // freeze_authority
@@ -21,7 +21,7 @@ impl RecordAuthorityExtension {
         + 33;                               // authority_program (option)
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::MINIMUM_CLASS_SIZE {
+        if data.len() < Self::MINIMUM_RECORD_SIZE {
             return Err(ProgramError::AccountDataTooSmall);
         }
 

@@ -49,7 +49,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordDelegateAccounts<'info
         })
     }
 }
-pub struct CreateClass<'info> {
+pub struct CreateRecordDelegate<'info> {
     accounts: CreateRecordDelegateAccounts<'info>,
     update_authority: Pubkey,
     freeze_authority: Pubkey,
@@ -59,7 +59,7 @@ pub struct CreateClass<'info> {
 
 pub const CREATE_RECORD_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 3 + size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
+impl<'info> TryFrom<Context<'info>> for CreateRecordDelegate<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
@@ -90,13 +90,13 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     }
 }
 
-impl <'info> CreateClass<'info> {
+impl <'info> CreateRecordDelegate<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let space = RecordAuthorityExtension::MINIMUM_CLASS_SIZE;
+        let space = RecordAuthorityExtension::MINIMUM_RECORD_SIZE;
         let rent = Rent::get()?.minimum_balance(space);
         let lamports = rent.saturating_sub(self.accounts.record.lamports());
 
