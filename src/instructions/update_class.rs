@@ -109,7 +109,7 @@ const UPDATE_CLASS_PERMISSION_MIN_LENGTH: usize = size_of::<bool>();
 
 pub struct UpdateClassPermission<'info> {
     accounts: UpdateClassAccounts<'info>,
-    is_permissioned: bool,
+    is_frozen: bool,
 }
 
 impl<'info> TryFrom<Context<'info>> for UpdateClassPermission<'info> {
@@ -122,9 +122,9 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassPermission<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let is_permissioned = ctx.data[UPDATE_CLASS_PERMISSION_MIN_LENGTH] == 1;
+        let is_frozen = ctx.data[UPDATE_CLASS_PERMISSION_MIN_LENGTH] == 1;
 
-        return Ok(UpdateClassPermission { accounts, is_permissioned });
+        return Ok(UpdateClassPermission { accounts, is_frozen });
     }
 }
 
@@ -138,7 +138,7 @@ impl <'info> UpdateClassPermission<'info> {
         let class = Class::from_bytes(&class_data)?;
 
         // Update the permission
-        class.update_is_frozen(self.accounts.class, self.is_permissioned)?;
+        class.update_is_frozen(self.accounts.class, self.is_frozen)?;
 
         Ok(())
     }
