@@ -1,4 +1,4 @@
-use instructions::{CreateClass, UpdateClassMetadata, UpdateClassPermission};
+use instructions::{CreateClass, CreateCredential, UpdateClassMetadata, UpdateClassPermission};
 use pinocchio::{account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use sdk::Context;
 
@@ -22,8 +22,9 @@ fn process_instruction(
     let (discriminator, data) = instruction_data.split_first().ok_or(ProgramError::InvalidInstructionData)?;
     match discriminator {
         0 => CreateClass::process(Context { accounts, data }),
-        1 => UpdateClassMetadata::process(Context { accounts, data}),
-        2 => UpdateClassPermission::process(Context { accounts, data}),
+        1 => CreateCredential::process(Context { accounts, data }),
+        2 => UpdateClassMetadata::process(Context { accounts, data}),
+        3 => UpdateClassPermission::process(Context { accounts, data}),
         _ => Err(ProgramError::InvalidInstructionData)
     }
 }

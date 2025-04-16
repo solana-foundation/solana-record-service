@@ -18,12 +18,12 @@ mod tests {
     fn create_class() {
         let program_id = Pubkey::new_from_array(crate::ID);
 
-        let name = "test";
-        let name_hash = solana_nostd_sha256::hash(name.as_bytes());
+        let class_name = "class_test";
+        let class_name_hash = solana_nostd_sha256::hash(class_name.as_bytes());
 
         // Accounts
         let authority = Pubkey::new_from_array([2; 32]);
-        let (class, _) = Pubkey::find_program_address(&[b"class", &authority.to_bytes(), &name_hash], &program_id);
+        let (class, _) = Pubkey::find_program_address(&[b"class", &authority.to_bytes(), &class_name_hash], &program_id);
         let (system_program, system_program_data) = keyed_account_for_system_program();
 
         let create_class_instruction = Instruction::new_with_bytes(
@@ -31,7 +31,7 @@ mod tests {
             &[
                 &[0u8], // discriminator
                 &[0u8], // is_permissioned
-                name.as_ref(),
+                class_name.as_ref(),
             ]
             .concat(),
             vec![
@@ -62,12 +62,12 @@ mod tests {
     fn create_class_with_metadata() {
         let program_id = Pubkey::new_from_array(crate::ID);
 
-        let name = "test";
-        let name_hash = solana_nostd_sha256::hash(name.as_bytes());
-        let metadata = "metadata";
+        let class_name = "class_test";
+        let class_name_hash = solana_nostd_sha256::hash(class_name.as_bytes());
+        let class_metadata = "metadata";
         // Accounts
         let authority = Pubkey::new_from_array([2; 32]);
-        let (class, _) = Pubkey::find_program_address(&[b"class", &authority.to_bytes(), &name_hash], &program_id);
+        let (class, _) = Pubkey::find_program_address(&[b"class", &authority.to_bytes(), &class_name_hash], &program_id);
         let (system_program, system_program_data) = keyed_account_for_system_program();
 
         let create_class_instruction = Instruction::new_with_bytes(
@@ -75,8 +75,8 @@ mod tests {
             &[
                 &[0u8], // discriminator
                 &[0u8], // is_permissioned
-                name.as_ref(),
-                metadata.as_ref(),
+                class_name.as_ref(),
+                class_metadata.as_ref(),
             ]
             .concat(),
             vec![
@@ -119,7 +119,7 @@ mod tests {
         let (class, _) = Pubkey::find_program_address(&[b"class", &authority.to_bytes(), &class_name_hash], &program_id);
         let (system_program, system_program_data) = keyed_account_for_system_program();
 
-        let credential_account = create_credential_account(&mut mollusk, authority, credential_name, "metadata");
+        let credential_account = create_credential_account(&mut mollusk, authority, credential_name, &[]);
 
         let create_class_instruction = Instruction::new_with_bytes(
             program_id,
@@ -156,12 +156,13 @@ mod tests {
     }
 }
 
-fn create_credential_account(mollusk: &mut Mollusk, authority: Pubkey, name: &str, metadata: &str) -> AccountSharedData {
+fn create_credential_account(mollusk: &mut Mollusk, authority: Pubkey, name: &str, authorized_signers: &[Pubkey]) -> AccountSharedData {
     let data = [
         &0u64.to_le_bytes()[..],
         &authority.to_bytes()[..],
         &name.as_bytes()[..],
-        &metadata.as_bytes()[..],
+        &authorized_signers.len().to_le_bytes()[..],
+        &authorized_signers.iter().map(|s| s.to_bytes()).flatten().collect::<Vec<u8>>()[..],
     ].concat();
 
     let mut credential_account = AccountSharedData::new(
