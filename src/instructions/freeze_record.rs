@@ -1,3 +1,5 @@
+use core::mem::size_of;
+
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
 use crate::{sdk::Context, state::{Record, RecordAuthorityExtension}};
@@ -56,8 +58,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
 
 pub struct FreezeRecord<'info> {
     accounts: FreezeRecordAccounts<'info>,
+    is_frozen: bool,
 }
 
+const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
     type Error = ProgramError;
 
@@ -65,8 +69,15 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
         // Deserialize our accounts array
         let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
 
+        if ctx.data.len() < FREEZE_RECORD_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let is_frozen = ctx.data[0] == 1;
+
         Ok(Self {
             accounts,
+            is_frozen,
         })
     }
 }
@@ -78,10 +89,10 @@ impl<'info> FreezeRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         let record_data = self.accounts.record.try_borrow_data()?;
-        let record = Record::from_bytes(&record_data)?;
+        let mut record = Record::from_bytes(&record_data)?;
 
         // Update the is_frozen
-        record.update_is_frozen(self.accounts.record)?;
+        record.update_is_frozen(self.is_frozen)?;
 
         Ok(())
     }

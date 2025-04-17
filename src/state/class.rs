@@ -1,4 +1,4 @@
-use core::str;
+use core::{mem::size_of, str};
 
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use crate::state::Credential;
@@ -19,24 +19,40 @@ impl<'info> Class<'info> {
         + 1                                 // is_frozen
         + 1                                 // credential_account (option)
         + 32                                // credential_account (pubkey)
-        + 1;                                // name_len
+        + 1;                                // name_len  
+
+    pub fn check(account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        if unsafe { account_info.borrow_data_unchecked() }[0].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
+    }
 
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
         if data.len() < Self::MINIMUM_CLASS_SIZE {
             return Err(ProgramError::AccountDataTooSmall);
         }
 
-        let authority: Pubkey = data[..32].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
-        let is_frozen: bool = data[32] == 1;
+        let authority: Pubkey = data[1..33].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let credential_account: Option<Pubkey> = if data[33] == 0 {
+        let is_frozen: bool = data[33] == 1;
+
+        let credential_account: Option<Pubkey> = if data[34] == 0 {
             None
         } else {
-            Some(data[34..66].try_into().map_err(|_| ProgramError::InvalidAccountData)?)
+            Some(data[35..67].try_into().map_err(|_| ProgramError::InvalidAccountData)?)
         };
 
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
+        let mut offset = size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() + size_of::<u8>() + size_of::<Pubkey>();
 
         let name_len = data[offset] as usize;
         
@@ -65,38 +81,16 @@ impl<'info> Class<'info> {
         })
     }
 
-    pub fn update_is_frozen(&self, account_info: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
-        // Borrow our account data
-        let mut data = account_info.try_borrow_mut_data()?;
-
-        // Write our discriminator
-        if data[0] != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+    pub fn update_is_frozen(&mut self, is_frozen: bool) -> Result<(), ProgramError> {
         // Update is_frozen
-        data[33] = is_frozen as u8;
+        self.is_frozen = is_frozen;
 
         Ok(())
     }
 
-    pub fn update_metadata(&self, account_info: &'info AccountInfo, metadata: &'info str) -> Result<(), ProgramError> {
-        // Borrow our account data
-        let mut data = account_info.try_borrow_mut_data()?;
-
-        // Write our discriminator
-        if data[0] != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+    pub fn update_metadata(&mut self, metadata: &'info str) -> Result<(), ProgramError> {
         // Update metadata
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
-
-        let name_len: usize = data[offset] as usize;
-
-        offset += 1;
-
-        data[offset + name_len..].clone_from_slice(metadata.as_bytes());
+        self.metadata = metadata;
 
         Ok(())
     }
@@ -139,6 +133,14 @@ impl<'info> Class<'info> {
     }
 
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        // Calculate required space
+        let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
+        
+        // Verify account has enough space
+        if account_info.data_len() != required_space {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
 
@@ -161,7 +163,7 @@ impl<'info> Class<'info> {
             data[35..67].clone_from_slice(&[0u8; 32]);
         }
 
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
+        let mut offset = size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() + size_of::<u8>() + size_of::<Pubkey>();
 
         // Write the length of our name or error if overflowed
         data[offset] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;

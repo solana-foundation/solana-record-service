@@ -1,6 +1,6 @@
-use core::str;
+use core::{str, mem::size_of};
 
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey};
 
 /// Represents a record that can be associated with a class.
 /// The data layout is as follows:
@@ -59,22 +59,40 @@ impl<'info> Record<'info> {
             return Err(ProgramError::AccountDataTooSmall);
         }
 
+        let mut offset = 0;
+
+        if data[offset] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        offset += size_of::<u8>();
+
         // Read class (32 bytes)
-        let class: Pubkey = data[..32]
+        let class: Pubkey = data[offset..offset + size_of::<Pubkey>()]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        offset += size_of::<Pubkey>();
 
         // Read owner (32 bytes)
-        let owner: Pubkey = data[32..64]
+        let owner: Pubkey = data[offset..offset + size_of::<Pubkey>()]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let is_frozen: bool = data[64] == 1;
-        let has_authority_extension: bool = data[65] == 1;
+        offset += size_of::<Pubkey>();
 
-        let expiry: Option<i64> = if has_authority_extension {
+        let is_frozen: bool = data[offset] == 1;
+        offset += size_of::<u8>();
+
+        let has_authority_extension: bool = data[offset] == 1;
+        offset += size_of::<u8>();
+
+        let has_expiry: bool = data[offset] == 1;
+        offset += size_of::<u8>();
+
+        let expiry: Option<i64> = if has_expiry {
             Some(i64::from_le_bytes(
-                data[66..74]
+                data[offset..offset + size_of::<i64>()]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidAccountData)?,
             ))
@@ -82,14 +100,14 @@ impl<'info> Record<'info> {
             None
         };
 
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
+        offset += size_of::<i64>();
 
         // Read name length (1 byte)
         let name_len = data[offset] as usize;
 
-        offset += 1;
+        offset += size_of::<u8>();
 
-        // Verify we have enough data for the name
+        // Check if we have enough data for the name
         if data.len() < offset + name_len {
             return Err(ProgramError::AccountDataTooSmall);
         }
@@ -97,20 +115,11 @@ impl<'info> Record<'info> {
         // Read name string
         let name: &'info str = str::from_utf8(&data[offset..offset + name_len])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        
         offset += name_len;
 
-        // Read data length (1 byte)
-        let data_len = data[offset] as usize;
-
-        offset += 1;
-
-        // Verify we have enough data for the content
-        if data.len() < offset + data_len {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
         // Read data content
-        let data_content: &'info str = str::from_utf8(&data[offset..offset + data_len])
+        let data_content: &'info str = str::from_utf8(&data[offset..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         Ok(Self {
@@ -131,11 +140,7 @@ impl<'info> Record<'info> {
     /// The account must be properly allocated with enough space for all data.
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         // Verify the account has enough space
-        let required_size = Self::MINIMUM_CLASS_SIZE
-            + 1 // name_len
-            + self.name.len() // name bytes
-            + 1 // data_len
-            + self.data.len(); // data bytes
+        let required_size = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
 
         if account_info.data_len() < required_size {
             return Err(ProgramError::AccountDataTooSmall);
@@ -144,93 +149,85 @@ impl<'info> Record<'info> {
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
 
+        let mut offset = 0;
+
         // Write discriminator
-        data[0] = Self::DISCRIMINATOR;
+        data[offset] = Self::DISCRIMINATOR;
+        
+        offset += size_of::<u8>();
 
         // Write class
-        data[1..33].clone_from_slice(&self.class);
+        data[offset..offset + size_of::<Pubkey>()].clone_from_slice(&self.class);
+
+        offset += size_of::<Pubkey>();
 
         // Write owner
-        data[33..65].clone_from_slice(&self.owner);
+        data[offset..offset + size_of::<Pubkey>()].clone_from_slice(&self.owner);
+
+        offset += size_of::<Pubkey>();
 
         // Write is_frozen
-        data[65] = self.is_frozen as u8;
+        data[offset] = self.is_frozen as u8;
+
+        offset += size_of::<u8>();
 
         // Write has_authority_extension
-        data[66] = self.has_authority_extension as u8;
+        data[offset] = self.has_authority_extension as u8;
+
+        offset += size_of::<u8>();
 
         // Write expiry if present
         if self.has_authority_extension {
-            data[67..75].clone_from_slice(&self.expiry.unwrap().to_le_bytes());
+            data[offset] = 1;
+
+            offset += size_of::<u8>();
+
+            data[offset..offset + size_of::<i64>()].clone_from_slice(&self.expiry.unwrap().to_le_bytes());
         } else {
-            data[67..75].fill(0);
+            data[offset] = 0;
+
+            offset += size_of::<u8>();
+
+            data[offset..offset + size_of::<i64>()].fill(0);
         }
+
+        offset += size_of::<i64>();
 
         // Write name length
-        data[75] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        data[offset] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+
+        offset += size_of::<u8>();
+
+        // Check if we have enough space for the name
+        if data.len() < offset + self.name.len() {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
 
         // Write name
-        let name_start = 76;
-        data[name_start..name_start + self.name.len()].clone_from_slice(self.name.as_bytes());
+        data[offset..offset + self.name.len()].clone_from_slice(self.name.as_bytes());
 
-        // Write data length
-        let data_len_pos = name_start + self.name.len();
-        data[data_len_pos] = self.data.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        offset += self.name.len();
 
-        // Write data content
-        let data_start = data_len_pos + 1;
-        data[data_start..data_start + self.data.len()].clone_from_slice(self.data.as_bytes());
+        // Write data
+        data[offset..].clone_from_slice(self.data.as_bytes());
 
         Ok(())
     }
 
-    pub fn update_data(&self, account_info: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
-        // Borrow our account data
-        let mut account_data = account_info.try_borrow_mut_data()?;
-
-        // Write our discriminator
-        if account_data[0] != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Update metadata
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
-
-        let name_len: usize = account_data[offset] as usize;
-
-        offset += 1;
-
-        account_data[offset + name_len..].clone_from_slice(data.as_bytes());
+    pub fn update_data(&mut self, data: &'info str) -> Result<(), ProgramError> {
+       self.data = data;
 
         Ok(())
     }
 
-    pub fn update_owner(&self, account_info: &'info AccountInfo, new_owner: Pubkey) -> Result<(), ProgramError> {
-        // Borrow our account data
-        let mut data = account_info.try_borrow_mut_data()?;
-
-        // Write our discriminator
-        if data[0] != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Update is_frozen
-        data[33..65].clone_from_slice(&new_owner);
+    pub fn update_owner(&mut self, new_owner: Pubkey) -> Result<(), ProgramError> {
+        self.owner = new_owner;
 
         Ok(())
     }
 
-    pub fn update_is_frozen(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
-        // Borrow our account data
-        let mut data = account_info.try_borrow_mut_data()?;
-
-        // Write our discriminator
-        if data[0] != Self::DISCRIMINATOR {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Update is_frozen to the opposite of current value
-        data[65] = if data[65] == 1 { 0 } else { 1 };
+    pub fn update_is_frozen(&mut self, is_frozen: bool) -> Result<(), ProgramError> {
+        self.is_frozen = is_frozen;
 
         Ok(())
     }

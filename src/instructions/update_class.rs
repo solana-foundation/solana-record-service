@@ -37,13 +37,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if unsafe { class.owner().ne(&crate::ID) } {
-            return Err(ProgramError::InvalidAccountOwner);
-        }
-
-        if unsafe { class.borrow_data_unchecked() }[0].ne(&Class::DISCRIMINATOR) {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        Class::check(class)?;
 
         Ok(Self {
             authority,
@@ -81,14 +75,16 @@ impl <'info> UpdateClassMetadata<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
+        // First get the current metadata length
         let class_data = self.accounts.class.try_borrow_data()?;
         let class = Class::from_bytes(&class_data)?;
+        let current_metadata_len = class.metadata.len();
+        drop(class_data);
 
         // Calculate new account size based on metadata length difference
-        let current_metadata_len = class.metadata.len();
         let new_metadata_len = self.metadata.len();
         let size_diff = new_metadata_len.saturating_sub(current_metadata_len);
-        let new_account_size = class_data.len().saturating_add(size_diff);
+        let new_account_size = self.accounts.class.data_len().saturating_add(size_diff);
 
         // Resize the account if needed
         resize_account(
@@ -98,8 +94,10 @@ impl <'info> UpdateClassMetadata<'info> {
             new_metadata_len < current_metadata_len,
         )?;
 
-        // Update the metadata
-        class.update_metadata(self.accounts.class, self.metadata)?;
+        // Now update the metadata
+        let class_data = self.accounts.class.try_borrow_mut_data()?;
+        let mut class = Class::from_bytes(&class_data)?;
+        class.update_metadata(self.metadata)?;
 
         Ok(())
     }
@@ -122,7 +120,7 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassPermission<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let is_frozen = ctx.data[UPDATE_CLASS_PERMISSION_MIN_LENGTH] == 1;
+        let is_frozen = ctx.data[0] == 1;
 
         return Ok(UpdateClassPermission { accounts, is_frozen });
     }
@@ -135,10 +133,10 @@ impl <'info> UpdateClassPermission<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         let class_data = self.accounts.class.try_borrow_data()?;
-        let class = Class::from_bytes(&class_data)?;
+        let mut class = Class::from_bytes(&class_data)?;
 
         // Update the permission
-        class.update_is_frozen(self.accounts.class, self.is_frozen)?;
+        class.update_is_frozen(self.is_frozen)?;
 
         Ok(())
     }

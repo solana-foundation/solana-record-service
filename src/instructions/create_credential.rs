@@ -65,20 +65,24 @@ impl<'info> TryFrom<Context<'info>> for CreateCredential<'info> {
         let name_len = ctx.data[0] as usize;
 
         let name = std::str::from_utf8(
-            &ctx.data[CREATE_CREDENTIAL_MIN_IX_LENGTH..CREATE_CREDENTIAL_MIN_IX_LENGTH + name_len]
+            &ctx.data[1..1 + name_len]
         ).map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        let authorized_signers_len = ctx.data[CREATE_CREDENTIAL_MIN_IX_LENGTH + name_len] as usize;
+        let authorized_signers_len = ctx.data[1 + name_len] as usize;
 
-        if authorized_signers_len < 1 || authorized_signers_len > 16 {
+        if authorized_signers_len > 16 {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let authorized_signers = unsafe {
-            std::slice::from_raw_parts(
-                ctx.data[CREATE_CREDENTIAL_MIN_IX_LENGTH + name_len + 1..CREATE_CREDENTIAL_MIN_IX_LENGTH + name_len + authorized_signers_len * 32].as_ptr() as *const Pubkey,
-                authorized_signers_len
-            )
+        let authorized_signers = if authorized_signers_len > 0 {
+            unsafe {
+                std::slice::from_raw_parts(
+                    ctx.data[1 + name_len..1 + name_len + authorized_signers_len * 32].as_ptr() as *const Pubkey,
+                    authorized_signers_len
+                )
+            }
+        } else {
+            &[]
         };
 
         Ok(Self {

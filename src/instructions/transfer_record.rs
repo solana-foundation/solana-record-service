@@ -93,9 +93,9 @@ impl<'info> TransferRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         let record_data = self.accounts.record.try_borrow_data()?;
-        let record = Record::from_bytes(&record_data)?;
+        let mut record = Record::from_bytes(&record_data)?;
 
-        record.update_owner(self.accounts.record, self.new_owner)?;
+        record.update_owner(self.new_owner)?;
 
         Ok(())
     }

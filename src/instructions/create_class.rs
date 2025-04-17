@@ -1,6 +1,6 @@
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
-use pinocchio_system::instructions::CreateAccount;
+use pinocchio_system::instructions::{CreateAccount, Transfer};
 
 use crate::{sdk::Context, state::{Class, Credential}};
 
@@ -70,7 +70,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         }
 
         let is_permissioned = ctx.data[0] == 1;
-        
+
         if is_permissioned {
             if accounts.credential.is_none() {
                 return Err(ProgramError::InvalidInstructionData);
@@ -85,6 +85,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
                 return Err(ProgramError::InvalidAccountData);
             }
         }
+
         let name_len = ctx.data[1] as usize;
 
         // Check IX data matches our name length
@@ -105,12 +106,13 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
             ).map_err(|_| ProgramError::InvalidInstructionData)?;
             
             let metadata_len = ctx.data[CREATE_CLASS_MIN_IX_LENGTH + name_len] as usize;
-            if ctx.data.len() != CREATE_CLASS_MIN_IX_LENGTH + name_len + metadata_len {
+
+            if ctx.data.len() != CREATE_CLASS_MIN_IX_LENGTH + name_len + size_of::<u8>() + metadata_len {
                 return Err(ProgramError::InvalidInstructionData);
             }
 
             let metadata = std::str::from_utf8(
-                &ctx.data[CREATE_CLASS_MIN_IX_LENGTH + name_len..CREATE_CLASS_MIN_IX_LENGTH + name_len + metadata_len]
+                &ctx.data[CREATE_CLASS_MIN_IX_LENGTH + name_len + metadata_len..]
             ).map_err(|_| ProgramError::InvalidInstructionData)?;
 
             Ok(Self {
@@ -154,6 +156,7 @@ impl <'info> CreateClass<'info> {
 
         let signers = [Signer::from(&seeds)];
 
+        // Create the account with our program as owner
         CreateAccount {
             from: self.accounts.authority,
             to: self.accounts.class,
@@ -178,4 +181,4 @@ impl <'info> CreateClass<'info> {
 
         class.initialize(self.accounts.class)
     }
-}
+} 

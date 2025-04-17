@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
 use crate::{sdk::Context, state::{Record, Class}};
@@ -105,7 +105,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
 
         let name_len = ctx.data[offset] as usize;
 
-        offset += 1;
+        offset += size_of::<u8>();
 
         if ctx.data.len() < offset + name_len {
             return Err(ProgramError::InvalidInstructionData);
@@ -117,16 +117,8 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
 
         offset += name_len;
 
-        let data_len = ctx.data[offset] as usize;
-
-        offset += 1;
-
-        if ctx.data.len() < offset + data_len {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
         let data = std::str::from_utf8(
-            &ctx.data[offset..offset + data_len]
+            &ctx.data[offset..]
         ).map_err(|_| ProgramError::InvalidInstructionData)?;
 
         Ok(Self {
@@ -152,7 +144,7 @@ impl <'info> CreateRecord<'info> {
         let name_hash = solana_nostd_sha256::hash(self.name.as_bytes());
 
         let seeds = [
-            b"credential",
+            b"record",
             self.accounts.class.key().as_ref(),
             &name_hash,
         ];
@@ -160,7 +152,7 @@ impl <'info> CreateRecord<'info> {
         let bump: [u8; 1] = [try_find_program_address(&seeds,&crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
 
         let seeds = [
-            Seed::from(b"credential"),
+            Seed::from(b"record"),
             Seed::from(self.accounts.class.key()),
             Seed::from(&name_hash),
             Seed::from(&bump)

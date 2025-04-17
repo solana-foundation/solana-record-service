@@ -35,6 +35,18 @@ impl<'info> Credential<'info> {
     /// Maximum number of authorized signers allowed
     pub const MAX_SIGNERS: usize = 16;
 
+    pub fn check(account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        if unsafe { account_info.borrow_data_unchecked() }[0].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
+    }
+
     /// Deserializes a credential from raw bytes
     /// 
     /// # Safety
@@ -46,12 +58,16 @@ impl<'info> Credential<'info> {
             return Err(ProgramError::AccountDataTooSmall);
         }
 
+        if data[0] != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Read authority (32 bytes)
-        let authority: Pubkey = data[..32]
+        let authority: Pubkey = data[1..33]
             .try_into()
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let mut offset = Self::MINIMUM_CLASS_SIZE;
+        let mut offset = core::mem::size_of::<u8>() + core::mem::size_of::<Pubkey>();
 
         // Read name length (1 byte)
         let name_len = data[offset] as usize;
@@ -66,13 +82,16 @@ impl<'info> Credential<'info> {
         // Read name string
         let name: &'info str = str::from_utf8(&data[offset..offset + name_len])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+        
         offset += name_len;
 
         // Read number of signers (1 byte)
         let signers_len = data[offset] as usize;
+
         if signers_len > Self::MAX_SIGNERS {
             return Err(ProgramError::InvalidAccountData);
         }
+
         offset += 1;
 
         // Verify we have enough data for all signers
@@ -207,14 +226,11 @@ impl<'info> Credential<'info> {
     /// 
     /// The account must be properly allocated with enough space for all data.
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
-        // Verify the account has enough space
-        let required_size = Self::MINIMUM_CLASS_SIZE 
-            + 1 // name length byte
-            + self.name.len() // name bytes
-            + 1 // signers length byte
-            + self.authorized_signers.len() * 32; // signer public keys
-
-        if account_info.data_len() < required_size {
+            // Calculate required space
+        let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.authorized_signers.len() * 32;
+    
+        // Verify account has enough space
+        if account_info.data_len() != required_space {
             return Err(ProgramError::AccountDataTooSmall);
         }
 
@@ -235,13 +251,12 @@ impl<'info> Credential<'info> {
         data[name_start..name_start + self.name.len()].clone_from_slice(self.name.as_bytes());
 
         // Write number of signers
-        let signers_len_pos = name_start + self.name.len();
-        data[signers_len_pos] = self.authorized_signers.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        data[name_start + self.name.len()] = self.authorized_signers.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
 
         // Write signers
-        let signers_start = signers_len_pos + 1;
+        let authorized_signers_start = name_start + self.name.len() + 1;
         for (i, signer) in self.authorized_signers.iter().enumerate() {
-            let start = signers_start + (i * 32);
+            let start = authorized_signers_start + (i * 32);
             data[start..start + 32].clone_from_slice(signer.as_ref());
         }
 

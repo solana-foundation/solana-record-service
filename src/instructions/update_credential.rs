@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{account_info::AccountInfo, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 
 use crate::{state::Credential, sdk::Context, utils::resize_account};
 
@@ -49,24 +49,30 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateCredentialAccounts<'info> {
     }
 }
 
-pub struct UpdateCredentialSigners<'info> {
+pub struct UpdateCredential<'info> {
     accounts: UpdateCredentialAccounts<'info>,
     signers: &'info [Pubkey],
 }
 
 pub const UPDATE_CREDENTIAL_MIN_LENGTH: usize = size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for UpdateCredentialSigners<'info> {
+impl<'info> TryFrom<Context<'info>> for UpdateCredential<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         let accounts = UpdateCredentialAccounts::try_from(ctx.accounts)?;
 
+        sol_log_64(0, 0, 0, 0, 0);
+
         if ctx.data.len() < UPDATE_CREDENTIAL_MIN_LENGTH {
             return Err(ProgramError::InvalidInstructionData);
         }
 
+        sol_log_64(1, 0, 0, 0, 0);
+
         let num_signers = ctx.data[0] as usize;
+
+        sol_log_64(2, 0, 0, 0, 0);
 
         // Create a slice of Pubkeys from the instruction data
         let signers = unsafe {
@@ -76,11 +82,13 @@ impl<'info> TryFrom<Context<'info>> for UpdateCredentialSigners<'info> {
             )
         };
 
+        sol_log_64(3, 0, 0, 0, 0);
+
         Ok(Self { accounts, signers })
     }
 }
 
-impl<'info> UpdateCredentialSigners<'info> {
+impl<'info> UpdateCredential<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
@@ -103,12 +111,18 @@ impl<'info> UpdateCredentialSigners<'info> {
             credential.modify_signer(*signer)?;
         }
 
+        sol_log_64(7, 0, 0, 0, 0);
+
         // Get the new number of signers after all modifications
         let new_signers_len = credential.authorized_signers.len();
+
+        sol_log_64(8, 0, 0, 0, 0);
 
         // Calculate the actual size difference based on the real changes
         let size_diff = new_signers_len.saturating_sub(initial_signers_len) * size_of::<Pubkey>();
         let new_account_size = credential_data.len().saturating_add(size_diff);
+
+        sol_log_64(9, 0, 0, 0, 0);
 
         // Resize the account if needed, based on the actual changes
         resize_account(
@@ -118,6 +132,8 @@ impl<'info> UpdateCredentialSigners<'info> {
             new_signers_len < initial_signers_len,
         )?;
 
+        sol_log_64(10, 0, 0, 0, 0);
+        
         Ok(())
     }
 }

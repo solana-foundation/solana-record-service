@@ -1,4 +1,5 @@
 use pinocchio::{account_info::AccountInfo, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio_system::instructions::Transfer;
 
 /// Resize an account and handle lamport transfers based on the new size
 /// 
@@ -23,24 +24,27 @@ pub fn resize_account(
         return Ok(());
     }
 
+    // Calculate rent requirements
     let rent = Rent::get()?;
     let new_minimum_balance = rent.minimum_balance(new_size);
-    let current_minimum_balance = rent.minimum_balance(target_account.data_len());
 
-    // Handle lamport transfers
-    if new_minimum_balance > current_minimum_balance {
+    // First handle lamport transfers
+    if new_minimum_balance > target_account.lamports() {
         // Need more lamports for rent exemption
-        let lamports_diff = new_minimum_balance.saturating_sub(current_minimum_balance);
-        *authority.try_borrow_mut_lamports()? = authority.lamports().saturating_sub(lamports_diff);
-        *target_account.try_borrow_mut_lamports()? = target_account.lamports().saturating_add(lamports_diff);
-    } else if new_minimum_balance < current_minimum_balance {
+        let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());        
+        Transfer {
+            from: authority,
+            to: target_account,
+            lamports: lamports_diff,
+        }.invoke()?;
+    } else if new_minimum_balance < target_account.lamports() {
         // Can return excess lamports to authority
-        let lamports_diff = current_minimum_balance.saturating_sub(new_minimum_balance);
+        let lamports_diff = target_account.lamports().saturating_sub(new_minimum_balance);
         *authority.try_borrow_mut_lamports()? = authority.lamports().saturating_add(lamports_diff);
         *target_account.try_borrow_mut_lamports()? = target_account.lamports().saturating_sub(lamports_diff);
     }
 
-    // Reallocate the account
+    // Now reallocate the account
     target_account.realloc(new_size, zero_out)?;
 
     Ok(())
