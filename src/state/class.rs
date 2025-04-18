@@ -21,11 +21,32 @@ impl<'info> Class<'info> {
         + 32                                // credential_account (pubkey)
         + 1;                                // name_len  
 
+    /// Validates a class account.
+    /// 
+    /// This method performs basic account validation:
+    /// 1. Verifies the account is owned by the program
+    /// 2. Verifies the account has the correct discriminator
+    /// 
+    /// # Arguments
+    /// 
+    /// * `account_info` - The account info to validate
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If all checks pass
+    /// * `Err(ProgramError)` - If any check fails
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::IllegalOwner` - If account is not owned by the program
+    /// * `ProgramError::InvalidAccountData` - If discriminator is incorrect
     pub fn check(account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+        // Check program ownership
         if unsafe { account_info.owner().ne(&crate::ID) } {
             return Err(ProgramError::IllegalOwner);
         }
 
+        // Check discriminator
         if unsafe { account_info.borrow_data_unchecked() }[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -179,6 +200,28 @@ impl<'info> Class<'info> {
 
         // Write metadata if exists
         data[offset..].clone_from_slice(self.metadata.as_bytes());
+
+        Ok(())
+    }
+
+    /// Validates that an account has authority over this class.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authority` - The account info to validate as the authority
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the account is the authority
+    /// * `Err(ProgramError)` - If the account is not the authority
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::InvalidAccountData` - If the account is not the authority
+    pub fn validate_authority(&self, authority: &AccountInfo) -> Result<(), ProgramError> {
+        if self.authority != *authority.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         Ok(())
     }

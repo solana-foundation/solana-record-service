@@ -1,27 +1,29 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
 use crate::{sdk::Context, state::{Record, Class}};
 
-/// # CreateRecord
+/// Represents the accounts required for creating a new record.
 /// 
-/// Creates a new record (e.g., a Twitter handle, a D3 domain) 
-/// that defines a namespace for records. D3, Integrator and Users
-/// can create record.
+/// A record represents an entity within a class (e.g., a Twitter handle, a D3 domain).
+/// This struct encapsulates all the accounts needed for the CreateRecord instruction.
 /// 
-/// Accounts:
-/// 1. Owner                [signer, mut]
-/// 2. class                [mut]
-/// 3. record               [mut]
-/// 4. system_program       [executable]
-/// 5. credential           [optional]
-/// 6. credential_authority [optional]
+/// # Accounts
 /// 
-/// Parameters:
-/// 1. expiry               [Option<i64>] 
-/// 2. name                 [str]
-/// 3. data                 [str]
+/// * `owner` - The account that will own the record (must be a signer)
+/// * `class` - The class account that this record belongs to
+/// * `record` - The new record account to be created
+/// 
+/// # Optional Accounts
+/// 
+/// * `credential` - Required if the class is permissioned
+/// * `credential_authority` - Required if the class is permissioned
+/// 
+/// # Security
+/// 
+/// The owner account must be a signer. If the class is permissioned, the credential
+/// and credential authority must be provided and validated.
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
     class: &'info AccountInfo,
@@ -31,6 +33,22 @@ pub struct CreateRecordAccounts<'info> {
 impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
     type Error = ProgramError;
 
+    /// Attempts to create a CreateRecordAccounts from a slice of AccountInfo.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `accounts` - A slice of AccountInfo containing the required accounts
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Self)` - If all required accounts are present and valid
+    /// * `Err(ProgramError)` - If accounts are missing or invalid
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::NotEnoughAccountKeys` - If insufficient accounts are provided
+    /// * `ProgramError::MissingRequiredSignature` - If owner is not a signer
+    /// * `ProgramError::InvalidAccountData` - If credential validation fails
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
         let [owner, class, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -60,6 +78,18 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
         })
     }
 }
+
+/// Represents the CreateRecord instruction with all its parameters.
+/// 
+/// This struct contains all the data needed to create a new record,
+/// including the accounts, name, data, and optional expiry.
+/// 
+/// # Fields
+/// 
+/// * `accounts` - The required accounts for the instruction
+/// * `expiry` - Optional timestamp when the record expires
+/// * `name` - The name of the record within its class
+/// * `data` - The data associated with the record
 pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
     expiry: Option<i64>,
@@ -67,11 +97,36 @@ pub struct CreateRecord<'info> {
     data: &'info str,
 }
 
+/// Minimum length of instruction data required for CreateRecord
+/// 
+/// This constant represents the minimum number of bytes needed in the instruction
+/// data, which includes:
+/// * 1 byte for expiry flag
+/// * 1 byte for name length
+/// * 1 byte for data length
 pub const CREATE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>() + size_of::<u8>() + size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
     type Error = ProgramError;
 
+    /// Attempts to create a CreateRecord instruction from a Context.
+    /// 
+    /// This function deserializes and validates the instruction data,
+    /// including parsing the optional expiry, name, and data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ctx` - The Context containing accounts and instruction data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Self)` - If the instruction data is valid
+    /// * `Err(ProgramError)` - If the data is invalid
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::InvalidInstructionData` - If data format is invalid
+    /// * `ProgramError::InvalidArgument` - If UTF-8 parsing fails
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = CreateRecordAccounts::try_from(ctx.accounts)?;
@@ -127,15 +182,44 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
             name,
             data
         })
-        
     }
 }
 
 impl <'info> CreateRecord<'info> {
+    /// Processes the CreateRecord instruction.
+    /// 
+    /// This is the main entry point for the CreateRecord instruction.
+    /// It validates the instruction and executes it if valid.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ctx` - The Context containing accounts and instruction data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the instruction executed successfully
+    /// * `Err(ProgramError)` - If execution failed
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
+    /// Executes the CreateRecord instruction.
+    /// 
+    /// This function:
+    /// 1. Calculates required account space and rent
+    /// 2. Derives the PDA for the record account
+    /// 3. Creates the new account
+    /// 4. Initializes the record data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If execution was successful
+    /// * `Err(ProgramError)` - If any step failed
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::InvalidArgument` - If PDA derivation fails
+    /// * Various other errors from account creation and initialization
     pub fn execute(&self) -> ProgramResult {
         let space = Record::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
         let rent = Rent::get()?.minimum_balance(space);

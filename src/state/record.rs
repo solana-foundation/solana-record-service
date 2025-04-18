@@ -1,6 +1,11 @@
 use core::{str, mem::size_of};
 
-use pinocchio::{account_info::AccountInfo, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{Pubkey, try_find_program_address}, ProgramResult};
+
+use crate::state::RecordAuthorityExtension;
+
+/// Maximum size allowed for a record account
+pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
 /// Represents a record that can be associated with a class.
 /// The data layout is as follows:
@@ -214,9 +219,88 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_data(&mut self, data: &'info str) -> Result<(), ProgramError> {
-       self.data = data;
+    /// Validates that the given account has authority to update this record.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authority` - The account attempting to update the record
+    /// * `delegate` - Optional delegate account that has been granted update authority
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the account has authority
+    /// * `Err(ProgramError)` - If the account does not have authority
+    pub fn validate_authority(&self, authority: &AccountInfo, delegate: Option<&AccountInfo>) -> ProgramResult {
+        if self.owner == *authority.key() {
+            return Ok(());
+        }
 
+        if !self.has_authority_extension {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let delegate = delegate.ok_or(ProgramError::InvalidAccountData)?;
+        let seeds = [b"authority", self.owner.as_ref()];
+        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?;
+
+        if derived_delegate != *delegate.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let delegate_data = delegate.try_borrow_data()?;
+        let extension = RecordAuthorityExtension::from_bytes(&delegate_data)?;
+        
+        if extension.update_authority != *authority.key() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(())
+    }
+
+    /// Calculates the required account size for storing this record with new data.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `new_data` - The new data content to be stored
+    /// 
+    /// # Returns
+    /// 
+    /// The total size in bytes required to store the record with the new data
+    pub fn calculate_required_size(&self, new_data: &str) -> usize {
+        Self::MINIMUM_CLASS_SIZE + self.name.len() + new_data.len()
+    }
+
+    /// Validates that the new data can be stored in the record.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `new_data` - The new data content to be stored
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the data can be stored
+    /// * `Err(ProgramError)` - If the data is too large
+    pub fn validate_data_size(&self, new_data: &str) -> ProgramResult {
+        let required_size = self.calculate_required_size(new_data);
+        if required_size > MAX_RECORD_SIZE {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        Ok(())
+    }
+
+    /// Updates the record's data content.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `new_data` - The new data content to be stored
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the update was successful
+    /// * `Err(ProgramError)` - If the update failed
+    pub fn update_data(&mut self, new_data: &'info str) -> ProgramResult {
+        self.data = new_data;
         Ok(())
     }
 

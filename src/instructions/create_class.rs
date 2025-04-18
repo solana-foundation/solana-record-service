@@ -4,22 +4,22 @@ use pinocchio_system::instructions::{CreateAccount, Transfer};
 
 use crate::{sdk::Context, state::{Class, Credential}};
 
-/// # CreateClass
+/// Represents the accounts required for creating a new class.
 /// 
-/// Creates a new class (e.g., TLD class, Twitter handles class) 
-/// that defines a namespace for records. D3 and Ecosystem Partners 
-/// can create classes.
+/// A class defines a namespace for records (e.g., TLD class, Twitter handles class).
+/// This struct encapsulates all the accounts needed for the CreateClass instruction.
 /// 
-/// Accounts:
-/// 1. authority            [signer, mut]
-/// 2. class                [mut]
-/// 3. system_program       [executable]
-/// 4. credential           [optional]
+/// # Accounts
 /// 
-/// Parameters:
-/// 1. is_permissioned      [bool] 
-/// 2. name                 [str]
-/// 3. metadata             [Option<str>]
+/// * `authority` - The account that will own the class (must be a signer)
+/// * `class` - The new class account to be created
+/// * `credential` - Optional credential account (required if class is permissioned)
+/// 
+/// # Security
+/// 
+/// The authority account must be a signer to prevent unauthorized class creation.
+/// For permissioned classes, the credential account must be provided and the authority
+/// must be either the credential's owner or an authorized signer.
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
@@ -29,6 +29,21 @@ pub struct CreateClassAccounts<'info> {
 impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
     type Error = ProgramError;
 
+    /// Attempts to create a CreateClassAccounts from a slice of AccountInfo.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `accounts` - A slice of AccountInfo containing the required accounts
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Self)` - If all required accounts are present and valid
+    /// * `Err(ProgramError)` - If accounts are missing or invalid
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::NotEnoughAccountKeys` - If insufficient accounts are provided
+    /// * `ProgramError::MissingRequiredSignature` - If authority is not a signer
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
         let [authority, class, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -48,6 +63,18 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
         })
     }
 }
+
+/// Represents the CreateClass instruction with all its parameters.
+/// 
+/// This struct contains all the data needed to create a new class, including
+/// the accounts, permission settings, and metadata.
+/// 
+/// # Fields
+/// 
+/// * `accounts` - The required accounts for the instruction
+/// * `is_permissioned` - Whether the class requires credentials for access
+/// * `name` - The name of the class
+/// * `metadata` - Optional metadata associated with the class
 pub struct CreateClass<'info> {
     accounts: CreateClassAccounts<'info>,
     is_permissioned: bool,
@@ -55,11 +82,35 @@ pub struct CreateClass<'info> {
     metadata: Option<&'info str>,
 }
 
+/// Minimum length of instruction data required for CreateClass
+/// 
+/// This constant represents the minimum number of bytes needed in the instruction
+/// data, which includes:
+/// * 1 byte for the is_permissioned flag
+/// * 1 byte for the name length
 pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() + size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
 
+    /// Attempts to create a CreateClass instruction from a Context.
+    /// 
+    /// This function deserializes and validates the instruction data,
+    /// including checking permissions and parsing the name and metadata.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ctx` - The Context containing accounts and instruction data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Self)` - If the instruction data is valid
+    /// * `Err(ProgramError)` - If the data is invalid or permissions are incorrect
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::InvalidInstructionData` - If data format is invalid
+    /// * `ProgramError::InvalidAccountData` - If credential permissions are invalid
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
@@ -128,10 +179,40 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
 }
 
 impl <'info> CreateClass<'info> {
+    /// Processes the CreateClass instruction.
+    /// 
+    /// This is the main entry point for the CreateClass instruction.
+    /// It validates the instruction and executes it if valid.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `ctx` - The Context containing accounts and instruction data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the instruction executed successfully
+    /// * `Err(ProgramError)` - If execution failed
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
+    /// Executes the CreateClass instruction.
+    /// 
+    /// This function:
+    /// 1. Calculates required account space and rent
+    /// 2. Derives the PDA for the class account
+    /// 3. Creates the new account
+    /// 4. Initializes the class data
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If execution was successful
+    /// * `Err(ProgramError)` - If any step failed
+    /// 
+    /// # Errors
+    /// 
+    /// * `ProgramError::InvalidArgument` - If PDA derivation fails
+    /// * Various other errors from account creation and initialization
     pub fn execute(&self) -> ProgramResult {
         let space = Class::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.map_or(0, |m| m.len());
         let rent = Rent::get()?.minimum_balance(space);

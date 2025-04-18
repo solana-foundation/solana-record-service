@@ -1,4 +1,4 @@
-use instructions::{CreateClass, CreateCredential, UpdateClassMetadata, UpdateClassPermission, UpdateCredential, CreateRecord};
+use instructions::{CreateClass, CreateCredential, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateClassPermission, UpdateCredential, UpdateRecord};
 use pinocchio::{account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use sdk::Context;
 
@@ -27,9 +27,14 @@ fn process_instruction(
         0 => CreateClass::process(Context { accounts, data }),
         1 => UpdateClassMetadata::process(Context { accounts, data }),
         2 => UpdateClassPermission::process(Context { accounts, data }),
-        3 => CreateCredential::process(Context { accounts, data }),
-        4 => UpdateCredential::process(Context { accounts, data }),
-        5 => CreateRecord::process(Context { accounts, data }),
+        3 => FreezeClass::process(Context { accounts, data }),
+        4 => CreateCredential::process(Context { accounts, data }),
+        5 => UpdateCredential::process(Context { accounts, data }),
+        6 => CreateRecord::process(Context { accounts, data }),
+        7 => UpdateRecord::process(Context { accounts, data }),
+        8 => TransferRecord::process(Context { accounts, data }),
+        9 => DeleteRecord::process(Context { accounts, data }),
+        10 => FreezeRecord::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData)
     }
 }

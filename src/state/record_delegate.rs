@@ -25,17 +25,23 @@ impl RecordAuthorityExtension {
             return Err(ProgramError::AccountDataTooSmall);
         }
 
-        let record: Pubkey = data[..32].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        let discriminator: u8 = data[0];
 
-        let update_authority: Pubkey = data[32..64].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        if discriminator != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
-        let freeze_authority: Pubkey = data[64..96].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        let record: Pubkey = data[1..33].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let transfer_authority: Pubkey = data[96..128].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        let update_authority: Pubkey = data[33..65].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let burn_authority: Pubkey = data[128..160].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        let freeze_authority: Pubkey = data[65..97].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let authority_program: Option<Pubkey> = if data[160] == 0 {
+        let transfer_authority: Pubkey = data[97..129].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+
+        let burn_authority: Pubkey = data[129..161].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+
+        let authority_program: Option<Pubkey> = if data[161] == 0 {
             None
         } else {
             Some(data[161..193].try_into().map_err(|_| ProgramError::InvalidAccountData)?)

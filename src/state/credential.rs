@@ -1,6 +1,6 @@
 use core::str;
 
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 
 /// Represents a credential that can be used for authorization.
 /// The data layout is as follows:
@@ -260,6 +260,24 @@ impl<'info> Credential<'info> {
             data[start..start + 32].clone_from_slice(signer.as_ref());
         }
 
+        Ok(())
+    }
+
+    /// Validates that the given account has authority over this credential.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `authority` - The account attempting to perform an action on the credential
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - If the account has authority
+    /// * `Err(ProgramError)` - If the account does not have authority
+    pub fn validate_authority(&self, authority: &AccountInfo) -> ProgramResult {
+        if self.authority != *authority.key() && 
+           !self.authorized_signers.contains(authority.key()) {
+            return Err(ProgramError::InvalidAccountData);
+        }
         Ok(())
     }
 }
