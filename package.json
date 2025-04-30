@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "engines" : {
+    "node": ">=20.18.0"
+  },
   "scripts": {
     "codama": "npx tsx codama.ts",
     "test": "mocha --import=tsx ./tests/test.spec.ts"

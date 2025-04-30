@@ -1,0 +1,1 @@
+pub const MAX_METADATA_LEN: usize = 255;

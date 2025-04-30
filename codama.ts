@@ -3,8 +3,8 @@ import { accountNode, booleanTypeNode, constantDiscriminatorNode, constantValueN
 
 const root = rootNode(
     programNode({
-        name: "srs",
-        publicKey: "srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPaC",
+        name: "solana-record-service",
+        publicKey: "srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa",
         version: "1.0.0",
         accounts: [
             accountNode({
@@ -14,12 +14,9 @@ const root = rootNode(
                 ],
                 data: structTypeNode([
                     structFieldTypeNode({ name: 'authority', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'isPermissioned', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
-                    structFieldTypeNode({ name: 'credentialAccount', type: optionTypeNode(publicKeyTypeNode()) }),
-                    structFieldTypeNode({ 
-                        name: 'name', 
-                        type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")),
-                    }),
+                    structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
                     structFieldTypeNode({ name: 'metadata', type: stringTypeNode("utf8") }),
                 ])
             })
@@ -28,10 +25,17 @@ const root = rootNode(
             instructionNode({
                 name: "createClass",
                 discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(1)))
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(0)))
                 ],
                 arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(0),
+                        defaultValueStrategy: 'omitted',
+                    }),
                     instructionArgumentNode({ name: 'isPermissioned', type: booleanTypeNode() }),
+                    instructionArgumentNode({ name: 'isFrozen', type: booleanTypeNode() }),
                     instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
                     instructionArgumentNode({ name: 'metadata', type: stringTypeNode("utf8") }),
                 ],
@@ -55,14 +59,42 @@ const root = rootNode(
                         isWritable: false,
                         docs: ["System Program used to open our new class account"]
                     }),
+                ]
+            }),
+            instructionNode({
+                name: "updateClassMetadata",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(1)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(1),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'metadata', type: stringTypeNode("utf8") }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to create a new class"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["New class account to be initialized"]
+                    }),
                     instructionAccountNode({
                         name: "systemProgram",
                         defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
                         isSigner: false,
                         isWritable: false,
-                        isOptional: true,
                         docs: ["System Program used to open our new class account"]
-                    })
+                    }),
                 ]
             })
         ]
@@ -71,5 +103,5 @@ const root = rootNode(
 
 const codama = createFromRoot(root)
 
-codama.accept(renderJavaScriptVisitor('clients/js/src/generated'));
-codama.accept(renderRustVisitor('clients/rust/src/generated'));
+codama.accept(renderJavaScriptVisitor('sdk/ts/src'));
+codama.accept(renderRustVisitor('sdk/rust/src/client'));
