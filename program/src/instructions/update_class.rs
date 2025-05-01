@@ -1,5 +1,5 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{account_info::AccountInfo, log::sol_log, program_error::ProgramError, ProgramResult};
 
 use crate::{constants::MAX_METADATA_LEN, ctx::Context, state::Class, utils::resize_account};
 
@@ -149,6 +149,8 @@ impl <'info> UpdateClassMetadata<'info> {
     /// 
     /// * Various errors from account resizing and metadata updating
     pub fn process(ctx: Context<'info>) -> ProgramResult {
+        // #[cfg(not(feature="perf"))]
+        sol_log("Update Class Metadata");
         Self::try_from(ctx)?.execute()
     }
 

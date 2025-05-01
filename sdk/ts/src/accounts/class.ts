@@ -25,6 +25,7 @@ import {
   getU8Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
+  transformEncoder,
   type Account,
   type Address,
   type Codec,
@@ -44,6 +45,7 @@ export function getClassDiscriminatorBytes() {
 }
 
 export type Class = {
+  discriminator: number;
   authority: Address;
   isPermissioned: boolean;
   isFrozen: boolean;
@@ -51,20 +53,31 @@ export type Class = {
   metadata: string;
 };
 
-export type ClassArgs = Class;
+export type ClassArgs = {
+  authority: Address;
+  isPermissioned: boolean;
+  isFrozen: boolean;
+  name: string;
+  metadata: string;
+};
 
 export function getClassEncoder(): Encoder<ClassArgs> {
-  return getStructEncoder([
-    ['authority', getAddressEncoder()],
-    ['isPermissioned', getBooleanEncoder()],
-    ['isFrozen', getBooleanEncoder()],
-    ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-    ['metadata', getUtf8Encoder()],
-  ]);
+  return transformEncoder(
+    getStructEncoder([
+      ['discriminator', getU8Encoder()],
+      ['authority', getAddressEncoder()],
+      ['isPermissioned', getBooleanEncoder()],
+      ['isFrozen', getBooleanEncoder()],
+      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
+      ['metadata', getUtf8Encoder()],
+    ]),
+    (value) => ({ ...value, discriminator: 1 })
+  );
 }
 
 export function getClassDecoder(): Decoder<Class> {
   return getStructDecoder([
+    ['discriminator', getU8Decoder()],
     ['authority', getAddressDecoder()],
     ['isPermissioned', getBooleanDecoder()],
     ['isFrozen', getBooleanDecoder()],

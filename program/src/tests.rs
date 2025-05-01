@@ -50,7 +50,7 @@ fn create_class() {
             (system_program, system_program_data),
         ],
         &[
-            Check::success()
+            Check::success(),
         ]
     );
 }
@@ -74,18 +74,17 @@ fn update_class_metadata() {
     });
 
     println!("IX: {}", hex::encode(&instruction.data));
-
-    let is_frozen = false;
-    let name = "test";
-    let metadata = "test";
     
     let class_account_data = Class {
+        discriminator: 1,
         authority,
         is_permissioned: false,
         is_frozen: false,
         name: U8PrefixString::try_from_slice(b"\x04test").unwrap(),
         metadata: RemainderStr::from_str("test").unwrap()
     }.try_to_vec().expect("Serialization error");
+
+    println!("Class contents: {}", hex::encode(&class_account_data));
 
     let mut class_account = Account::new(100_000_000u64,  class_account_data.len(), &Pubkey::from(crate::ID));
     class_account.data_as_mut_slice().write(&class_account_data).expect("Failed to write account data");

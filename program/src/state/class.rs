@@ -128,26 +128,20 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
-    pub fn update_metadata_old(&mut self, metadata: &'info str) -> Result<(), ProgramError> {
-        // Update metadata
-        self.metadata = metadata;
-        Ok(())
-    }
-
-    pub fn update_metadata(account: &'info AccountInfo, authority: &'info AccountInfo, metadata: &'info str) -> Result<(), ProgramError> {
+    pub fn update_metadata(class: &'info AccountInfo, authority: &'info AccountInfo, metadata: &'info str) -> Result<(), ProgramError> {
         // Get our Class account
-        let mut data_ref = Class::borrow_data_checked(account, authority.key())?;
-
+        let mut data_ref = Class::borrow_data_checked(class, authority.key())?;
+        
         // Get metadata offset
         let offset = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>();
-
+        
         // Calculate current and len length of account
         let current_len = data_ref.len();
         let new_len = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>() + metadata.len();
 
         // Resize Class account
         resize_account(
-            account, 
+            class, 
             authority, 
             new_len, 
             new_len < current_len
@@ -201,7 +195,6 @@ impl<'info> Class<'info> {
         // Write our name
         data[36..36 + self.name.len()].clone_from_slice(self.name.as_bytes());
 
-        sol_log("Got here");
         // Add name length to our offset to write metadata
         if !self.metadata.is_empty() {
             // Write metadata if exists

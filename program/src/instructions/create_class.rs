@@ -124,11 +124,12 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         // Deserialize `is_permissioned`
         let is_permissioned = ctx.data[0] == 1;
 
-        // Deserialize `is_permissioned`
+        // Deserialize `is_frozen`
         let is_frozen = ctx.data[1] == 1;
 
-        // In order to ensure our IX data contains a human-readable `name``, we must deserialize and perform a UTF-8 check.
-        // Otherwise, we could skip deserialization and directly copy the remaining IX data to our `Class` account.
+        // In order to ensure our IX data contains a human-readable `name` and `metadata`,
+        // we must deserialize and perform a UTF-8 check. Otherwise, we could skip deserialization
+        // and directly copy the remaining IX data to our `Class` account.
         let name_len = ctx.data[2] as usize;
 
         // Try to deserialize `name` from our IX data
@@ -166,6 +167,7 @@ impl <'info> CreateClass<'info> {
     /// * `Ok(())` - If the instruction executed successfully
     /// * `Err(ProgramError)` - If execution failed
     pub fn process(ctx: Context<'info>) -> ProgramResult {
+        #[cfg(not(feature = "perf"))]
         sol_log("Create Class");
         Self::try_from(ctx)?.execute()
     }

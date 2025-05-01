@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), no_std)]
+// #![cfg_attr(not(test), no_std)]
 use instructions::{CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateClassPermission, UpdateRecord};
 use pinocchio::{account_info::AccountInfo, default_allocator, nostd_panic_handler, program_entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use ctx::Context;
@@ -15,8 +15,8 @@ pub mod tests;
 
 program_entrypoint!(process_instruction);
 default_allocator!();
-#[cfg(not(test))]
-nostd_panic_handler!();
+// #[cfg(not(test))]
+// nostd_panic_handler!();
 
 // srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa
 pub const ID: Pubkey = [

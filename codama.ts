@@ -13,6 +13,7 @@ const root = rootNode(
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(1)))
                 ],
                 data: structTypeNode([
+                    structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(1), defaultValueStrategy: 'omitted' }),
                     structFieldTypeNode({ name: 'authority', type: publicKeyTypeNode() }),
                     structFieldTypeNode({ name: 'isPermissioned', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
@@ -86,7 +87,7 @@ const root = rootNode(
                         name: "class",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["New class account to be initialized"]
+                        docs: ["Class account to be updated"]
                     }),
                     instructionAccountNode({
                         name: "systemProgram",

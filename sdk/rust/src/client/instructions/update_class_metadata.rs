@@ -17,7 +17,7 @@ pub struct UpdateClassMetadata {
     
               
           pub authority: solana_program::pubkey::Pubkey,
-                /// New class account to be initialized
+                /// Class account to be updated
 
     
               
@@ -115,7 +115,7 @@ impl UpdateClassMetadataBuilder {
                         self.authority = Some(authority);
                     self
     }
-            /// New class account to be initialized
+            /// Class account to be updated
 #[inline(always)]
     pub fn class(&mut self, class: solana_program::pubkey::Pubkey) -> &mut Self {
                         self.class = Some(class);
@@ -167,7 +167,7 @@ impl UpdateClassMetadataBuilder {
       
                     
               pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-                        /// New class account to be initialized
+                        /// Class account to be updated
 
       
                     
@@ -188,7 +188,7 @@ pub struct UpdateClassMetadataCpi<'a, 'b> {
     
               
           pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-                /// New class account to be initialized
+                /// Class account to be updated
 
     
               
@@ -310,7 +310,7 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
                         self.instruction.authority = Some(authority);
                     self
     }
-      /// New class account to be initialized
+      /// Class account to be updated
 #[inline(always)]
     pub fn class(&mut self, class: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
                         self.instruction.class = Some(class);

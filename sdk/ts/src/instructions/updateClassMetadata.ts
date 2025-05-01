@@ -105,7 +105,7 @@ export type UpdateClassMetadataInput<
 > = {
   /** Authority used to create a new class */
   authority: TransactionSigner<TAccountAuthority>;
-  /** New class account to be initialized */
+  /** Class account to be updated */
   class: Address<TAccountClass>;
   /** System Program used to open our new class account */
   systemProgram?: Address<TAccountSystemProgram>;
@@ -184,7 +184,7 @@ export type ParsedUpdateClassMetadataInstruction<
   accounts: {
     /** Authority used to create a new class */
     authority: TAccountMetas[0];
-    /** New class account to be initialized */
+    /** Class account to be updated */
     class: TAccountMetas[1];
     /** System Program used to open our new class account */
     systemProgram: TAccountMetas[2];
