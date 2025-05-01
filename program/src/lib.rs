@@ -1,5 +1,5 @@
 // #![cfg_attr(not(test), no_std)]
-use instructions::{CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateClassPermission, UpdateRecord};
+use instructions::{CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateClassFrozen, UpdateRecord};
 use pinocchio::{account_info::AccountInfo, default_allocator, nostd_panic_handler, program_entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use ctx::Context;
 
@@ -35,10 +35,8 @@ fn process_instruction(
     match discriminator {
         0 => CreateClass::process(Context { accounts, data }),
         1 => UpdateClassMetadata::process(Context { accounts, data }),
-        2 => UpdateClassPermission::process(Context { accounts, data }),
+        2 => UpdateClassFrozen::process(Context { accounts, data }),
         3 => FreezeClass::process(Context { accounts, data }),
-        // 4 => CreateCredential::process(Context { accounts, data }),
-        // 5 => UpdateCredential::process(Context { accounts, data }),
         4 => CreateRecord::process(Context { accounts, data }),
         5 => UpdateRecord::process(Context { accounts, data }),
         6 => TransferRecord::process(Context { accounts, data }),

@@ -1,7 +1,7 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C)]
-pub struct RecordAuthorityExtension {
+pub struct RecordAuthorityDelegate {
     pub record: Pubkey,                   // The record this extension belongs to
     pub update_authority: Pubkey,
     pub freeze_authority: Pubkey,
@@ -10,7 +10,7 @@ pub struct RecordAuthorityExtension {
     pub authority_program: Option<Pubkey>,
 }
 
-impl RecordAuthorityExtension {
+impl RecordAuthorityDelegate {
     pub const DISCRIMINATOR: u8 = 3;
     pub const MINIMUM_RECORD_SIZE: usize = 1 // discriminator
         + 32                                // record

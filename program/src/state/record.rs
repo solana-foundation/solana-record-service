@@ -1,24 +1,11 @@
 use core::{str, mem::size_of};
-
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{Pubkey, try_find_program_address}, ProgramResult};
-
-use crate::state::RecordAuthorityExtension;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{Pubkey, try_find_program_address}};
+use super::RecordAuthorityDelegate;
+use crate::utils::ByteReader;
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
-/// Represents a record that can be associated with a class.
-/// The data layout is as follows:
-/// - 1 byte: discriminator
-/// - 32 bytes: class public key
-/// - 32 bytes: owner public key
-/// - 1 byte: is_frozen flag
-/// - 1 byte: has_authority_extension flag
-/// - 8 bytes: expiry timestamp (if has_authority_extension is true)
-/// - 1 byte: name length
-/// - N bytes: name string
-/// - 1 byte: data length
-/// - M bytes: data content
 #[repr(C)]
 pub struct Record<'info> {
     /// The class this record belongs to
@@ -42,90 +29,122 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
     
     /// Minimum size required for a valid record account
-    /// This includes:
-    /// - 1 byte for discriminator
-    /// - 32 bytes for class
-    /// - 32 bytes for owner
-    /// - 1 byte for is_frozen
-    /// - 1 byte for has_authority_extension
-    /// - 8 bytes for expiry
-    /// - 1 byte for name length
-    /// - 1 byte for data length
-    pub const MINIMUM_CLASS_SIZE: usize = 1 + 32 + 32 + 1 + 1 + 8 + 1 + 1;
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 4 
+        + size_of::<bool>() * 2 
+        + size_of::<Pubkey>() * 2 
+        + size_of::<i64>();
 
-    /// Deserializes a record from raw bytes
-    /// 
-    /// # Safety
-    /// 
-    /// This function performs unsafe operations to create slices from raw memory.
-    /// The input data must be properly formatted and aligned.
-    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::MINIMUM_CLASS_SIZE {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        let mut offset = 0;
-
-        if data[offset] != Self::DISCRIMINATOR {
+    pub fn check_authority(data: &[u8], authority: &Pubkey) -> Result<(), ProgramError> {
+        // Check discriminator
+        if data[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        offset += size_of::<u8>();
-
-        // Read class (32 bytes)
-        let class: Pubkey = data[offset..offset + size_of::<Pubkey>()]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        offset += size_of::<Pubkey>();
-
-        // Read owner (32 bytes)
-        let owner: Pubkey = data[offset..offset + size_of::<Pubkey>()]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        offset += size_of::<Pubkey>();
-
-        let is_frozen: bool = data[offset] == 1;
-        offset += size_of::<u8>();
-
-        let has_authority_extension: bool = data[offset] == 1;
-        offset += size_of::<u8>();
-
-        let has_expiry: bool = data[offset] == 1;
-        offset += size_of::<u8>();
-
-        let expiry: Option<i64> = if has_expiry {
-            Some(i64::from_le_bytes(
-                data[offset..offset + size_of::<i64>()]
-                    .try_into()
-                    .map_err(|_| ProgramError::InvalidAccountData)?,
-            ))
-        } else {
-            None
-        };
-
-        offset += size_of::<i64>();
-
-        // Read name length (1 byte)
-        let name_len = data[offset] as usize;
-
-        offset += size_of::<u8>();
-
-        // Check if we have enough data for the name
-        if data.len() < offset + name_len {
-            return Err(ProgramError::AccountDataTooSmall);
+        // Check authority
+        if authority.ne(&data[33..65]) {
+            return Err(ProgramError::MissingRequiredSignature)
         }
 
-        // Read name string
-        let name: &'info str = str::from_utf8(&data[offset..offset + name_len])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-        
-        offset += name_len;
+        Ok(())
+    }
 
-        // Read data content
-        let data_content: &'info str = str::from_utf8(&data[offset..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+    pub fn check_authority_or_delegate(record: &AccountInfo, authority: &Pubkey, delegate: Option<&AccountInfo>) -> Result<(), ProgramError> {
+        let data = record.try_borrow_data()?;
+
+        // Check discriminator
+        if data[0].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if authority is the owner
+        if authority.eq(&data[33..65]) {
+            return Ok(());
+        }
+
+        // If not owner, check delegate
+        let has_authority_extension = data[66] == 1;
+        if !has_authority_extension {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
+        let seeds = [b"authority", record.key().as_ref()];
+        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?;
+
+        if derived_delegate != *delegate.key() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let delegate_data = delegate.try_borrow_data()?;
+        let extension = RecordAuthorityDelegate::from_bytes(&delegate_data)?;
+        
+        if extension.update_authority != *authority {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Ok(())
+    }
+
+    pub fn update_is_frozen(record: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+        let mut data = record.try_borrow_mut_data()?;
+
+        if data[67] == is_frozen as u8 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        data[67] = is_frozen as u8;
+
+        Ok(())
+    }
+
+    pub fn update_owner(record: &'info AccountInfo, new_owner: Pubkey) -> Result<(), ProgramError> {
+        let mut data = record.try_borrow_mut_data()?;
+
+        if data[67] == 1 as u8 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if new_owner.eq(&data[33..65]) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        data[33..65].clone_from_slice(&new_owner);
+
+        Ok(())
+    }
+
+    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
+        // Check account data has minimum length and create a byte reader
+        let mut data = ByteReader::new_with_minimum_size(data, Self::MINIMUM_CLASS_SIZE)?;
+
+        // Deserialize discriminator
+        let discriminator: u8 = data.read()?;
+
+        if discriminator != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }   
+
+        // Deserialize class
+        let class: Pubkey = data.read()?;
+
+        // Deserialize owner
+        let owner: Pubkey = data.read()?;
+
+        // Deserialize is_frozen
+        let is_frozen: bool = data.read()?;
+
+        // Deserialize has_authority_extension
+        let has_authority_extension: bool = data.read()?;
+
+        // Deserialize expiry
+        let expiry: Option<i64> = data.read_optional()?;
+
+        // Deserialize name
+        let name: &'info str = data.read_str_with_length()?;
+
+        // Deserialize data
+        let data_content: &'info str = data.read_str(data.remaining_bytes())?;
 
         Ok(Self {
             class,
@@ -138,11 +157,7 @@ impl<'info> Record<'info> {
         })
     }
 
-    /// Initializes a new record account with the given data
-    /// 
-    /// # Safety
-    /// 
-    /// The account must be properly allocated with enough space for all data.
+    
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         // Verify the account has enough space
         let required_size = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
@@ -215,103 +230,6 @@ impl<'info> Record<'info> {
 
         // Write data
         data[offset..].clone_from_slice(self.data.as_bytes());
-
-        Ok(())
-    }
-
-    /// Validates that the given account has authority to update this record.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `authority` - The account attempting to update the record
-    /// * `delegate` - Optional delegate account that has been granted update authority
-    /// 
-    /// # Returns
-    /// 
-    /// * `Ok(())` - If the account has authority
-    /// * `Err(ProgramError)` - If the account does not have authority
-    pub fn validate_authority(&self, authority: &AccountInfo, delegate: Option<&AccountInfo>) -> ProgramResult {
-        if self.owner == *authority.key() {
-            return Ok(());
-        }
-
-        if !self.has_authority_extension {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let delegate = delegate.ok_or(ProgramError::InvalidAccountData)?;
-        let seeds = [b"authority", self.owner.as_ref()];
-        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
-
-        if derived_delegate != *delegate.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let delegate_data = delegate.try_borrow_data()?;
-        let extension = RecordAuthorityExtension::from_bytes(&delegate_data)?;
-        
-        if extension.update_authority != *authority.key() {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        Ok(())
-    }
-
-    /// Calculates the required account size for storing this record with new data.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `new_data` - The new data content to be stored
-    /// 
-    /// # Returns
-    /// 
-    /// The total size in bytes required to store the record with the new data
-    pub fn calculate_required_size(&self, new_data: &str) -> usize {
-        Self::MINIMUM_CLASS_SIZE + self.name.len() + new_data.len()
-    }
-
-    /// Validates that the new data can be stored in the record.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `new_data` - The new data content to be stored
-    /// 
-    /// # Returns
-    /// 
-    /// * `Ok(())` - If the data can be stored
-    /// * `Err(ProgramError)` - If the data is too large
-    pub fn validate_data_size(&self, new_data: &str) -> ProgramResult {
-        let required_size = self.calculate_required_size(new_data);
-        if required_size > MAX_RECORD_SIZE {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-        Ok(())
-    }
-
-    /// Updates the record's data content.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `new_data` - The new data content to be stored
-    /// 
-    /// # Returns
-    /// 
-    /// * `Ok(())` - If the update was successful
-    /// * `Err(ProgramError)` - If the update failed
-    pub fn update_data(&mut self, new_data: &'info str) -> ProgramResult {
-        self.data = new_data;
-        Ok(())
-    }
-
-    pub fn update_owner(&mut self, new_owner: Pubkey) -> Result<(), ProgramError> {
-        self.owner = new_owner;
-
-        Ok(())
-    }
-
-    pub fn update_is_frozen(&mut self, is_frozen: bool) -> Result<(), ProgramError> {
-        self.is_frozen = is_frozen;
 
         Ok(())
     }

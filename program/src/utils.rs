@@ -1,5 +1,7 @@
 use pinocchio::{account_info::AccountInfo, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::Transfer;
+use pinocchio::program_error::ProgramError;
+use std::mem::size_of;
 
 /// Resize an account and handle lamport transfers based on the new size
 /// 
@@ -48,4 +50,75 @@ pub fn resize_account(
     target_account.realloc(new_size, zero_out)?;
 
     Ok(())
+}
+
+pub struct ByteReader<'a> {
+    data: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> ByteReader<'a> {
+    pub fn new(data: &'a [u8]) -> Self {
+        Self { data, offset: 0 }
+    }
+
+    pub fn new_with_minimum_size(data: &'a [u8], minimum_size: usize) -> Result<Self, ProgramError> {
+        if data.len() < minimum_size {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        
+        Ok(Self { data, offset: 0 })
+    }
+
+    pub fn read<T: Sized + Copy>(&mut self) -> Result<T, ProgramError> {
+        let size = size_of::<T>();
+        if self.offset + size > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        
+        let value = unsafe {
+            let ptr = self.data[self.offset..].as_ptr() as *const T;
+            *ptr
+        };
+        
+        self.offset += size;
+        Ok(value)
+    }
+
+    pub fn read_optional<T: Sized + Copy>(&mut self) -> Result<Option<T>, ProgramError> {
+        if self.offset >= self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        
+        if self.data[self.offset] == 0 {
+            self.offset += 1;
+            Ok(None)
+        } else {
+            self.offset += 1;
+            Ok(Some(self.read()?))
+        }
+    }
+
+    pub fn read_str(&mut self, len: usize) -> Result<&'a str, ProgramError> {
+        if self.offset + len > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let str_bytes = &self.data[self.offset..self.offset + len];
+        let str = std::str::from_utf8(str_bytes)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+        
+        self.offset += len;
+        Ok(str)
+    }
+
+    pub fn read_str_with_length(&mut self) -> Result<&'a str, ProgramError> {
+        let len: usize = self.read()?;
+
+        self.read_str(len)
+    }
+
+    pub fn remaining_bytes(&self) -> usize {
+        self.data.len() - self.offset
+    }
 } 

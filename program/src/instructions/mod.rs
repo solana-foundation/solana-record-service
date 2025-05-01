@@ -2,16 +2,10 @@ pub mod create_class;
 pub use create_class::CreateClass;
 
 pub mod update_class;
-pub use update_class::{UpdateClassMetadata, UpdateClassPermission};
+pub use update_class::{UpdateClassMetadata, UpdateClassFrozen};
 
 pub mod freeze_class;
 pub use freeze_class::FreezeClass;
-
-// pub mod create_credential;
-// pub use create_credential::CreateCredential;
-
-// pub mod update_credential;
-// pub use update_credential::UpdateCredential;
 
 pub mod create_record;
 pub use create_record::CreateRecord;
@@ -28,5 +22,5 @@ pub use freeze_record::FreezeRecord;
 pub mod delete_record;
 pub use delete_record::DeleteRecord;
 
-pub mod create_record_delegate;
-pub use create_record_delegate::CreateRecordDelegate;
+pub mod create_record_authority_delegate;
+pub use create_record_authority_delegate::CreateRecordAuthorityDelegate;

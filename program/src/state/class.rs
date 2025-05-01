@@ -1,8 +1,8 @@
 use core::{mem::size_of, str};
 
-use pinocchio::{account_info::{AccountInfo, RefMut}, log::sol_log, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::{AccountInfo, RefMut}, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::utils::resize_account;
+use crate::utils::{resize_account, ByteReader};
 
 #[repr(C)]
 pub struct Class<'info> {
@@ -23,26 +23,8 @@ impl<'info> Class<'info> {
         + 1                                 // is_frozen
         + 1;                                // name_len  
 
-    /// Validates a class account.
-    /// 
-    /// This method performs basic account validation:
-    /// 1. Verifies the account is owned by the program
-    /// 2. Verifies the account has the correct discriminator
-    /// 
-    /// # Arguments
-    /// 
-    /// * `account_info` - The account info to validate
-    /// 
-    /// # Returns
-    /// 
-    /// * `Ok(())` - If all checks pass
-    /// * `Err(ProgramError)` - If any check fails
-    /// 
-    /// # Errors
-    /// 
-    /// * `ProgramError::IllegalOwner` - If account is not owned by the program
-    /// * `ProgramError::InvalidAccountData` - If discriminator is incorrect
-    pub fn check(data: &mut [u8], authority: &Pubkey) -> Result<(), ProgramError> {
+    
+    pub fn check_authority(data: &mut [u8], authority: &Pubkey) -> Result<(), ProgramError> {
         // Check discriminator
         if data[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
@@ -51,6 +33,27 @@ impl<'info> Class<'info> {
         // Check authority
         if authority.ne(&data[1..33]) {
             return Err(ProgramError::MissingRequiredSignature)
+        }
+
+        Ok(())
+    }
+
+    pub fn check_permission(data: &[u8], authority: Option<&AccountInfo>) -> Result<(), ProgramError> {
+        // Check discriminator
+        if data[0].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check Permission
+        if data[34] == 1 {
+            match authority {
+                Some(auth) => {
+                    if auth.key().ne(&data[33..65]) {
+                        return Err(ProgramError::MissingRequiredSignature);
+                    }
+                }
+                None => return Err(ProgramError::MissingRequiredSignature),
+            }
         }
 
         Ok(())
@@ -69,61 +72,29 @@ impl<'info> Class<'info> {
     
         Ok(data_ref)
     }
-    
-    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::MINIMUM_CLASS_SIZE {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
 
-        if data[0] != Self::DISCRIMINATOR {
+    pub fn update_is_permissioned(class: &'info AccountInfo, authority: &'info AccountInfo, is_permissioned: bool) -> Result<(), ProgramError> {
+        let mut data_ref = Class::borrow_data_checked(class, authority.key())?;
+
+        if data_ref[33] == is_permissioned as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let authority: Pubkey = data[1..33].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
-
-        let is_permissioned: bool = data[33] == 1;
-        
-        let is_frozen: bool = data[34] == 1;
-
-        let mut offset = size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() + size_of::<u8>() + size_of::<Pubkey>();
-
-        let name_len = data[offset] as usize;
-        
-        offset += 1;
-
-        if data.len() < offset + name_len {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        let name: &'info str = str::from_utf8(
-            &data[offset..offset + name_len]
-        ).map_err(|_| ProgramError::InvalidAccountData)?;
-
-        offset += name_len;
-
-        let metadata: &'info str = str::from_utf8(
-            &data[offset..]
-        ).map_err(|_| ProgramError::InvalidAccountData)?;
-
-        Ok(Self {
-            authority,
-            is_permissioned,
-            is_frozen,
-            name,
-            metadata,
-        })
-    }
-
-    pub fn update_is_permissioned(&mut self, is_permissioned: bool) -> Result<(), ProgramError> {
         // Update is_permissioned
-        self.is_permissioned = is_permissioned;
+        data_ref[33] = is_permissioned as u8;
 
         Ok(())
     }
 
-    pub fn update_is_frozen(&mut self, is_frozen: bool) -> Result<(), ProgramError> {
+    pub fn update_is_frozen(class: &'info AccountInfo, authority: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+        let mut data_ref = Class::borrow_data_checked(class, authority.key())?;
+
+        if data_ref[34] == is_frozen as u8 {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Update is_frozen
-        self.is_frozen = is_frozen;
+        data_ref[34] = is_frozen as u8;
 
         Ok(())
     }
@@ -158,6 +129,39 @@ impl<'info> Class<'info> {
         metadata_buffer.clone_from_slice(metadata.as_bytes());
 
         Ok(())
+    }
+    
+    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
+        // Check ix data has minimum length and create a byte reader
+        let mut data = ByteReader::new_with_minimum_size(data, Self::MINIMUM_CLASS_SIZE)?;
+
+        let discriminator: u8 = data.read()?;
+        if discriminator != Self::DISCRIMINATOR {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Deserialize authority
+        let authority: Pubkey = data.read()?;
+
+        // Deserialize is_permissioned
+        let is_permissioned: bool = data.read()?;
+
+        // Deserialize is_frozen
+        let is_frozen: bool = data.read()?;
+
+        // Deserialize name
+        let name = data.read_str_with_length()?;
+
+        // Deserialize metadata
+        let metadata = data.read_str(data.remaining_bytes())?;
+
+        Ok(Self {
+            authority,
+            is_permissioned,
+            is_frozen,
+            name,
+            metadata,
+        })
     }
 
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
@@ -199,28 +203,6 @@ impl<'info> Class<'info> {
         if !self.metadata.is_empty() {
             // Write metadata if exists
             data[36 + self.name.len()..].clone_from_slice(self.metadata.as_bytes());
-        }
-
-        Ok(())
-    }
-
-    /// Validates that an account has authority over this class.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `authority` - The account info to validate as the authority
-    /// 
-    /// # Returns
-    /// 
-    /// * `Ok(())` - If the account is the authority
-    /// * `Err(ProgramError)` - If the account is not the authority
-    /// 
-    /// # Errors
-    /// 
-    /// * `ProgramError::InvalidAccountData` - If the account is not the authority
-    pub fn validate_authority(&self, authority: &AccountInfo) -> Result<(), ProgramError> {
-        if self.authority != *authority.key() {
-            return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(())
