@@ -1,6 +1,6 @@
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{ctx::Context, state::Class, utils::ByteReader};
+use crate::{state::Class, utils::{ByteReader, Context}};
 
 /// FreezeClass instruction.
 /// 

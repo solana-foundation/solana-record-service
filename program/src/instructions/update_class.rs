@@ -1,6 +1,6 @@
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{constants::MAX_METADATA_LEN, ctx::Context, state::Class, utils::ByteReader};
+use crate::{constants::MAX_METADATA_LEN, state::Class, utils::{ByteReader, Context}};
 
 /// UpdateClass instruction.
 /// 

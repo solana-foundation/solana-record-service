@@ -2,7 +2,7 @@ use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{ctx::Context, state::{Record, RecordAuthorityDelegate}, utils::ByteReader};
+use crate::{state::{Record, RecordAuthorityDelegate}, utils::{ByteReader, Context}};
 
 
 /// CreateRecordAuthorityDelegate instruction.

@@ -1,11 +1,10 @@
 // #![cfg_attr(not(test), no_std)]
 use instructions::{CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateClassFrozen, UpdateRecord};
 use pinocchio::{account_info::AccountInfo, default_allocator, nostd_panic_handler, program_entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
-use ctx::Context;
+use utils::Context;
 
 pub mod instructions;
 pub mod state;
-pub mod ctx;
 pub mod utils;
 pub mod constants;
 #[cfg(test)]

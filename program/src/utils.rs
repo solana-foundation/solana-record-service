@@ -3,6 +3,11 @@ use pinocchio_system::instructions::Transfer;
 use pinocchio::program_error::ProgramError;
 use std::mem::size_of;
 
+pub struct Context<'info> {
+    pub accounts: &'info [AccountInfo],
+    pub data: &'info [u8]
+}
+
 /// Resize an account and handle lamport transfers based on the new size
 /// 
 /// This function will:

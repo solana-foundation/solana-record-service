@@ -1,6 +1,6 @@
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
-use crate::{ctx::Context, state::Record, utils::ByteReader};
+use crate::{state::Record, utils::{ByteReader, Context}};
 
 /// TransferRecord instruction.
 /// 

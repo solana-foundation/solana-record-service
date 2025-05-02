@@ -1,5 +1,5 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{ctx::Context, state::Record};
+use crate::{state::Record, utils::Context};
 
 /// DeleteRecord instruction.
 /// 

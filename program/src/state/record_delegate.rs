@@ -1,5 +1,6 @@
 use std::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use core::mem::size_of;
 use crate::utils::{ByteReader, ByteWriter};
 
 #[repr(C)]
