@@ -72,6 +72,7 @@ impl<'a> ByteReader<'a> {
 
     pub fn read<T: Sized + Copy>(&mut self) -> Result<T, ProgramError> {
         let size = size_of::<T>();
+        
         if self.offset + size > self.data.len() {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -113,9 +114,9 @@ impl<'a> ByteReader<'a> {
     }
 
     pub fn read_str_with_length(&mut self) -> Result<&'a str, ProgramError> {
-        let len: usize = self.read()?;
+        let len: u8 = self.read()?;
 
-        self.read_str(len)
+        self.read_str(len as usize)
     }
 
     pub fn remaining_bytes(&self) -> usize {

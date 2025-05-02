@@ -2,7 +2,7 @@ use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{ctx::Context, state::Class, utils::ByteReader};
+use crate::{constants::{MAX_METADATA_LEN, MAX_NAME_LEN}, ctx::Context, state::Class, utils::ByteReader};
 
 /// CreateClass instruction.
 /// 
@@ -59,7 +59,7 @@ pub struct CreateClass<'info> {
 }
 
 /// Minimum length of instruction data required for CreateClass
-pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() * 2 + size_of::<u8>();
+const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() * 2 + size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
@@ -69,7 +69,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
 
         // Check instruction_data minimum size and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(   ctx.data, CREATE_CLASS_MIN_IX_LENGTH)?;
+        let mut data = ByteReader::new_with_minimum_size(ctx.data, CREATE_CLASS_MIN_IX_LENGTH)?;
 
         // Deserialize `is_permissioned`
         let is_permissioned: bool = data.read()?;
@@ -79,9 +79,19 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
 
         // Read the name length and string
         let name = data.read_str_with_length()?;
+        
+        #[cfg(not(feature = "perf"))]
+        if name.len() > MAX_NAME_LEN {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Read the remaining data as metadata
         let metadata = data.read_str(data.remaining_bytes())?;
+
+        #[cfg(not(feature = "perf"))]
+        if metadata.len() > MAX_METADATA_LEN {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         Ok(Self {
             accounts,
