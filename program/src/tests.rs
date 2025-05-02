@@ -6,7 +6,7 @@ use borsh::ser::BorshSerialize;
 use kaigan::types::{RemainderStr, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_sdk::{
-    account::{Account, AccountSharedData, WritableAccount}, pubkey::Pubkey, signature::Keypair, signer::Signer
+    account::{Account, WritableAccount}, pubkey::Pubkey, signature::Keypair, signer::Signer
 };
 
 use solana_record_service_sdk::{accounts::Class, instructions::{CreateClass, CreateClassInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
