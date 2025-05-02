@@ -50,7 +50,7 @@ impl<'info> Class<'info> {
         }
 
         // Check Permission
-        if data[34] == 1 {
+        if data[33] == 1 {
             match authority {
                 Some(auth) => {
                     if auth.key().ne(&data[33..65]) {
@@ -105,33 +105,38 @@ impl<'info> Class<'info> {
     }
 
     pub fn update_metadata(class: &'info AccountInfo, authority: &'info AccountInfo, metadata: &'info str) -> Result<(), ProgramError> {
-        // Get our Class account
-        let mut data_ref = Class::borrow_data_checked(class, authority.key())?;
-        
-        // Get metadata offset
-        let offset = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>();
-        
-        // Calculate current and len length of account
-        let current_len = data_ref.len();
-        let new_len = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>() + metadata.len();
-
-        // Resize Class account
-        resize_account(
-            class, 
-            authority, 
-            new_len, 
-            new_len < current_len
-        )?;
-
-        // Create mutable metadata buffer
-        let metadata_buffer = unsafe { 
-            core::slice::from_raw_parts_mut(
-            data_ref.as_mut_ptr().add(offset), 
-                metadata.len()
-            )
+        // Get the name length
+        let name_len = {
+            let data_ref = class.try_borrow_data()?;
+            data_ref[NAME_LEN_OFFSET] as usize
         };
+        
+        // Calculate the new size
+        let offset = name_len + NAME_LEN_OFFSET + size_of::<u8>();
+        let current_len = class.data_len();
+        let new_len = offset + metadata.len();
 
-        metadata_buffer.clone_from_slice(metadata.as_bytes());
+        // Check if we need to resize, if so, resize the account
+        if new_len != current_len {
+            resize_account(
+                class, 
+                authority, 
+                new_len, 
+                new_len < current_len
+            )?;
+        }
+
+        // Update metadata
+        {
+            let mut data_ref = Class::borrow_data_checked(class, authority.key())?;
+            let metadata_buffer = unsafe { 
+                core::slice::from_raw_parts_mut(
+                    data_ref.as_mut_ptr().add(offset), 
+                    metadata.len()
+                )
+            };
+            metadata_buffer.clone_from_slice(metadata.as_bytes());
+        }
 
         Ok(())
     }
