@@ -1,10 +1,12 @@
 use core::{str, mem::size_of};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{Pubkey, try_find_program_address}};
 use super::RecordAuthorityDelegate;
-use crate::utils::ByteReader;
+use crate::utils::{resize_account, ByteReader, ByteWriter};
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
+
+const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<u8>() + size_of::<i64>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -29,7 +31,7 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
     
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 4 
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 3 
         + size_of::<bool>() * 2 
         + size_of::<Pubkey>() * 2 
         + size_of::<i64>();
@@ -114,6 +116,38 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
+    pub fn update_data(record: &'info AccountInfo, authority: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
+        // Get our Record account
+        let mut data_ref = record.try_borrow_mut_data()?;
+
+        // Get metadata offset
+        let offset = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>();
+        
+        // Calculate current and len length of account
+        let current_len = data_ref.len();
+        let new_len = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>() + data.len();
+
+        // Resize Class account
+        resize_account(
+            record, 
+            authority, 
+            new_len, 
+            new_len < current_len
+        )?;
+
+        // Create mutable metadata buffer
+        let data_buffer = unsafe { 
+            core::slice::from_raw_parts_mut(
+            data_ref.as_mut_ptr().add(offset), 
+                data.len()
+            )
+        };
+
+        data_buffer.clone_from_slice(data.as_bytes());
+
+        Ok(())
+    }
+
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
         // Check account data has minimum length and create a byte reader
         let mut data = ByteReader::new_with_minimum_size(data, Self::MINIMUM_CLASS_SIZE)?;
@@ -159,77 +193,43 @@ impl<'info> Record<'info> {
 
     
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
-        // Verify the account has enough space
-        let required_size = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
-
-        if account_info.data_len() < required_size {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
+        // Calculate required space
+        let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
 
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
 
-        let mut offset = 0;
+        // Prevent reinitialization
+        if data[0] != 0x00 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
 
-        // Write discriminator
-        data[offset] = Self::DISCRIMINATOR;
+        // Create a ByteWriter
+        let mut writer = ByteWriter::new_with_minimum_size(&mut data, required_space)?;
+
+        // Write our discriminator
+        writer.write(Self::DISCRIMINATOR)?;
         
-        offset += size_of::<u8>();
+        // Write our class
+        writer.write(self.class)?;
 
-        // Write class
-        data[offset..offset + size_of::<Pubkey>()].clone_from_slice(&self.class);
+        // Write our owner
+        writer.write(self.owner)?;
 
-        offset += size_of::<Pubkey>();
+        // Set is_frozen
+        writer.write(self.is_frozen)?;
 
-        // Write owner
-        data[offset..offset + size_of::<Pubkey>()].clone_from_slice(&self.owner);
-
-        offset += size_of::<Pubkey>();
-
-        // Write is_frozen
-        data[offset] = self.is_frozen as u8;
-
-        offset += size_of::<u8>();
-
-        // Write has_authority_extension
-        data[offset] = self.has_authority_extension as u8;
-
-        offset += size_of::<u8>();
+        // Set has_authority_extension
+        writer.write(self.has_authority_extension)?;
 
         // Write expiry if present
-        if self.has_authority_extension {
-            data[offset] = 1;
+        writer.write_optional(self.expiry)?;
 
-            offset += size_of::<u8>();
-
-            data[offset..offset + size_of::<i64>()].clone_from_slice(&self.expiry.unwrap().to_le_bytes());
-        } else {
-            data[offset] = 0;
-
-            offset += size_of::<u8>();
-
-            data[offset..offset + size_of::<i64>()].fill(0);
-        }
-
-        offset += size_of::<i64>();
-
-        // Write name length
-        data[offset] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
-
-        offset += size_of::<u8>();
-
-        // Check if we have enough space for the name
-        if data.len() < offset + self.name.len() {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        // Write name
-        data[offset..offset + self.name.len()].clone_from_slice(self.name.as_bytes());
-
-        offset += self.name.len();
+        // Write name with length
+        writer.write_str_with_length(self.name)?;
 
         // Write data
-        data[offset..].clone_from_slice(self.data.as_bytes());
+        writer.write_str(self.data)?;
 
         Ok(())
     }

@@ -2,18 +2,23 @@ use core::{mem::size_of, str};
 
 use pinocchio::{account_info::{AccountInfo, RefMut}, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::utils::{resize_account, ByteReader};
+use crate::utils::{resize_account, ByteReader, ByteWriter};
 
 #[repr(C)]
 pub struct Class<'info> {
-    pub authority: Pubkey,                  // The authority that controls this class
-    pub is_permissioned: bool,              // Whether creating records is permissioned or not
-    pub is_frozen: bool,                    // Whether the class is frozen or not
-    pub name: &'info str,                   // Human-readable name for the class
-    pub metadata: &'info str,               // Optional metadata about the class
+    /// The authority that controls this class
+    pub authority: Pubkey,
+    /// Whether creating records is permissioned or not
+    pub is_permissioned: bool,
+    /// Whether the class is frozen or not
+    pub is_frozen: bool,
+    /// Human-readable name for the class
+    pub name: &'info str,
+    /// Optional metadata about the class
+    pub metadata: &'info str,
 }
 
-pub const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() + size_of::<bool>();
+const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() + size_of::<bool>();
 
 impl<'info> Class<'info> {
     pub const DISCRIMINATOR: u8 = 1;
@@ -167,11 +172,6 @@ impl<'info> Class<'info> {
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         // Calculate required space
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
-        
-        // Verify account has enough space
-        if account_info.data_len() != required_space {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
 
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
@@ -181,28 +181,27 @@ impl<'info> Class<'info> {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
+        // Create a ByteWriter
+        let mut writer = ByteWriter::new_with_minimum_size(&mut data, required_space)?;
+
         // Write our discriminator
-        data[0] = Self::DISCRIMINATOR;
+        writer.write(Self::DISCRIMINATOR)?;
         
         // Write our authority
-        data[1..33].clone_from_slice(&self.authority);
+        writer.write(self.authority)?;
 
-        // Set is_permissioned to false
-        data[33] = self.is_permissioned as u8;
+        // Set is_permissioned
+        writer.write(self.is_permissioned)?;
 
-        // Set is_frozen to false
-        data[34] = self.is_frozen as u8;
+        // Set is_frozen
+        writer.write(self.is_frozen)?;
 
-        // Write the length of our name or error if overflowed
-        data[35] = self.name.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        // Write name with length
+        writer.write_str_with_length(self.name)?;
 
-        // Write our name
-        data[36..36 + self.name.len()].clone_from_slice(self.name.as_bytes());
-
-        // Add name length to our offset to write metadata
+        // Write metadata if exists
         if !self.metadata.is_empty() {
-            // Write metadata if exists
-            data[36 + self.name.len()..].clone_from_slice(self.metadata.as_bytes());
+            writer.write_str(self.metadata)?;
         }
 
         Ok(())

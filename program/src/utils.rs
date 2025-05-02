@@ -121,4 +121,81 @@ impl<'a> ByteReader<'a> {
     pub fn remaining_bytes(&self) -> usize {
         self.data.len() - self.offset
     }
+}
+
+pub struct ByteWriter<'a> {
+    data: &'a mut [u8],
+    offset: usize,
+}
+
+impl<'a> ByteWriter<'a> {
+    pub fn new(data: &'a mut [u8]) -> Self {
+        Self { data, offset: 0 }
+    }
+
+    pub fn new_with_minimum_size(data: &'a mut [u8], minimum_size: usize) -> Result<Self, ProgramError> {
+        if data.len() < minimum_size {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Ok(Self { data, offset: 0 })
+    }
+
+    pub fn write<T: Sized + Copy>(&mut self, value: T) -> Result<(), ProgramError> {
+        let size = size_of::<T>();
+        if self.offset + size > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        unsafe {
+            let ptr = self.data[self.offset..].as_mut_ptr() as *mut T;
+            *ptr = value;
+        }
+
+        self.offset += size;
+        Ok(())
+    }
+
+    pub fn write_optional<T: Sized + Copy>(&mut self, value: Option<T>) -> Result<(), ProgramError> {
+        let size = size_of::<T>();
+        if self.offset + size + 1 > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        match value {
+            Some(v) => {
+                self.data[self.offset] = 1;
+                self.offset += 1;
+                self.write(v)
+            }
+            None => {
+                self.data[self.offset] = 0;
+                self.offset += 1;
+                // Fill the remaining space with zeros
+                self.data[self.offset..self.offset + size].fill(0);
+                self.offset += size;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn write_str(&mut self, str: &str) -> Result<(), ProgramError> {
+        if self.offset + str.len() > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        self.data[self.offset..self.offset + str.len()].copy_from_slice(str.as_bytes());
+        self.offset += str.len();
+        Ok(())
+    }
+
+    pub fn write_str_with_length(&mut self, str: &str) -> Result<(), ProgramError> {
+        let len: u8 = str.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        self.write(len)?;
+        self.write_str(str)
+    }
+
+    pub fn remaining_bytes(&self) -> usize {
+        self.data.len() - self.offset
+    }
 } 

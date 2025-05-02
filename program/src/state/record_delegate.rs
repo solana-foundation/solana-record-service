@@ -1,8 +1,9 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use crate::utils::{ByteReader, ByteWriter};
 
 #[repr(C)]
 pub struct RecordAuthorityDelegate {
-    pub record: Pubkey,                   // The record this extension belongs to
+    pub record: Pubkey,
     pub update_authority: Pubkey,
     pub freeze_authority: Pubkey,
     pub transfer_authority: Pubkey,
@@ -12,40 +13,35 @@ pub struct RecordAuthorityDelegate {
 
 impl RecordAuthorityDelegate {
     pub const DISCRIMINATOR: u8 = 3;
-    pub const MINIMUM_RECORD_SIZE: usize = 1 // discriminator
-        + 32                                // record
-        + 32                                // update_authority
-        + 32                                // freeze_authority
-        + 32                                // transfer_authority
-        + 32                                // burn_authority
-        + 33;                               // authority_program (option)
+    pub const MINIMUM_RECORD_SIZE: usize = size_of::<u8>() + size_of::<Pubkey>() * 6 + size_of::<u8>();
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        if data.len() < Self::MINIMUM_RECORD_SIZE {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
+        // Check account data has minimum length and create a byte reader
+        let mut data = ByteReader::new_with_minimum_size(data, Self::MINIMUM_RECORD_SIZE)?;
 
-        let discriminator: u8 = data[0];
+        let discriminator: u8 = data.read()?;
 
         if discriminator != Self::DISCRIMINATOR {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let record: Pubkey = data[1..33].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        // Deserialize record
+        let record: Pubkey = data.read()?;
 
-        let update_authority: Pubkey = data[33..65].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        // Deserialize update authority
+        let update_authority: Pubkey = data.read()?;
 
-        let freeze_authority: Pubkey = data[65..97].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        // Deserialize freeze authority
+        let freeze_authority: Pubkey = data.read()?;
 
-        let transfer_authority: Pubkey = data[97..129].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        // Deserialize transfer authority
+        let transfer_authority: Pubkey = data.read()?;
 
-        let burn_authority: Pubkey = data[129..161].try_into().map_err(|_| ProgramError::InvalidAccountData)?;
+        // Deserialize burn authority
+        let burn_authority: Pubkey = data.read()?;
 
-        let authority_program: Option<Pubkey> = if data[161] == 0 {
-            None
-        } else {
-            Some(data[161..193].try_into().map_err(|_| ProgramError::InvalidAccountData)?)
-        };
+        // Deserialize authority program
+        let authority_program: Option<Pubkey> = data.read_optional()?;
 
         Ok(Self {
             record,
@@ -61,30 +57,34 @@ impl RecordAuthorityDelegate {
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
 
+        // Prevent reinitialization
+        if data[0] != 0x00 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        // Create a ByteWriter
+        let mut writer = ByteWriter::new_with_minimum_size(&mut data, Self::MINIMUM_RECORD_SIZE)?;
+
         // Write our discriminator
-        data[0] = Self::DISCRIMINATOR;
+        writer.write(Self::DISCRIMINATOR)?;
         
-        // Write our authority
-        data[1..33].clone_from_slice(&self.record);
+        // Write our record
+        writer.write(self.record)?;
 
         // Write our update authority
-        data[33..65].clone_from_slice(&self.update_authority);
+        writer.write(self.update_authority)?;
 
         // Write our freeze authority
-        data[65..97].clone_from_slice(&self.freeze_authority);
+        writer.write(self.freeze_authority)?;
 
         // Write our transfer authority
-        data[97..129].clone_from_slice(&self.transfer_authority);
+        writer.write(self.transfer_authority)?;
 
         // Write our burn authority
-        data[129..161].clone_from_slice(&self.burn_authority);
+        writer.write(self.burn_authority)?;
 
         // Write our authority program
-        if let Some(authority_program) = self.authority_program {
-            data[161..193].clone_from_slice(&authority_program);
-        } else {
-            data[161..193].clone_from_slice(&[0u8; 32]);
-        }
+        writer.write_optional(self.authority_program)?;
 
         Ok(())
     }
