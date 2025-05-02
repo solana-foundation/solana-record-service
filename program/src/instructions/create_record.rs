@@ -60,7 +60,7 @@ pub struct CreateRecord<'info> {
 }
 
 /// Minimum length of instruction data required for CreateRecord
-pub const CREATE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>() * 3;
+pub const CREATE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>() * 2;
 
 impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
     type Error = ProgramError;
@@ -77,6 +77,11 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
 
         // Deserialize `name`
         let name: &str = data.read_str_with_length()?;
+
+        #[cfg(not(feature = "perf"))]
+        if name.len() > MAX_NAME_LEN {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Deserialize `data`
         let data: &str = data.read_str(data.remaining_bytes())?;

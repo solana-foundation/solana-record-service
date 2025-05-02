@@ -117,33 +117,38 @@ impl<'info> Record<'info> {
     }
 
     pub fn update_data(record: &'info AccountInfo, authority: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
-        // Get our Record account
-        let mut data_ref = record.try_borrow_mut_data()?;
-
-        // Get metadata offset
-        let offset = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>();
-        
-        // Calculate current and len length of account
-        let current_len = data_ref.len();
-        let new_len = data_ref[NAME_LEN_OFFSET] as usize + NAME_LEN_OFFSET + size_of::<u8>() + data.len();
-
-        // Resize Class account
-        resize_account(
-            record, 
-            authority, 
-            new_len, 
-            new_len < current_len
-        )?;
-
-        // Create mutable metadata buffer
-        let data_buffer = unsafe { 
-            core::slice::from_raw_parts_mut(
-            data_ref.as_mut_ptr().add(offset), 
-                data.len()
-            )
+        // Get the name length
+        let name_len = {
+            let data_ref = record.try_borrow_data()?;
+            data_ref[NAME_LEN_OFFSET] as usize
         };
 
-        data_buffer.clone_from_slice(data.as_bytes());
+        // Calculate the new size
+        let offset = name_len + NAME_LEN_OFFSET + size_of::<u8>();
+        let current_len = record.data_len();
+        let new_len = offset + data.len();
+
+        // Check if we need to resize, if so, resize the account
+        if new_len != current_len {
+            resize_account(
+                record,
+                authority,
+                new_len,
+                new_len < current_len
+            )?;
+        }
+
+        // Update the data
+        {
+            let mut data_ref = record.try_borrow_mut_data()?;
+            let data_buffer = unsafe {
+                core::slice::from_raw_parts_mut(
+                    data_ref.as_mut_ptr().add(offset),
+                    data.len()
+                )
+            };
+            data_buffer.clone_from_slice(data.as_bytes());
+        }
 
         Ok(())
     }
