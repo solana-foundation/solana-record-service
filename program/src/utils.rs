@@ -1,7 +1,7 @@
 use pinocchio::{account_info::AccountInfo, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::Transfer;
 use pinocchio::program_error::ProgramError;
-use std::mem::size_of;
+use core::mem::size_of;
 
 pub struct Context<'info> {
     pub accounts: &'info [AccountInfo],
