@@ -104,5 +104,5 @@ const root = rootNode(
 
 const codama = createFromRoot(root)
 
-codama.accept(renderJavaScriptVisitor('sdk/ts/src'));
-codama.accept(renderRustVisitor('sdk/rust/src/client'));
+codama.accept(renderJavaScriptVisitor('sdk/ts/src', { formatCode: true }));
+codama.accept(renderRustVisitor('sdk/rust/src/client', { crateFolder: 'sdk/rust/', formatCode: true }));
