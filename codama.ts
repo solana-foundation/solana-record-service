@@ -143,21 +143,34 @@ const root = rootNode(
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
                     instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    instructionArgumentNode({ name: 'metadata', type: stringTypeNode("utf8") }),
+                    instructionArgumentNode({ name: 'data', type: stringTypeNode("utf8") }),
                 ],
                 accounts: [
                     instructionAccountNode({
-                        name: "authority",
+                        name: "owner",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to freeze/thaw a class"]
+                        docs: ["Authority used to create a record"]
                     }),
                     instructionAccountNode({
                         name: "class",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Class account to be frozen/thawed"]
-                    })
+                        docs: ["Class account of the record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be created"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to open our new record account"]
+                    }),
                 ]
             })
         ]

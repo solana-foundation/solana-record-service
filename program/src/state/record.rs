@@ -19,7 +19,7 @@ pub struct Record<'info> {
     /// Flag indicating if authority extension exists
     pub has_authority_extension: bool,
     /// Optional expiration timestamp
-    pub expiry: Option<i64>,
+    pub expiry: i64,
     /// The record name/key
     pub name: &'info str,
     /// The record's data content
@@ -177,7 +177,7 @@ impl<'info> Record<'info> {
         let has_authority_extension: bool = data.read()?;
 
         // Deserialize expiry
-        let expiry: Option<i64> = data.read_optional()?;
+        let expiry: i64 = data.read()?;
 
         // Deserialize name
         let name: &'info str = data.read_str_with_length()?;
@@ -228,7 +228,7 @@ impl<'info> Record<'info> {
         writer.write(self.has_authority_extension)?;
 
         // Write expiry if present
-        writer.write_optional(self.expiry)?;
+        writer.write(self.expiry)?;
 
         // Write name with length
         writer.write_str_with_length(self.name)?;

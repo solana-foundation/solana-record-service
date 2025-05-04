@@ -54,7 +54,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
 
 pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
-    expiry: Option<i64>,
+    expiry: i64,
     name: &'info str,
     data: &'info str,
 }
@@ -73,7 +73,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         let mut data = ByteReader::new_with_minimum_size(ctx.data, CREATE_RECORD_MIN_IX_LENGTH)?;
 
         // Deserialize `expiry`
-        let expiry: Option<i64> = data.read_optional()?;
+        let expiry: i64 = data.read()?;
 
         // Deserialize `name`
         let name: &str = data.read_str_with_length()?;
@@ -138,7 +138,7 @@ impl <'info> CreateRecord<'info> {
             class: *self.accounts.class.key(),
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_extension: self.expiry.is_some(),
+            has_authority_extension: self.expiry != 0,
             expiry: self.expiry,
             name: self.name,
             data: self.data

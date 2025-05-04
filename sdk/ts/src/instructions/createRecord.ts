@@ -28,6 +28,7 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
+  type ReadonlyAccount,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -43,20 +44,30 @@ export function getCreateRecordDiscriminatorBytes() {
 
 export type CreateRecordInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
+  TAccountOwner extends string | IAccountMeta<string> = string,
   TAccountClass extends string | IAccountMeta<string> = string,
+  TAccountRecord extends string | IAccountMeta<string> = string,
+  TAccountSystemProgram extends
+    | string
+    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
+      TAccountOwner extends string
+        ? WritableSignerAccount<TAccountOwner> &
+            IAccountSignerMeta<TAccountOwner>
+        : TAccountOwner,
       TAccountClass extends string
         ? WritableAccount<TAccountClass>
         : TAccountClass,
+      TAccountRecord extends string
+        ? WritableAccount<TAccountRecord>
+        : TAccountRecord,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -65,13 +76,13 @@ export type CreateRecordInstructionData = {
   discriminator: number;
   expiration: bigint;
   name: string;
-  metadata: string;
+  data: string;
 };
 
 export type CreateRecordInstructionDataArgs = {
   expiration: number | bigint;
   name: string;
-  metadata: string;
+  data: string;
 };
 
 export function getCreateRecordInstructionDataEncoder(): Encoder<CreateRecordInstructionDataArgs> {
@@ -80,7 +91,7 @@ export function getCreateRecordInstructionDataEncoder(): Encoder<CreateRecordIns
       ['discriminator', getU8Encoder()],
       ['expiration', getI64Encoder()],
       ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['metadata', getUtf8Encoder()],
+      ['data', getUtf8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: 3 })
   );
@@ -91,7 +102,7 @@ export function getCreateRecordInstructionDataDecoder(): Decoder<CreateRecordIns
     ['discriminator', getU8Decoder()],
     ['expiration', getI64Decoder()],
     ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['metadata', getUtf8Decoder()],
+    ['data', getUtf8Decoder()],
   ]);
 }
 
@@ -106,35 +117,56 @@ export function getCreateRecordInstructionDataCodec(): Codec<
 }
 
 export type CreateRecordInput<
-  TAccountAuthority extends string = string,
+  TAccountOwner extends string = string,
   TAccountClass extends string = string,
+  TAccountRecord extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
-  /** Authority used to freeze/thaw a class */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** Class account to be frozen/thawed */
+  /** Authority used to create a record */
+  owner: TransactionSigner<TAccountOwner>;
+  /** Class account of the record */
   class: Address<TAccountClass>;
+  /** Record account to be created */
+  record: Address<TAccountRecord>;
+  /** System Program used to open our new record account */
+  systemProgram?: Address<TAccountSystemProgram>;
   expiration: CreateRecordInstructionDataArgs['expiration'];
   name: CreateRecordInstructionDataArgs['name'];
-  metadata: CreateRecordInstructionDataArgs['metadata'];
+  data: CreateRecordInstructionDataArgs['data'];
 };
 
 export function getCreateRecordInstruction<
-  TAccountAuthority extends string,
+  TAccountOwner extends string,
   TAccountClass extends string,
+  TAccountRecord extends string,
+  TAccountSystemProgram extends string,
   TProgramAddress extends
     Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
 >(
-  input: CreateRecordInput<TAccountAuthority, TAccountClass>,
+  input: CreateRecordInput<
+    TAccountOwner,
+    TAccountClass,
+    TAccountRecord,
+    TAccountSystemProgram
+  >,
   config?: { programAddress?: TProgramAddress }
-): CreateRecordInstruction<TProgramAddress, TAccountAuthority, TAccountClass> {
+): CreateRecordInstruction<
+  TProgramAddress,
+  TAccountOwner,
+  TAccountClass,
+  TAccountRecord,
+  TAccountSystemProgram
+> {
   // Program address.
   const programAddress =
     config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
+    owner: { value: input.owner ?? null, isWritable: true },
     class: { value: input.class ?? null, isWritable: true },
+    record: { value: input.record ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -144,11 +176,19 @@ export function getCreateRecordInstruction<
   // Original args.
   const args = { ...input };
 
+  // Resolve default values.
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.owner),
       getAccountMeta(accounts.class),
+      getAccountMeta(accounts.record),
+      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
     data: getCreateRecordInstructionDataEncoder().encode(
@@ -156,8 +196,10 @@ export function getCreateRecordInstruction<
     ),
   } as CreateRecordInstruction<
     TProgramAddress,
-    TAccountAuthority,
-    TAccountClass
+    TAccountOwner,
+    TAccountClass,
+    TAccountRecord,
+    TAccountSystemProgram
   >;
 
   return instruction;
@@ -169,10 +211,14 @@ export type ParsedCreateRecordInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Authority used to freeze/thaw a class */
-    authority: TAccountMetas[0];
-    /** Class account to be frozen/thawed */
+    /** Authority used to create a record */
+    owner: TAccountMetas[0];
+    /** Class account of the record */
     class: TAccountMetas[1];
+    /** Record account to be created */
+    record: TAccountMetas[2];
+    /** System Program used to open our new record account */
+    systemProgram: TAccountMetas[3];
   };
   data: CreateRecordInstructionData;
 };
@@ -185,7 +231,7 @@ export function parseCreateRecordInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedCreateRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -198,8 +244,10 @@ export function parseCreateRecordInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      authority: getNextAccount(),
+      owner: getNextAccount(),
       class: getNextAccount(),
+      record: getNextAccount(),
+      systemProgram: getNextAccount(),
     },
     data: getCreateRecordInstructionDataDecoder().decode(instruction.data),
   };

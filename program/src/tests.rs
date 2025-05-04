@@ -9,7 +9,7 @@ use solana_sdk::{
     account::{Account, WritableAccount}, pubkey::Pubkey, signature::Keypair, signer::Signer
 };
 
-use solana_record_service_sdk::{accounts::Class, instructions::{CreateClass, CreateClassInstructionArgs, FreezeClass, FreezeClassInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_sdk::{accounts::Class, instructions::{CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs, FreezeClass, FreezeClassInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
 
 #[test]
 fn create_class() {
@@ -154,6 +154,74 @@ fn update_class_frozen() {
                 class, 
                 class_account
             )
+        ],
+        &[
+            Check::success()
+        ]
+    );
+}
+
+#[test]
+fn create_record() {
+    // Payer keypair
+    let keypair = Keypair::new();
+    let owner = keypair.pubkey();
+    // Vault
+    let (class, _bump) = Pubkey::find_program_address(&[b"class", &owner.as_ref(), b"test"], &SOLANA_RECORD_SERVICE_ID);
+    // Record
+    let (record, _bump) = Pubkey::find_program_address(&[b"record", &class.as_ref(), b"test"], &SOLANA_RECORD_SERVICE_ID);
+    //System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = CreateRecord {
+        owner,
+        class,
+        record,
+        system_program,
+    }.instruction(CreateRecordInstructionArgs { 
+        expiration: 0,
+        name: U8PrefixString::try_from_slice(b"\x04test").unwrap(),
+        data: RemainderStr::from_str("test").unwrap()
+    });
+
+    println!("IX: {}", hex::encode(&instruction.data));
+    
+    let class_account_data = Class {
+        discriminator: 1,
+        authority: owner,
+        is_permissioned: false,
+        is_frozen: false, 
+        name: U8PrefixString::try_from_slice(b"\x04test").unwrap(),
+        metadata: RemainderStr::from_str("test").unwrap()
+    }.try_to_vec().expect("Serialization error");
+
+    println!("Class contents: {}", hex::encode(&class_account_data));
+
+    let mut class_account = Account::new(100_000_000u64,  class_account_data.len(), &Pubkey::from(crate::ID));
+    class_account.data_as_mut_slice().write(&class_account_data).expect("Failed to write account data");
+
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (
+                owner,
+                Account::new(100_000_000u64, 0, &Pubkey::default()),
+            ),
+            (
+                class, 
+                class_account
+            ),
+            (
+                record, 
+                Account::new(0, 0, &Pubkey::default())
+            ),
+            (
+                system_program,
+                system_program_data
+            )
+            
         ],
         &[
             Check::success()
