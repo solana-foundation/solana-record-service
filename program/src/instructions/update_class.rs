@@ -27,7 +27,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, _system_program] = accounts else {
+        let [authority, class, ..] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 

@@ -81,7 +81,7 @@ const root = rootNode(
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to create a new class"]
+                        docs: ["Authority used to update a class"]
                     }),
                     instructionAccountNode({
                         name: "class",
@@ -96,6 +96,35 @@ const root = rootNode(
                         isWritable: false,
                         docs: ["System Program used to open our new class account"]
                     }),
+                ]
+            }),
+            instructionNode({
+                name: "updateClassFrozen",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(2)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(2),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'is_frozen', type: booleanTypeNode() }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to freeze/thaw a class"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Class account to be frozen/thawed"]
+                    })
                 ]
             })
         ]

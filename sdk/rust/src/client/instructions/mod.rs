@@ -6,7 +6,9 @@
 //!
 
 pub(crate) mod r#create_class;
+pub(crate) mod r#update_class_frozen;
 pub(crate) mod r#update_class_metadata;
 
 pub use self::r#create_class::*;
+pub use self::r#update_class_frozen::*;
 pub use self::r#update_class_metadata::*;

@@ -7,4 +7,5 @@
  */
 
 export * from './createClass';
+export * from './updateClassFrozen';
 export * from './updateClassMetadata';
