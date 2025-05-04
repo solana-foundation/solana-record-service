@@ -2,7 +2,7 @@ pub mod create_class;
 pub use create_class::CreateClass;
 
 pub mod update_class;
-pub use update_class::{UpdateClassMetadata, UpdateClassFrozen};
+pub use update_class::UpdateClassMetadata;
 
 pub mod freeze_class;
 pub use freeze_class::FreezeClass;

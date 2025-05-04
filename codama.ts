@@ -99,7 +99,7 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
-                name: "updateClassFrozen",
+                name: "freezeClass",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(2)))
                 ],
@@ -111,6 +111,39 @@ const root = rootNode(
                         defaultValueStrategy: 'omitted',
                     }),
                     instructionArgumentNode({ name: 'is_frozen', type: booleanTypeNode() }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to freeze/thaw a class"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Class account to be frozen/thawed"]
+                    })
+                ]
+            }),
+            instructionNode({
+                name: "createRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(3)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(3),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ 
+                        name: 'expiration', type: numberTypeNode("i64") 
+                    }),
+                    instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
+                    instructionArgumentNode({ name: 'metadata', type: stringTypeNode("utf8") }),
                 ],
                 accounts: [
                     instructionAccountNode({

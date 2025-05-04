@@ -7,5 +7,6 @@
  */
 
 export * from './createClass';
-export * from './updateClassFrozen';
+export * from './createRecord';
+export * from './freezeClass';
 export * from './updateClassMetadata';

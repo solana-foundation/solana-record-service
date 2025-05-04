@@ -14,7 +14,8 @@ import {
 } from '@solana/kit';
 import {
   type ParsedCreateClassInstruction,
-  type ParsedUpdateClassFrozenInstruction,
+  type ParsedCreateRecordInstruction,
+  type ParsedFreezeClassInstruction,
   type ParsedUpdateClassMetadataInstruction,
 } from '../instructions';
 
@@ -40,7 +41,8 @@ export function identifySolanaRecordServiceAccount(
 export enum SolanaRecordServiceInstruction {
   CreateClass,
   UpdateClassMetadata,
-  UpdateClassFrozen,
+  FreezeClass,
+  CreateRecord,
 }
 
 export function identifySolanaRecordServiceInstruction(
@@ -54,7 +56,10 @@ export function identifySolanaRecordServiceInstruction(
     return SolanaRecordServiceInstruction.UpdateClassMetadata;
   }
   if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return SolanaRecordServiceInstruction.UpdateClassFrozen;
+    return SolanaRecordServiceInstruction.FreezeClass;
+  }
+  if (containsBytes(data, getU8Encoder().encode(3), 0)) {
+    return SolanaRecordServiceInstruction.CreateRecord;
   }
   throw new Error(
     'The provided instruction could not be identified as a solanaRecordService instruction.'
@@ -71,5 +76,8 @@ export type ParsedSolanaRecordServiceInstruction<
       instructionType: SolanaRecordServiceInstruction.UpdateClassMetadata;
     } & ParsedUpdateClassMetadataInstruction<TProgram>)
   | ({
-      instructionType: SolanaRecordServiceInstruction.UpdateClassFrozen;
-    } & ParsedUpdateClassFrozenInstruction<TProgram>);
+      instructionType: SolanaRecordServiceInstruction.FreezeClass;
+    } & ParsedFreezeClassInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.CreateRecord;
+    } & ParsedCreateRecordInstruction<TProgram>);

@@ -10,17 +10,17 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateClassFrozen {
+pub struct FreezeClass {
     /// Authority used to freeze/thaw a class
     pub authority: solana_program::pubkey::Pubkey,
     /// Class account to be frozen/thawed
     pub class: solana_program::pubkey::Pubkey,
 }
 
-impl UpdateClassFrozen {
+impl FreezeClass {
     pub fn instruction(
         &self,
-        args: UpdateClassFrozenInstructionArgs,
+        args: FreezeClassInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -28,7 +28,7 @@ impl UpdateClassFrozen {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateClassFrozenInstructionArgs,
+        args: FreezeClassInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
@@ -40,7 +40,7 @@ impl UpdateClassFrozen {
             self.class, false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateClassFrozenInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeClassInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -54,17 +54,17 @@ impl UpdateClassFrozen {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassFrozenInstructionData {
+pub struct FreezeClassInstructionData {
     discriminator: u8,
 }
 
-impl UpdateClassFrozenInstructionData {
+impl FreezeClassInstructionData {
     pub fn new() -> Self {
         Self { discriminator: 2 }
     }
 }
 
-impl Default for UpdateClassFrozenInstructionData {
+impl Default for FreezeClassInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -72,25 +72,25 @@ impl Default for UpdateClassFrozenInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassFrozenInstructionArgs {
+pub struct FreezeClassInstructionArgs {
     pub is_frozen: bool,
 }
 
-/// Instruction builder for `UpdateClassFrozen`.
+/// Instruction builder for `FreezeClass`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` class
 #[derive(Clone, Debug, Default)]
-pub struct UpdateClassFrozenBuilder {
+pub struct FreezeClassBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
     is_frozen: Option<bool>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl UpdateClassFrozenBuilder {
+impl FreezeClassBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -131,11 +131,11 @@ impl UpdateClassFrozenBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = UpdateClassFrozen {
+        let accounts = FreezeClass {
             authority: self.authority.expect("authority is not set"),
             class: self.class.expect("class is not set"),
         };
-        let args = UpdateClassFrozenInstructionArgs {
+        let args = FreezeClassInstructionArgs {
             is_frozen: self.is_frozen.clone().expect("is_frozen is not set"),
         };
 
@@ -143,16 +143,16 @@ impl UpdateClassFrozenBuilder {
     }
 }
 
-/// `update_class_frozen` CPI accounts.
-pub struct UpdateClassFrozenCpiAccounts<'a, 'b> {
+/// `freeze_class` CPI accounts.
+pub struct FreezeClassCpiAccounts<'a, 'b> {
     /// Authority used to freeze/thaw a class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Class account to be frozen/thawed
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `update_class_frozen` CPI instruction.
-pub struct UpdateClassFrozenCpi<'a, 'b> {
+/// `freeze_class` CPI instruction.
+pub struct FreezeClassCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Authority used to freeze/thaw a class
@@ -160,14 +160,14 @@ pub struct UpdateClassFrozenCpi<'a, 'b> {
     /// Class account to be frozen/thawed
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: UpdateClassFrozenInstructionArgs,
+    pub __args: FreezeClassInstructionArgs,
 }
 
-impl<'a, 'b> UpdateClassFrozenCpi<'a, 'b> {
+impl<'a, 'b> FreezeClassCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: UpdateClassFrozenCpiAccounts<'a, 'b>,
-        args: UpdateClassFrozenInstructionArgs,
+        accounts: FreezeClassCpiAccounts<'a, 'b>,
+        args: FreezeClassInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
@@ -226,7 +226,7 @@ impl<'a, 'b> UpdateClassFrozenCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateClassFrozenInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeClassInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -251,20 +251,20 @@ impl<'a, 'b> UpdateClassFrozenCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateClassFrozen` via CPI.
+/// Instruction builder for `FreezeClass` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` class
 #[derive(Clone, Debug)]
-pub struct UpdateClassFrozenCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateClassFrozenCpiBuilderInstruction<'a, 'b>>,
+pub struct FreezeClassCpiBuilder<'a, 'b> {
+    instruction: Box<FreezeClassCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateClassFrozenCpiBuilder<'a, 'b> {
+impl<'a, 'b> FreezeClassCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateClassFrozenCpiBuilderInstruction {
+        let instruction = Box::new(FreezeClassCpiBuilderInstruction {
             __program: program,
             authority: None,
             class: None,
@@ -334,14 +334,14 @@ impl<'a, 'b> UpdateClassFrozenCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = UpdateClassFrozenInstructionArgs {
+        let args = FreezeClassInstructionArgs {
             is_frozen: self
                 .instruction
                 .is_frozen
                 .clone()
                 .expect("is_frozen is not set"),
         };
-        let instruction = UpdateClassFrozenCpi {
+        let instruction = FreezeClassCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
@@ -357,7 +357,7 @@ impl<'a, 'b> UpdateClassFrozenCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateClassFrozenCpiBuilderInstruction<'a, 'b> {
+struct FreezeClassCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,

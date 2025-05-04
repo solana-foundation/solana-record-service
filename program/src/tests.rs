@@ -9,7 +9,7 @@ use solana_sdk::{
     account::{Account, WritableAccount}, pubkey::Pubkey, signature::Keypair, signer::Signer
 };
 
-use solana_record_service_sdk::{accounts::Class, instructions::{CreateClass, CreateClassInstructionArgs, UpdateClassFrozen, UpdateClassFrozenInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_sdk::{accounts::Class, instructions::{CreateClass, CreateClassInstructionArgs, FreezeClass, FreezeClassInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
 
 #[test]
 fn create_class() {
@@ -118,10 +118,10 @@ fn update_class_frozen() {
     // Vault
     let (class, _bump) = Pubkey::find_program_address(&[b"class", &authority.as_ref(), b"test"], &SOLANA_RECORD_SERVICE_ID);
 
-    let instruction = UpdateClassFrozen {
+    let instruction = FreezeClass {
         authority,
         class,
-    }.instruction(UpdateClassFrozenInstructionArgs { 
+    }.instruction(FreezeClassInstructionArgs { 
         is_frozen: true
     });
 

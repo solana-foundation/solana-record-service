@@ -31,13 +31,13 @@ import {
 import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_CLASS_FROZEN_DISCRIMINATOR = 2;
+export const FREEZE_CLASS_DISCRIMINATOR = 2;
 
-export function getUpdateClassFrozenDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_CLASS_FROZEN_DISCRIMINATOR);
+export function getFreezeClassDiscriminatorBytes() {
+  return getU8Encoder().encode(FREEZE_CLASS_DISCRIMINATOR);
 }
 
-export type UpdateClassFrozenInstruction<
+export type FreezeClassInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountClass extends string | IAccountMeta<string> = string,
@@ -57,14 +57,14 @@ export type UpdateClassFrozenInstruction<
     ]
   >;
 
-export type UpdateClassFrozenInstructionData = {
+export type FreezeClassInstructionData = {
   discriminator: number;
   isFrozen: boolean;
 };
 
-export type UpdateClassFrozenInstructionDataArgs = { isFrozen: boolean };
+export type FreezeClassInstructionDataArgs = { isFrozen: boolean };
 
-export function getUpdateClassFrozenInstructionDataEncoder(): Encoder<UpdateClassFrozenInstructionDataArgs> {
+export function getFreezeClassInstructionDataEncoder(): Encoder<FreezeClassInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
@@ -74,24 +74,24 @@ export function getUpdateClassFrozenInstructionDataEncoder(): Encoder<UpdateClas
   );
 }
 
-export function getUpdateClassFrozenInstructionDataDecoder(): Decoder<UpdateClassFrozenInstructionData> {
+export function getFreezeClassInstructionDataDecoder(): Decoder<FreezeClassInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['isFrozen', getBooleanDecoder()],
   ]);
 }
 
-export function getUpdateClassFrozenInstructionDataCodec(): Codec<
-  UpdateClassFrozenInstructionDataArgs,
-  UpdateClassFrozenInstructionData
+export function getFreezeClassInstructionDataCodec(): Codec<
+  FreezeClassInstructionDataArgs,
+  FreezeClassInstructionData
 > {
   return combineCodec(
-    getUpdateClassFrozenInstructionDataEncoder(),
-    getUpdateClassFrozenInstructionDataDecoder()
+    getFreezeClassInstructionDataEncoder(),
+    getFreezeClassInstructionDataDecoder()
   );
 }
 
-export type UpdateClassFrozenInput<
+export type FreezeClassInput<
   TAccountAuthority extends string = string,
   TAccountClass extends string = string,
 > = {
@@ -99,22 +99,18 @@ export type UpdateClassFrozenInput<
   authority: TransactionSigner<TAccountAuthority>;
   /** Class account to be frozen/thawed */
   class: Address<TAccountClass>;
-  isFrozen: UpdateClassFrozenInstructionDataArgs['isFrozen'];
+  isFrozen: FreezeClassInstructionDataArgs['isFrozen'];
 };
 
-export function getUpdateClassFrozenInstruction<
+export function getFreezeClassInstruction<
   TAccountAuthority extends string,
   TAccountClass extends string,
   TProgramAddress extends
     Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
 >(
-  input: UpdateClassFrozenInput<TAccountAuthority, TAccountClass>,
+  input: FreezeClassInput<TAccountAuthority, TAccountClass>,
   config?: { programAddress?: TProgramAddress }
-): UpdateClassFrozenInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountClass
-> {
+): FreezeClassInstruction<TProgramAddress, TAccountAuthority, TAccountClass> {
   // Program address.
   const programAddress =
     config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
@@ -139,10 +135,10 @@ export function getUpdateClassFrozenInstruction<
       getAccountMeta(accounts.class),
     ],
     programAddress,
-    data: getUpdateClassFrozenInstructionDataEncoder().encode(
-      args as UpdateClassFrozenInstructionDataArgs
+    data: getFreezeClassInstructionDataEncoder().encode(
+      args as FreezeClassInstructionDataArgs
     ),
-  } as UpdateClassFrozenInstruction<
+  } as FreezeClassInstruction<
     TProgramAddress,
     TAccountAuthority,
     TAccountClass
@@ -151,7 +147,7 @@ export function getUpdateClassFrozenInstruction<
   return instruction;
 }
 
-export type ParsedUpdateClassFrozenInstruction<
+export type ParsedFreezeClassInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -162,17 +158,17 @@ export type ParsedUpdateClassFrozenInstruction<
     /** Class account to be frozen/thawed */
     class: TAccountMetas[1];
   };
-  data: UpdateClassFrozenInstructionData;
+  data: FreezeClassInstructionData;
 };
 
-export function parseUpdateClassFrozenInstruction<
+export function parseFreezeClassInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedUpdateClassFrozenInstruction<TProgram, TAccountMetas> {
+): ParsedFreezeClassInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -189,6 +185,6 @@ export function parseUpdateClassFrozenInstruction<
       authority: getNextAccount(),
       class: getNextAccount(),
     },
-    data: getUpdateClassFrozenInstructionDataDecoder().decode(instruction.data),
+    data: getFreezeClassInstructionDataDecoder().decode(instruction.data),
   };
 }
