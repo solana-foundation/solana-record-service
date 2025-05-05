@@ -15,6 +15,7 @@ import {
 import {
   type ParsedCreateClassInstruction,
   type ParsedCreateRecordInstruction,
+  type ParsedDeleteRecordInstruction,
   type ParsedFreezeClassInstruction,
   type ParsedTransferRecordInstruction,
   type ParsedUpdateClassMetadataInstruction,
@@ -51,6 +52,7 @@ export enum SolanaRecordServiceInstruction {
   CreateRecord,
   UpdateRecord,
   TransferRecord,
+  DeleteRecord,
 }
 
 export function identifySolanaRecordServiceInstruction(
@@ -74,6 +76,9 @@ export function identifySolanaRecordServiceInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(5), 0)) {
     return SolanaRecordServiceInstruction.TransferRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+    return SolanaRecordServiceInstruction.DeleteRecord;
   }
   throw new Error(
     'The provided instruction could not be identified as a solanaRecordService instruction.'
@@ -100,4 +105,7 @@ export type ParsedSolanaRecordServiceInstruction<
     } & ParsedUpdateRecordInstruction<TProgram>)
   | ({
       instructionType: SolanaRecordServiceInstruction.TransferRecord;
-    } & ParsedTransferRecordInstruction<TProgram>);
+    } & ParsedTransferRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.DeleteRecord;
+    } & ParsedDeleteRecordInstruction<TProgram>);

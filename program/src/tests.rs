@@ -7,7 +7,7 @@ use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Moll
 use solana_program::example_mocks::solana_keypair::Keypair;
 use solana_sdk::{account::{Account, WritableAccount}, pubkey::Pubkey};
 
-use solana_record_service_sdk::{accounts::{Class, Record}, instructions::{CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs, FreezeClass, FreezeClassInstructionArgs, TransferRecord, TransferRecordInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs, UpdateRecord, UpdateRecordInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_sdk::{accounts::{Class, Record}, instructions::{CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs, DeleteRecord, FreezeClass, FreezeClassInstructionArgs, TransferRecord, TransferRecordInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs, UpdateRecord, UpdateRecordInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -338,6 +338,42 @@ fn transfer_record() {
         &[
             Check::success(),
             Check::account(&record).data(&record_data_updated.data).build()
+        ]
+    );
+}
+
+#[test]
+fn delete_record() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_owner();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, OWNER, false, 0, "test", "test");
+
+    let instruction = DeleteRecord {
+        authority,
+        record,
+        delegate: None
+    }.instruction();
+
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (
+                authority,
+                authority_data,
+            ),
+            (
+                record, 
+                record_data
+            )
+        ],
+        &[
+            Check::success(),
+            Check::account(&record).data(&[]).build()
         ]
     );
 }
