@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::{AccountInfo, RefMut}, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::Transfer;
 use pinocchio::program_error::ProgramError;
 use std::mem::size_of;
@@ -52,22 +52,18 @@ pub fn resize_account(
     Ok(())
 }
 
-pub struct ByteReader<'a> {
-    data: &'a [u8],
+pub struct ByteReader<'info> {
+    data: &'info [u8],
     offset: usize,
 }
 
-impl<'a> ByteReader<'a> {
-    pub fn new(data: &'a [u8]) -> Self {
+impl<'info> ByteReader<'info> {
+    pub fn new(data: &'info [u8]) -> Self {
         Self { data, offset: 0 }
     }
 
-    pub fn new_with_minimum_size(data: &'a [u8], minimum_size: usize) -> Result<Self, ProgramError> {
-        if data.len() < minimum_size {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        
-        Ok(Self { data, offset: 0 })
+    pub fn new_with_offset(data: &'info [u8], offset: usize) -> Self {
+        Self { data, offset }
     }
 
     pub fn read<T: Sized + Copy>(&mut self) -> Result<T, ProgramError> {
@@ -86,21 +82,7 @@ impl<'a> ByteReader<'a> {
         Ok(value)
     }
 
-    pub fn read_optional<T: Sized + Copy>(&mut self) -> Result<Option<T>, ProgramError> {
-        if self.offset >= self.data.len() {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        
-        if self.data[self.offset] == 0 {
-            self.offset += 1;
-            Ok(None)
-        } else {
-            self.offset += 1;
-            Ok(Some(self.read()?))
-        }
-    }
-
-    pub fn read_str(&mut self, len: usize) -> Result<&'a str, ProgramError> {
+    pub fn read_str(&mut self, len: usize) -> Result<&'info str, ProgramError> {
         if self.offset + len > self.data.len() {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -113,10 +95,36 @@ impl<'a> ByteReader<'a> {
         Ok(str)
     }
 
-    pub fn read_str_with_length(&mut self) -> Result<&'a str, ProgramError> {
+    pub fn read_str_with_length(&mut self) -> Result<&'info str, ProgramError> {
         let len: u8 = self.read()?;
 
         self.read_str(len as usize)
+    }
+
+    pub fn read_with_offset<T: Sized + Copy>(data: &'info [u8], offset: usize) -> Result<T, ProgramError> {
+        let size = size_of::<T>();
+
+        if offset + size > data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let value = unsafe {
+            let ptr = data[offset..].as_ptr() as *const T;
+            *ptr
+        };
+
+        Ok(value)
+    }
+
+    pub fn read_optional_with_offset<T: Sized + Copy>(data: &'info [u8], offset: usize) -> Result<Option<T>, ProgramError> {
+        let is_some: u8 = Self::read_with_offset(data, offset)?;
+        if is_some == 0 {
+            Ok(None)
+        } else if is_some == 1 {
+            Ok(Some(Self::read_with_offset(data, offset + size_of::<u8>())?))
+        } else {
+            Err(ProgramError::InvalidInstructionData)
+        }
     }
 
     pub fn remaining_bytes(&self) -> usize {
@@ -124,22 +132,18 @@ impl<'a> ByteReader<'a> {
     }
 }
 
-pub struct ByteWriter<'a> {
-    data: &'a mut [u8],
+pub struct ByteWriter<'info> {
+    data: &'info mut [u8],
     offset: usize,
 }
 
-impl<'a> ByteWriter<'a> {
-    pub fn new(data: &'a mut [u8]) -> Self {
+impl<'info> ByteWriter<'info> {
+    pub fn new(data: &'info mut [u8]) -> Self {
         Self { data, offset: 0 }
     }
 
-    pub fn new_with_minimum_size(data: &'a mut [u8], minimum_size: usize) -> Result<Self, ProgramError> {
-        if data.len() < minimum_size {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        Ok(Self { data, offset: 0 })
+    pub fn new_with_offset(data: &'info mut [u8], offset: usize) -> Self {
+        Self { data, offset }
     }
 
     pub fn write<T: Sized + Copy>(&mut self, value: T) -> Result<(), ProgramError> {
@@ -157,29 +161,6 @@ impl<'a> ByteWriter<'a> {
         Ok(())
     }
 
-    pub fn write_optional<T: Sized + Copy>(&mut self, value: Option<T>) -> Result<(), ProgramError> {
-        let size = size_of::<T>();
-        if self.offset + size + 1 > self.data.len() {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        match value {
-            Some(v) => {
-                self.data[self.offset] = 1;
-                self.offset += 1;
-                self.write(v)
-            }
-            None => {
-                self.data[self.offset] = 0;
-                self.offset += 1;
-                // Fill the remaining space with zeros
-                self.data[self.offset..self.offset + size].fill(0);
-                self.offset += size;
-                Ok(())
-            }
-        }
-    }
-
     pub fn write_str(&mut self, str: &str) -> Result<(), ProgramError> {
         if self.offset + str.len() > self.data.len() {
             return Err(ProgramError::InvalidInstructionData);
@@ -194,6 +175,19 @@ impl<'a> ByteWriter<'a> {
         let len: u8 = str.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
         self.write(len)?;
         self.write_str(str)
+    }
+
+    pub fn write_with_offset<T: Sized + Copy>(data: &mut RefMut<'_, [u8]>, offset: usize, value: T) -> Result<(), ProgramError> {
+        if offset + size_of::<T>() > data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        unsafe {
+            let ptr = data[offset..].as_mut_ptr() as *mut T;
+            *ptr = value;
+        }
+
+        Ok(())
     }
 
     pub fn remaining_bytes(&self) -> usize {

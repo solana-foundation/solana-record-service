@@ -50,6 +50,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
     }
 }
 
+const NEW_OWNER_OFFSET: usize = 0;
+
 pub struct TransferRecord<'info> {
     accounts: TransferRecordAccounts<'info>,
     new_owner: Pubkey,
@@ -65,11 +67,14 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
         // Deserialize our accounts array
         let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, TRANSFER_RECORD_MIN_IX_LENGTH)?;
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < TRANSFER_RECORD_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Deserialize new owner
-        let new_owner: Pubkey = data.read()?;
+        let new_owner: Pubkey = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;
 
         Ok(Self {
             accounts,

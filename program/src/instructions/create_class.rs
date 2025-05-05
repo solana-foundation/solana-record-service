@@ -50,6 +50,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
     }
 }
 
+const IS_PERMISSIONED_OFFSET: usize = 0;
+const IS_FROZEN_OFFSET: usize = IS_PERMISSIONED_OFFSET + size_of::<bool>();
+const NAME_LEN_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
+
 pub struct CreateClass<'info> {
     accounts: CreateClassAccounts<'info>,
     is_permissioned: bool,
@@ -59,7 +63,7 @@ pub struct CreateClass<'info> {
 }
 
 /// Minimum length of instruction data required for CreateClass
-const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() * 2 + size_of::<u8>();
+pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() * 2 + size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
@@ -68,17 +72,23 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         // Deserialize our accounts array
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
 
-        // Check instruction_data minimum size and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, CREATE_CLASS_MIN_IX_LENGTH)?;
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < CREATE_CLASS_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
 
-        // Deserialize `is_permissioned`
-        let is_permissioned: bool = data.read()?;
+        // Deserialize `is_permissioned`    
+        let is_permissioned: bool = ByteReader::read_with_offset(ctx.data, IS_PERMISSIONED_OFFSET)?;
 
         // Deserialize `is_frozen`
-        let is_frozen: bool = data.read()?;
+        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
-        // Read the name length and string
-        let name = data.read_str_with_length()?;
+        // Read the variable length data
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
+
+        // Read the name
+        let name: &'info str = variable_data.read_str_with_length()?;
         
         #[cfg(not(feature = "perf"))]
         if name.len() > MAX_NAME_LEN {
@@ -86,7 +96,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         }
 
         // Read the remaining data as metadata
-        let metadata = data.read_str(data.remaining_bytes())?;
+        let metadata: &'info str = variable_data.read_str(variable_data.remaining_bytes())?;
 
         #[cfg(not(feature = "perf"))]
         if metadata.len() > MAX_METADATA_LEN {

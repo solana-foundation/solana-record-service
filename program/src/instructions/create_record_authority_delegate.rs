@@ -46,7 +46,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAuthorityDelegateAccou
         }
 
         // Check record authority
-        Record::check_authority(&record.try_borrow_data()?, owner.key())?;
+        Record::check_authority(&record, owner.key())?;
 
         Ok(Self {
             owner,
@@ -55,6 +55,13 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAuthorityDelegateAccou
         })
     }
 }
+
+const UPDATE_AUTHORITY_OFFSET: usize = 0;
+const FREEZE_AUTHORITY_OFFSET: usize = UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>();
+const TRANSFER_AUTHORITY_OFFSET: usize = FREEZE_AUTHORITY_OFFSET + size_of::<Pubkey>();
+const BURN_AUTHORITY_OFFSET: usize = TRANSFER_AUTHORITY_OFFSET + size_of::<Pubkey>();
+const AUTHORITY_PROGRAM_OFFSET: usize = BURN_AUTHORITY_OFFSET + size_of::<Pubkey>();
+
 pub struct CreateRecordAuthorityDelegate<'info> {
     accounts: CreateRecordAuthorityDelegateAccounts<'info>,
     update_authority: Pubkey,
@@ -74,23 +81,26 @@ impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
         // Deserialize our accounts array
         let accounts = CreateRecordAuthorityDelegateAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH)?;
-        
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Deserialize `update_authority`
-        let update_authority: Pubkey = data.read()?;
+        let update_authority: Pubkey = ByteReader::read_with_offset(ctx.data, UPDATE_AUTHORITY_OFFSET)?;
 
         // Deserialize `freeze_authority`
-        let freeze_authority: Pubkey = data.read()?;
+        let freeze_authority: Pubkey = ByteReader::read_with_offset(ctx.data, FREEZE_AUTHORITY_OFFSET)?;
 
         // Deserialize `transfer_authority`
-        let transfer_authority: Pubkey = data.read()?;
+        let transfer_authority: Pubkey = ByteReader::read_with_offset(ctx.data, TRANSFER_AUTHORITY_OFFSET)?;
 
         // Deserialize `burn_authority`
-        let burn_authority: Pubkey = data.read()?;
+        let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize `authority_program`
-        let authority_program: Option<Pubkey> = data.read_optional()?;
+        let authority_program: Option<Pubkey> = ByteReader::read_optional_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             accounts,
@@ -146,9 +156,9 @@ impl <'info> CreateRecordAuthorityDelegate<'info> {
             burn_authority: self.burn_authority,
             freeze_authority: self.freeze_authority,
             transfer_authority: self.transfer_authority,
-            authority_program: self.authority_program,
+            authority_program: self.authority_program.unwrap_or([0; 32]),
         };
 
-        record.initialize(self.accounts.record)
+        record.initialize_checked(&self.accounts.record)
     }
 }
