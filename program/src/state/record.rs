@@ -212,6 +212,23 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
+    pub fn delete_record(
+        record: &'info AccountInfo,
+        authority: &'info AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Resize the account to 1 byte
+        resize_account(record, authority, 1, true)?;
+        
+
+        // Update the Discriminator
+        {
+            let mut data_ref = record.try_borrow_mut_data()?;
+            data_ref[DISCRIMINATOR_OFFSET] = 0xff;
+        }
+
+        Ok(())
+    }
+
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
         // Check discriminator
         let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;

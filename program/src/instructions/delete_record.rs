@@ -69,17 +69,6 @@ impl<'info> DeleteRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        // Realloc the record account data to 0 bytes
-        self.accounts.record.realloc(0, true)?;
-
-        // Transfer the lamports from the record to the authority
-        *self.accounts.authority.try_borrow_mut_lamports()? +=
-            *self.accounts.record.try_borrow_lamports()?;
-        *self.accounts.record.try_borrow_mut_lamports()? = 0;
-
-        // Close the record account
-        self.accounts.record.close()?;
-
-        Ok(())
+        Record::delete_record(self.accounts.record, self.accounts.authority)
     }
 }
