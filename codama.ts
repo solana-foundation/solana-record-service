@@ -20,6 +20,22 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
                     structFieldTypeNode({ name: 'metadata', type: stringTypeNode("utf8") }),
                 ])
+            }),
+            accountNode({
+                name: "record",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(2)))
+                ],
+                data: structTypeNode([
+                    structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(2), defaultValueStrategy: 'omitted' }),
+                    structFieldTypeNode({ name: 'class', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'owner', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
+                    structFieldTypeNode({ name: 'hasAuthorityExtension', type: booleanTypeNode() }),
+                    structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
+                    structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
+                    structFieldTypeNode({ name: 'metadata', type: stringTypeNode("utf8") }),
+                ])
             })
         ],
         instructions: [

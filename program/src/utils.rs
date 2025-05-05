@@ -111,7 +111,7 @@ impl<'a> ByteReader<'a> {
         }
 
         let str_bytes = &self.data[self.offset..self.offset + len];
-        let str = std::str::from_utf8(str_bytes)
+        let str = core::str::from_utf8(str_bytes)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
         
         self.offset += len;

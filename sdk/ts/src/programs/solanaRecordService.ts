@@ -24,6 +24,7 @@ export const SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS =
 
 export enum SolanaRecordServiceAccount {
   Class,
+  Record,
 }
 
 export function identifySolanaRecordServiceAccount(
@@ -32,6 +33,9 @@ export function identifySolanaRecordServiceAccount(
   const data = 'data' in account ? account.data : account;
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return SolanaRecordServiceAccount.Class;
+  }
+  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+    return SolanaRecordServiceAccount.Record;
   }
   throw new Error(
     'The provided account could not be identified as a solanaRecordService account.'

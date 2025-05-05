@@ -6,5 +6,7 @@
 //!
 
 pub(crate) mod r#class;
+pub(crate) mod r#record;
 
 pub use self::r#class::*;
+pub use self::r#record::*;
