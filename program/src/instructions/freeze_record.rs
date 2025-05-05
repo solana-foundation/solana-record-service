@@ -19,8 +19,8 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Security
 /// 1. The authority must be either:
-///     a. The record owner, or
-///     b. A delegate with freeze authority
+///    a. The record owner, or
+///    b. A delegate with freeze authority
 pub struct FreezeRecordAccounts<'info> {
     record: &'info AccountInfo,
 }
@@ -38,7 +38,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(record, authority, rest.first(), Record::FREEZE_AUTHORITY_DELEGATION_TYPE)?;
+        Record::check_authority_or_delegate(
+            record,
+            authority,
+            rest.first(),
+            Record::FREEZE_AUTHORITY_DELEGATION_TYPE,
+        )?;
 
         Ok(Self { record })
     }

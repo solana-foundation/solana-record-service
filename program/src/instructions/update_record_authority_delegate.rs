@@ -2,10 +2,7 @@ use core::mem::size_of;
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    ProgramResult,
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
 use crate::{
@@ -46,9 +43,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAuthorityDelegateAccou
         // Check record authority
         Record::check_authority(record, owner.key())?;
 
-        Ok(Self {
-            delegate,
-        })
+        Ok(Self { delegate })
     }
 }
 
@@ -67,7 +62,7 @@ pub struct UpdateRecordAuthorityDelegate<'info> {
 
 /// Minimum length of instruction data required for CreateRecordAuthorityDelegate
 pub const UPDATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 4;
-    
+
 impl<'info> TryFrom<Context<'info>> for UpdateRecordAuthorityDelegate<'info> {
     type Error = ProgramError;
 
@@ -114,6 +109,12 @@ impl<'info> UpdateRecordAuthorityDelegate<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        RecordAuthorityDelegate::update(self.accounts.delegate, self.update_authority, self.freeze_authority, self.transfer_authority, self.burn_authority)
+        RecordAuthorityDelegate::update(
+            self.accounts.delegate,
+            self.update_authority,
+            self.freeze_authority,
+            self.transfer_authority,
+            self.burn_authority,
+        )
     }
 }

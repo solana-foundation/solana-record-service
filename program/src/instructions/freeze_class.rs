@@ -20,7 +20,6 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Security
 /// 1. The authority account must be a signer and should be the owner of the class.
-
 pub struct FreezeClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,

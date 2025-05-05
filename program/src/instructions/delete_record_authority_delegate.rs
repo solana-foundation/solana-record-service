@@ -1,4 +1,7 @@
-use crate::{state::{Record, RecordAuthorityDelegate}, utils::Context};
+use crate::{
+    state::{Record, RecordAuthorityDelegate},
+    utils::Context,
+};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
@@ -7,7 +10,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// This function:
 /// 1. Reallocates the record account data to 1 byte, 0xff to counter
-/// reinitialization attacks
+///    reinitialization attacks
 /// 2. Transfers the lamports from the record to the authority
 /// 3. Updates the record to point out that it does not have an authority delegate
 ///
@@ -39,10 +42,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAuthorityDelegateAccou
         // Check record authority
         Record::check_authority(record, owner.key())?;
 
-        Ok(Self {
-            owner,
-            delegate,
-        })
+        Ok(Self { owner, delegate })
     }
 }
 

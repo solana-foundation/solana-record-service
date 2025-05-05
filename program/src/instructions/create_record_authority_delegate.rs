@@ -110,7 +110,8 @@ impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
         let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize `authority_program`
-        let authority_program: Pubkey = ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
+        let authority_program: Pubkey =
+            ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             accounts,

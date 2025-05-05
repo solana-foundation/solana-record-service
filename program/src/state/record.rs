@@ -97,10 +97,15 @@ impl<'info> Record<'info> {
         }
 
         // Check if authority is the owner
-        if authority.key().eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
-            // If the authority is the owner, but the account has an authority delegate, and we're burning the record, 
+        if authority
+            .key()
+            .eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+        {
+            // If the authority is the owner, but the account has an authority delegate, and we're burning the record,
             // we need to supply the delegate so we can close it as well
-            if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1 && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE {
+            if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
+                && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
+            {
                 let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
                 RecordAuthorityDelegate::delete_record_delegate(delegate, authority)?;
             }
@@ -114,8 +119,8 @@ impl<'info> Record<'info> {
 
         let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
         let seeds = [b"authority", record.key().as_ref()];
-        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let (derived_delegate, _) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
 
         if derived_delegate != *delegate.key() {
             return Err(ProgramError::MissingRequiredSignature);
@@ -132,8 +137,9 @@ impl<'info> Record<'info> {
                 RecordAuthorityDelegate::check_transfer_authority(record, authority.key())?
             }
             Self::BURN_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_burn_authority_and_close_delegate(record, authority)?;
-                
+                RecordAuthorityDelegate::check_burn_authority_and_close_delegate(
+                    record, authority,
+                )?;
             }
             _ => return Err(ProgramError::InvalidArgument),
         }
@@ -142,9 +148,9 @@ impl<'info> Record<'info> {
     }
 
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it does not check the program id or discriminator
-    /// but it's safe for the program to call it because it's used after performing checks 
+    /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions
     pub unsafe fn update_is_frozen_unchecked(
         record: &'info AccountInfo,
@@ -165,9 +171,9 @@ impl<'info> Record<'info> {
     }
 
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it does not check the program id or discriminator
-    /// but it's safe for the program to call it because it's used after performing checks 
+    /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions
     pub unsafe fn update_has_authority_extension_unchecked(
         record: &'info AccountInfo,
@@ -188,11 +194,14 @@ impl<'info> Record<'info> {
     }
 
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it does not check the program id or discriminator
-    /// but it's safe for the program to call it because it's used after performing checks 
+    /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions
-    pub unsafe fn update_owner_unchecked(record: &'info AccountInfo, new_owner: Pubkey) -> Result<(), ProgramError> {
+    pub unsafe fn update_owner_unchecked(
+        record: &'info AccountInfo,
+        new_owner: Pubkey,
+    ) -> Result<(), ProgramError> {
         // Get the account data
         let mut data = record.try_borrow_mut_data()?;
 
@@ -213,9 +222,9 @@ impl<'info> Record<'info> {
     }
 
     /// # Safety
-    /// 
+    ///
     /// This function is unsafe because it does not check the program id or discriminator
-    /// but it's safe for the program to call it because it's used after performing checks 
+    /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions
     pub unsafe fn update_data_unchecked(
         record: &'info AccountInfo,
@@ -263,7 +272,7 @@ impl<'info> Record<'info> {
     ) -> Result<(), ProgramError> {
         // Resize the account to 1 byte
         resize_account(record, authority, 1, true)?;
-        
+
         // Update the Discriminator
         {
             let mut data_ref = record.try_borrow_mut_data()?;

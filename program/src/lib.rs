@@ -1,7 +1,8 @@
 // #![cfg_attr(not(test), no_std)]
 use instructions::{
-    CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord,
-    UpdateClassMetadata, UpdateRecord,
+    CreateClass, CreateRecord, CreateRecordAuthorityDelegate, DeleteRecord,
+    DeleteRecordAuthorityDelegate, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata,
+    UpdateRecord, UpdateRecordAuthorityDelegate,
 };
 use pinocchio::{
     account_info::AccountInfo, default_allocator, program_entrypoint, program_error::ProgramError,
@@ -45,6 +46,9 @@ fn process_instruction(
         5 => TransferRecord::process(Context { accounts, data }),
         6 => DeleteRecord::process(Context { accounts, data }),
         7 => FreezeRecord::process(Context { accounts, data }),
+        8 => CreateRecordAuthorityDelegate::process(Context { accounts, data }),
+        9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
+        10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

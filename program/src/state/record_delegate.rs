@@ -42,7 +42,9 @@ impl RecordAuthorityDelegate {
         }
 
         // Check authority
-        if authority.ne(&data[UPDATE_AUTHORITY_OFFSET..UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+        if authority
+            .ne(&data[UPDATE_AUTHORITY_OFFSET..UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -67,7 +69,9 @@ impl RecordAuthorityDelegate {
         }
 
         // Check authority
-        if authority.ne(&data[FREEZE_AUTHORITY_OFFSET..FREEZE_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+        if authority
+            .ne(&data[FREEZE_AUTHORITY_OFFSET..FREEZE_AUTHORITY_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -92,7 +96,9 @@ impl RecordAuthorityDelegate {
         }
 
         // Check authority
-        if authority.ne(&data[TRANSFER_AUTHORITY_OFFSET..TRANSFER_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+        if authority
+            .ne(&data[TRANSFER_AUTHORITY_OFFSET..TRANSFER_AUTHORITY_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -117,7 +123,10 @@ impl RecordAuthorityDelegate {
         }
 
         // Check authority
-        if authority.key().ne(&data[BURN_AUTHORITY_OFFSET..BURN_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+        if authority
+            .key()
+            .ne(&data[BURN_AUTHORITY_OFFSET..BURN_AUTHORITY_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -133,7 +142,7 @@ impl RecordAuthorityDelegate {
     ) -> Result<(), ProgramError> {
         // Resize the account to 1 byte
         resize_account(record_delegate, authority, 1, true)?;
-        
+
         // Update the Discriminator
         {
             let mut data_ref = record_delegate.try_borrow_mut_data()?;
@@ -159,9 +168,9 @@ impl RecordAuthorityDelegate {
         if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         unsafe { Self::delete_record_delegate_unchecked(record_delegate, authority)? };
-        
+
         Ok(())
     }
 
@@ -184,7 +193,7 @@ impl RecordAuthorityDelegate {
         if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
-        
+
         // Update the update authority
         ByteWriter::write_with_offset(&mut data, UPDATE_AUTHORITY_OFFSET, update_authority)?;
 
@@ -196,7 +205,7 @@ impl RecordAuthorityDelegate {
 
         // Update the burn authority
         ByteWriter::write_with_offset(&mut data, BURN_AUTHORITY_OFFSET, burn_authority)?;
-        
+
         Ok(())
     }
 

@@ -23,8 +23,8 @@ use pinocchio::{
 ///
 /// # Security
 /// 1. The authority must be either:
-///     a. The record owner, or
-///     b. A delegate with transfer authority
+///    a. The record owner, or
+///    b. A delegate with transfer authority
 /// 2. The record must not be frozen
 pub struct TransferRecordAccounts<'info> {
     record: &'info AccountInfo,
@@ -42,7 +42,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Record::check_authority_or_delegate(record, authority, rest.first(), Record::TRANSFER_AUTHORITY_DELEGATION_TYPE)?;
+        Record::check_authority_or_delegate(
+            record,
+            authority,
+            rest.first(),
+            Record::TRANSFER_AUTHORITY_DELEGATION_TYPE,
+        )?;
 
         Ok(Self { record })
     }

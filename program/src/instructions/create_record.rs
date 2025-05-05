@@ -31,12 +31,12 @@ use crate::{
 /// 1. `owner` - The account that will own the record (must be a signer)
 /// 2. `class` - The class account that this record belongs to
 /// 3. `record` - The new record account to be created
-/// 4. `authority` - [as remaining accounts] The authority account of the class 
+/// 4. `authority` - [as remaining accounts] The authority account of the class
 ///
 /// # Security
 /// 1. The owner account must be a signer.
-/// 2. Check if the class is permissioned, if so, the instruction must pass 
-/// the class authority as signer in the remaining accounts
+/// 2. Check if the class is permissioned, if so, the instruction must pass
+///    the class authority as signer in the remaining accounts
 /// 3. The class must not be frozen
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
@@ -98,7 +98,8 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         let expiry: i64 = ByteReader::read_with_offset(ctx.data, EXPIRY_OFFSET)?;
 
         // Deserialize variable length data
-        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
+        let mut variable_data: ByteReader<'info> =
+            ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
 
         // Deserialize `name`
         let name: &str = variable_data.read_str_with_length()?;

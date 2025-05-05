@@ -7,20 +7,20 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// This function:
 /// 1. Reallocates the record account data to 1 byte, 0xff to counter
-/// reinitialization attacks
+///    reinitialization attacks
 /// 2. Transfers the lamports from the record to the authority
 /// 3. If the record has an authority delegate, it will close the delegate account
-/// as well
+///    as well
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
 /// 2. `record` - The record account to be deleted
-/// 3. `record_delegate` - [remaining accounts] Required if the record has a delegate 
+/// 3. `record_delegate` - [remaining accounts] Required if the record has a delegate
 ///
 /// # Security
 /// 1. The authority must be either:
-///     a. The record owner, or
-///     b. A delegate with burn authority
+///    a. The record owner, or
+///    b. A delegate with burn authority
 pub struct DeleteRecordAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
@@ -40,7 +40,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(record, authority, rest.first(), Record::BURN_AUTHORITY_DELEGATION_TYPE)?;
+        Record::check_authority_or_delegate(
+            record,
+            authority,
+            rest.first(),
+            Record::BURN_AUTHORITY_DELEGATION_TYPE,
+        )?;
 
         Ok(Self { authority, record })
     }
