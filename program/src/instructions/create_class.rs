@@ -5,12 +5,7 @@ use pinocchio::log::sol_log;
 
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -21,8 +16,6 @@ use crate::{
 
 /// CreateClass instruction.
 ///
-/// A class defines a namespace for records (e.g., TLD class, Twitter handles class).
-///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the class account
@@ -31,15 +24,11 @@ use crate::{
 /// 5. Initializes the class data
 ///
 /// # Accounts
-///
-/// * `authority` - The account that will own the class (must be a signer)
-/// * `class` - The new class account to be created
-/// * `credential` - Optional credential account (required if class is permissioned)
+/// 1. `authority` - The account that will own the class (must be a signer)
+/// 2. `class` - The new class account to be created
 ///
 /// # Security
-///
-/// The authority account must be a signer to prevent creating classes that have invalid
-/// signer capabilities or are not owned by the authority.
+/// 1. The authority account must be a signer
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,

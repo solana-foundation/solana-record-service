@@ -17,22 +17,15 @@ use pinocchio::{
 /// 3. Saves the updated state
 ///
 /// # Accounts
-/// * `authority` - The account that has permission to transfer the record (must be a signer)
-/// * `record` - The record account to be transferred
-///
-/// # Optional Accounts
-/// * `record_delegate` - Required if the authority is not the record owner
+/// 1. `authority` - The account that has permission to transfer the record (must be a signer)
+/// 2. `record` - The record account to be transferred
+/// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
 ///
 /// # Security
-///
-/// The authority must be either:
-/// 1. The record owner, or
-/// 2. A delegate with transfer authority (requires record_delegate account)
-///
-/// The instruction will fail if:
-/// 1. The record is frozen (frozen records cannot be transferred)
-/// 2. The authority is not the record owner or a valid delegate
-/// 3. The new owner is the same as the current owner
+/// 1. The authority must be either:
+///     a. The record owner, or
+///     b. A delegate with transfer authority
+/// 2. The record must not be frozen
 pub struct TransferRecordAccounts<'info> {
     record: &'info AccountInfo,
 }
@@ -49,7 +42,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Record::check_authority_or_delegate(record, authority.key(), rest.first())?;
+        Record::check_authority_or_delegate(record, authority, rest.first(), Record::TRANSFER_AUTHORITY_DELEGATION_TYPE)?;
 
         Ok(Self { record })
     }
@@ -96,6 +89,7 @@ impl<'info> TransferRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        Record::update_owner(self.accounts.record, self.new_owner)
+        // Update the record to be transferred [this is safe, check safety docs]
+        unsafe { Record::update_owner_unchecked(self.accounts.record, self.new_owner) }
     }
 }

@@ -13,16 +13,14 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// 3. Saves the updated state
 ///
 /// # Accounts
-/// * `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
-/// * `record` - The record account to be frozen/unfrozen
-///
-/// # Optional Accounts
-/// * `record_delegate` - Required if the authority is not the record owner
+/// 1. `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
+/// 2. `record` - The record account to be frozen/unfrozen
+/// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
 ///
 /// # Security
-/// The authority must be either:
-/// 1. The record owner, or
-/// 2. A delegate with freeze authority (requires record_delegate account)
+/// 1. The authority must be either:
+///     a. The record owner, or
+///     b. A delegate with freeze authority
 pub struct FreezeRecordAccounts<'info> {
     record: &'info AccountInfo,
 }
@@ -40,7 +38,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(record, authority.key(), rest.first())?;
+        Record::check_authority_or_delegate(record, authority, rest.first(), Record::FREEZE_AUTHORITY_DELEGATION_TYPE)?;
 
         Ok(Self { record })
     }
@@ -87,6 +85,7 @@ impl<'info> FreezeRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        Record::update_is_frozen(self.accounts.record, self.is_frozen)
+        // Update the record to be frozen [this is safe, check safety docs]
+        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, self.is_frozen) }
     }
 }

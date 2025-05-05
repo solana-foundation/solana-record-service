@@ -21,8 +21,6 @@ use crate::{
 
 /// CreateRecord instruction.
 ///
-/// A record represents an entity within a class (e.g., a Twitter handle, a D3 domain).
-///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the record account
@@ -30,13 +28,16 @@ use crate::{
 /// 4. Initializes the record data
 ///
 /// # Accounts
-/// * `owner` - The account that will own the record (must be a signer)
-/// * `class` - The class account that this record belongs to
-/// * `record` - The new record account to be created
+/// 1. `owner` - The account that will own the record (must be a signer)
+/// 2. `class` - The class account that this record belongs to
+/// 3. `record` - The new record account to be created
+/// 4. `authority` - [as remaining accounts] The authority account of the class 
 ///
 /// # Security
-///
-/// The owner account must be a signer.
+/// 1. The owner account must be a signer.
+/// 2. Check if the class is permissioned, if so, the instruction must pass 
+/// the class authority as signer in the remaining accounts
+/// 3. The class must not be frozen
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
     class: &'info AccountInfo,
@@ -163,7 +164,7 @@ impl<'info> CreateRecord<'info> {
             class: *self.accounts.class.key(),
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_extension: false,
+            has_authority_delegate: false,
             expiry: self.expiry,
             name: self.name,
             data: self.data,

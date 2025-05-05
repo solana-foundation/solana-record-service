@@ -24,3 +24,9 @@ pub use delete_record::DeleteRecord;
 
 pub mod create_record_authority_delegate;
 pub use create_record_authority_delegate::CreateRecordAuthorityDelegate;
+
+pub mod update_record_authority_delegate;
+pub use update_record_authority_delegate::UpdateRecordAuthorityDelegate;
+
+pub mod delete_record_authority_delegate;
+pub use delete_record_authority_delegate::DeleteRecordAuthorityDelegate;

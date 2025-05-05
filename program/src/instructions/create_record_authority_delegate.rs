@@ -18,25 +18,21 @@ use crate::{
 
 /// CreateRecordAuthorityDelegate instruction.
 ///
-/// A record authority delegate is an account that holds authority information for a record,
-/// allowing different entities to have specific permissions over the record.
-///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the delegate account
 /// 3. Creates the new account
 /// 4. Transfers the minimum rent needed to make the account rent-exempt
 /// 5. Initializes the delegate data with authority settings
+/// 6. Updates the record to point out that it has an authority delegate
 ///
 /// # Accounts
-/// * `owner` - The current owner of the record (must be a signer)
-/// * `record` - The record account that will be associated with the delegate
-/// * `delegate` - The new delegate account to be created
+/// 1. `owner` - The current owner of the record (must be a signer)
+/// 2. `record` - The record account that will be associated with the delegate
+/// 3. `delegate` - The new delegate account to be created
 ///
 /// # Security
-/// The owner account must be a signer and must match the current owner of the record.
-/// The delegate account will be owned by the program and can only be modified
-/// through program instructions.
+/// 1. The owner account must be a signer and must match the current owner of the record.
 pub struct CreateRecordAuthorityDelegateAccounts<'info> {
     owner: &'info AccountInfo,
     record: &'info AccountInfo,
@@ -79,12 +75,11 @@ pub struct CreateRecordAuthorityDelegate<'info> {
     freeze_authority: Pubkey,
     transfer_authority: Pubkey,
     burn_authority: Pubkey,
-    authority_program: Option<Pubkey>,
+    authority_program: Pubkey,
 }
 
 /// Minimum length of instruction data required for CreateRecordAuthorityDelegate
-pub const CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize =
-    size_of::<Pubkey>() * 4 + size_of::<u8>();
+pub const CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 5;
 
 impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
     type Error = ProgramError;
@@ -115,8 +110,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
         let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize `authority_program`
-        let authority_program: Option<Pubkey> =
-            ByteReader::read_optional_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
+        let authority_program: Pubkey = ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             accounts,
@@ -164,15 +158,20 @@ impl<'info> CreateRecordAuthorityDelegate<'info> {
         }
         .invoke_signed(&signers)?;
 
-        let record = RecordAuthorityDelegate {
+        let record_delegate = RecordAuthorityDelegate {
             record: *self.accounts.delegate.key(),
             update_authority: self.update_authority,
             burn_authority: self.burn_authority,
             freeze_authority: self.freeze_authority,
             transfer_authority: self.transfer_authority,
-            authority_program: self.authority_program.unwrap_or([0; 32]),
+            authority_program: self.authority_program,
         };
 
-        record.initialize_checked(self.accounts.record)
+        record_delegate.initialize_checked(self.accounts.delegate)?;
+
+        // Update the record to point out that it has an authority delegate [this is safe, check safety docs]
+        unsafe { Record::update_has_authority_extension_unchecked(self.accounts.record, true)? };
+
+        Ok(())
     }
 }

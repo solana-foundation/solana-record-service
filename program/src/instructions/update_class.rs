@@ -11,18 +11,15 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// 3. Saves the updated state
 ///
 /// # Accounts
-/// * `authority` - The account that has permission to update the class (must be a signer)
-/// * `class` - The class account to be updated
-/// * `system_program` - Required for account resizing operations
+/// 1. `authority` - The account that has permission to update the class (must be a signer)
+/// 2. `class` - The class account to be updated
+/// 3. `system_program` - Required for account resizing operations
 ///
 /// # Security
-/// The authority must be:
-/// 1. The class owner
-/// 2. A signer
+/// 1. The authority must be a signer and should be the owner of the class
 pub struct UpdateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
-    // system_program: &'info AccountInfo
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {

@@ -1,4 +1,4 @@
-use crate::utils::{ByteReader, ByteWriter};
+use crate::utils::{resize_account, ByteReader, ByteWriter};
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -23,6 +23,182 @@ pub struct RecordAuthorityDelegate {
 impl RecordAuthorityDelegate {
     pub const DISCRIMINATOR: u8 = 3;
     pub const MINIMUM_RECORD_SIZE: usize = size_of::<u8>() + size_of::<Pubkey>() * 6;
+
+    pub fn check_update_authority(
+        account_info: &AccountInfo,
+        authority: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = account_info.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check authority
+        if authority.ne(&data[UPDATE_AUTHORITY_OFFSET..UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Ok(())
+    }
+
+    pub fn check_freeze_authority(
+        account_info: &AccountInfo,
+        authority: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = account_info.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check authority
+        if authority.ne(&data[FREEZE_AUTHORITY_OFFSET..FREEZE_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Ok(())
+    }
+
+    pub fn check_transfer_authority(
+        account_info: &AccountInfo,
+        authority: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = account_info.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check authority
+        if authority.ne(&data[TRANSFER_AUTHORITY_OFFSET..TRANSFER_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Ok(())
+    }
+
+    pub fn check_burn_authority_and_close_delegate(
+        account_info: &AccountInfo,
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = account_info.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check authority
+        if authority.key().ne(&data[BURN_AUTHORITY_OFFSET..BURN_AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Close Delegate
+        unsafe { Self::delete_record_delegate_unchecked(account_info, authority)? };
+
+        Ok(())
+    }
+
+    pub unsafe fn delete_record_delegate_unchecked(
+        record_delegate: &AccountInfo,
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Resize the account to 1 byte
+        resize_account(record_delegate, authority, 1, true)?;
+        
+        // Update the Discriminator
+        {
+            let mut data_ref = record_delegate.try_borrow_mut_data()?;
+            data_ref[DISCRIMINATOR_OFFSET] = 0xff;
+        }
+
+        Ok(())
+    }
+
+    pub fn delete_record_delegate(
+        record_delegate: &AccountInfo,
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record_delegate.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = record_delegate.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        
+        unsafe { Self::delete_record_delegate_unchecked(record_delegate, authority)? };
+        
+        Ok(())
+    }
+
+    pub fn update(
+        record_delegate: &AccountInfo,
+        update_authority: Pubkey,
+        freeze_authority: Pubkey,
+        transfer_authority: Pubkey,
+        burn_authority: Pubkey,
+    ) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record_delegate.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let mut data = record_delegate.try_borrow_mut_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        
+        // Update the update authority
+        ByteWriter::write_with_offset(&mut data, UPDATE_AUTHORITY_OFFSET, update_authority)?;
+
+        // Update the freeze authority
+        ByteWriter::write_with_offset(&mut data, FREEZE_AUTHORITY_OFFSET, freeze_authority)?;
+
+        // Update the transfer authority
+        ByteWriter::write_with_offset(&mut data, TRANSFER_AUTHORITY_OFFSET, transfer_authority)?;
+
+        // Update the burn authority
+        ByteWriter::write_with_offset(&mut data, BURN_AUTHORITY_OFFSET, burn_authority)?;
+        
+        Ok(())
+    }
 
     pub unsafe fn from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;

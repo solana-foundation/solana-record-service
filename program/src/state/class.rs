@@ -76,6 +76,10 @@ impl<'info> Class<'info> {
                     {
                         return Err(ProgramError::MissingRequiredSignature);
                     }
+
+                    if !auth.is_signer() {
+                        return Err(ProgramError::MissingRequiredSignature);
+                    }
                 }
                 None => return Err(ProgramError::MissingRequiredSignature),
             }

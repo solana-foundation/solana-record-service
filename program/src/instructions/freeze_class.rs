@@ -15,13 +15,12 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// 3. Saves the updated state
 ///
 /// # Accounts
-/// * `authority` - The account that has permission to freeze/unfreeze the class (must be a signer)
-/// * `class` - The class account to be frozen/unfrozen
+/// 1. `authority` - The account that has permission to freeze/unfreeze the class (must be a signer)
+/// 2. `class` - The class account to be frozen/unfrozen
 ///
 /// # Security
-///
-/// The authority must be the class owner to perform this operation.
-/// This is a critical operation as it affects all records within the class.
+/// 1. The authority account must be a signer and should be the owner of the class.
+
 pub struct FreezeClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
