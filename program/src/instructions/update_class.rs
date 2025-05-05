@@ -1,32 +1,32 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{constants::MAX_METADATA_LEN, ctx::Context, state::Class, utils::ByteReader};
 
 /// UpdateClass instruction.
-/// 
+///
 /// This function:
 /// 1. Loads the current class state
-/// 2. Updates the metadata or frozen state
+/// 2. Updates the metadata
 /// 3. Saves the updated state
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to update the class (must be a signer)
 /// * `class` - The class account to be updated
 /// * `system_program` - Required for account resizing operations
-/// 
+///
 /// # Security
 /// The authority must be:
-/// 1. The class owner, or
-/// 2. An authorized delegate with update permissions
+/// 1. The class owner
+/// 2. A signer
 pub struct UpdateClassAccounts<'info> {
     authority: &'info AccountInfo,
     class: &'info AccountInfo,
+    // system_program: &'info AccountInfo
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, _system_program] = accounts else {
+        let [authority, class, ..] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -35,10 +35,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self {
-            authority,
-            class
-        })
+        Ok(Self { authority, class })
     }
 }
 
@@ -69,9 +66,9 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
     }
 }
 
-impl <'info> UpdateClassMetadata<'info> {
+impl<'info> UpdateClassMetadata<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature="perf"))]
+        #[cfg(not(feature = "perf"))]
         sol_log("Update Class Metadata");
         Self::try_from(ctx)?.execute()
     }

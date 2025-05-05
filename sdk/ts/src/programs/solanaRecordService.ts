@@ -14,7 +14,13 @@ import {
 } from '@solana/kit';
 import {
   type ParsedCreateClassInstruction,
+  type ParsedCreateRecordInstruction,
+  type ParsedDeleteRecordInstruction,
+  type ParsedFreezeClassInstruction,
+  type ParsedFreezeRecordInstruction,
+  type ParsedTransferRecordInstruction,
   type ParsedUpdateClassMetadataInstruction,
+  type ParsedUpdateRecordInstruction,
 } from '../instructions';
 
 export const SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS =
@@ -22,6 +28,7 @@ export const SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS =
 
 export enum SolanaRecordServiceAccount {
   Class,
+  Record,
 }
 
 export function identifySolanaRecordServiceAccount(
@@ -31,6 +38,9 @@ export function identifySolanaRecordServiceAccount(
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return SolanaRecordServiceAccount.Class;
   }
+  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+    return SolanaRecordServiceAccount.Record;
+  }
   throw new Error(
     'The provided account could not be identified as a solanaRecordService account.'
   );
@@ -39,6 +49,12 @@ export function identifySolanaRecordServiceAccount(
 export enum SolanaRecordServiceInstruction {
   CreateClass,
   UpdateClassMetadata,
+  FreezeClass,
+  CreateRecord,
+  UpdateRecord,
+  TransferRecord,
+  DeleteRecord,
+  FreezeRecord,
 }
 
 export function identifySolanaRecordServiceInstruction(
@@ -50,6 +66,24 @@ export function identifySolanaRecordServiceInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return SolanaRecordServiceInstruction.UpdateClassMetadata;
+  }
+  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+    return SolanaRecordServiceInstruction.FreezeClass;
+  }
+  if (containsBytes(data, getU8Encoder().encode(3), 0)) {
+    return SolanaRecordServiceInstruction.CreateRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
+    return SolanaRecordServiceInstruction.UpdateRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
+    return SolanaRecordServiceInstruction.TransferRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+    return SolanaRecordServiceInstruction.DeleteRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
+    return SolanaRecordServiceInstruction.FreezeRecord;
   }
   throw new Error(
     'The provided instruction could not be identified as a solanaRecordService instruction.'
@@ -64,4 +98,22 @@ export type ParsedSolanaRecordServiceInstruction<
     } & ParsedCreateClassInstruction<TProgram>)
   | ({
       instructionType: SolanaRecordServiceInstruction.UpdateClassMetadata;
-    } & ParsedUpdateClassMetadataInstruction<TProgram>);
+    } & ParsedUpdateClassMetadataInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.FreezeClass;
+    } & ParsedFreezeClassInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.CreateRecord;
+    } & ParsedCreateRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.UpdateRecord;
+    } & ParsedUpdateRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.TransferRecord;
+    } & ParsedTransferRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.DeleteRecord;
+    } & ParsedDeleteRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.FreezeRecord;
+    } & ParsedFreezeRecordInstruction<TProgram>);

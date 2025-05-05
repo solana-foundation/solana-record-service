@@ -1,15 +1,18 @@
-use pinocchio::{account_info::{AccountInfo, RefMut}, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::{AccountInfo, RefMut}, sysvars::{rent::Rent, Sysvar}, ProgramResult, program_error::ProgramError};
 use pinocchio_system::instructions::Transfer;
-use pinocchio::program_error::ProgramError;
-use std::mem::size_of;
+
+pub struct Context<'info> {
+    pub accounts: &'info [AccountInfo],
+    pub data: &'info [u8],
+}
 
 /// Resize an account and handle lamport transfers based on the new size
-/// 
+///
 /// This function will:
 /// 1. Calculate the new minimum balance required for rent exemption
 /// 2. Transfer lamports if the new size requires more or less balance
 /// 3. Reallocate the account to the new size
-/// 
+///
 /// # Arguments
 /// * `target_account` - The account to resize
 /// * `authority` - The authority account that will receive excess lamports or provide additional lamports
@@ -33,17 +36,21 @@ pub fn resize_account(
     // First handle lamport transfers
     if new_minimum_balance > target_account.lamports() {
         // Need more lamports for rent exemption
-        let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());        
+        let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
         Transfer {
             from: authority,
             to: target_account,
             lamports: lamports_diff,
-        }.invoke()?;
+        }
+        .invoke()?;
     } else if new_minimum_balance < target_account.lamports() {
         // Can return excess lamports to authority
-        let lamports_diff = target_account.lamports().saturating_sub(new_minimum_balance);
+        let lamports_diff = target_account
+            .lamports()
+            .saturating_sub(new_minimum_balance);
         *authority.try_borrow_mut_lamports()? = authority.lamports().saturating_add(lamports_diff);
-        *target_account.try_borrow_mut_lamports()? = target_account.lamports().saturating_sub(lamports_diff);
+        *target_account.try_borrow_mut_lamports()? =
+            target_account.lamports().saturating_sub(lamports_diff);
     }
 
     // Now reallocate the account
@@ -68,16 +75,16 @@ impl<'info> ByteReader<'info> {
 
     pub fn read<T: Sized + Copy>(&mut self) -> Result<T, ProgramError> {
         let size = size_of::<T>();
-        
+
         if self.offset + size > self.data.len() {
             return Err(ProgramError::InvalidInstructionData);
         }
-        
+
         let value = unsafe {
             let ptr = self.data[self.offset..].as_ptr() as *const T;
             *ptr
         };
-        
+
         self.offset += size;
         Ok(value)
     }
@@ -88,9 +95,9 @@ impl<'info> ByteReader<'info> {
         }
 
         let str_bytes = &self.data[self.offset..self.offset + len];
-        let str = std::str::from_utf8(str_bytes)
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
-        
+        let str =
+            core::str::from_utf8(str_bytes).map_err(|_| ProgramError::InvalidInstructionData)?;
+
         self.offset += len;
         Ok(str)
     }
@@ -172,7 +179,10 @@ impl<'info> ByteWriter<'info> {
     }
 
     pub fn write_str_with_length(&mut self, str: &str) -> Result<(), ProgramError> {
-        let len: u8 = str.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
+        let len: u8 = str
+            .len()
+            .try_into()
+            .map_err(|_| ProgramError::ArithmeticOverflow)?;
         self.write(len)?;
         self.write_str(str)
     }
@@ -193,4 +203,4 @@ impl<'info> ByteWriter<'info> {
     pub fn remaining_bytes(&self) -> usize {
         self.data.len() - self.offset
     }
-} 
+}

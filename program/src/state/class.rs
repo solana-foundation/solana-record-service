@@ -60,7 +60,7 @@ impl<'info> Class<'info> {
 
         // Get the account data
         let data = class.try_borrow_data()?;
-
+      
         // Check discriminator
         if data[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
@@ -99,7 +99,7 @@ impl<'info> Class<'info> {
         if authority.key().ne(&data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::MissingRequiredSignature);
         }
-
+      
         // Update is_permissioned
         if data[IS_PERMISSIONED_OFFSET] == is_permissioned as u8 {
             return Err(ProgramError::InvalidAccountData);
@@ -151,7 +151,7 @@ impl<'info> Class<'info> {
             let data_ref = class.try_borrow_data()?;
             data_ref[NAME_LEN_OFFSET] as usize
         };
-        
+
         // Calculate the new size
         let offset = name_len + NAME_LEN_OFFSET + size_of::<u8>();
         let current_len = class.data_len();
@@ -159,12 +159,7 @@ impl<'info> Class<'info> {
 
         // Check if we need to resize, if so, resize the account
         if new_len != current_len {
-            resize_account(
-                class, 
-                authority, 
-                new_len, 
-                new_len < current_len
-            )?;
+            resize_account(class, authority, new_len, new_len < current_len)?;
         }
 
         // Update metadata
@@ -192,7 +187,7 @@ impl<'info> Class<'info> {
 
         Ok(())
     }
-    
+
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
         // Check discriminator
         let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;

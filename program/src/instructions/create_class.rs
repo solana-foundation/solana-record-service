@@ -1,29 +1,44 @@
+#[cfg(not(feature = "perf"))]
+use crate::constants::{MAX_METADATA_LEN, MAX_NAME_LEN};
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
+
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{ctx::Context, state::Class, utils::ByteReader};
+use crate::{
+    state::Class,
+    utils::{ByteReader, Context},
+};
 
 /// CreateClass instruction.
-/// 
+///
 /// A class defines a namespace for records (e.g., TLD class, Twitter handles class).
-/// 
+///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the class account
 /// 3. Creates the new account
 /// 4. Transfers the minimum rent needed to make the account rent-exempt
 /// 5. Initializes the class data
-/// 
+///
 /// # Accounts
-/// 
+///
 /// * `authority` - The account that will own the class (must be a signer)
 /// * `class` - The new class account to be created
 /// * `credential` - Optional credential account (required if class is permissioned)
-/// 
+///
 /// # Security
-/// 
-/// The authority account must be a signer to prevent creating classes that have invalid 
+///
+/// The authority account must be a signer to prevent creating classes that have invalid
 /// signer capabilities or are not owned by the authority.
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
@@ -43,10 +58,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self {
-            authority,
-            class
-        })
+        Ok(Self { authority, class })
     }
 }
 
@@ -113,7 +125,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     }
 }
 
-impl <'info> CreateClass<'info> {
+impl<'info> CreateClass<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
         sol_log("Create Class");
@@ -130,14 +142,16 @@ impl <'info> CreateClass<'info> {
             self.accounts.authority.key().as_ref(),
             &self.name.as_bytes(),
         ];
-            
-        let bump: [u8; 1] = [try_find_program_address(&seeds,&crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
+
+        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
         let seeds = [
             Seed::from(b"class"),
             Seed::from(self.accounts.authority.key()),
             Seed::from(self.name.as_bytes()),
-            Seed::from(&bump)
+            Seed::from(&bump),
         ];
 
         let signers = [Signer::from(&seeds)];
@@ -148,19 +162,18 @@ impl <'info> CreateClass<'info> {
             to: self.accounts.class,
             lamports,
             space: space as u64,
-            owner: &crate::ID
-        }.invoke_signed(
-            &signers
-        )?;
-        
+            owner: &crate::ID,
+        }
+        .invoke_signed(&signers)?;
+
         let class = Class {
             authority: *self.accounts.authority.key(),
             is_permissioned: self.is_permissioned,
             is_frozen: self.is_frozen,
             name: self.name,
-            metadata: self.metadata
+            metadata: self.metadata,
         };
 
         class.initialize(self.accounts.class)
     }
-} 
+}

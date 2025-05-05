@@ -2,7 +2,6 @@
 members = [
     "program",
     "sdk/rust",
-    # "test/rust",
 ]
 resolver = "2"
 

@@ -35,7 +35,7 @@ pub struct Record<'info> {
 impl<'info> Record<'info> {
     /// The discriminator byte used to identify this account type
     pub const DISCRIMINATOR: u8 = 2;
-    
+
     /// Minimum size required for a valid record account
     pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() 
         + size_of::<Pubkey>() * 2 
@@ -92,15 +92,15 @@ impl<'info> Record<'info> {
 
         let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
         let seeds = [b"authority", record.key().as_ref()];
-        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let (derived_delegate, _) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
 
         if derived_delegate != *delegate.key() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         let extension = RecordAuthorityDelegate::from_bytes_checked(&delegate)?;
-        
+
         if extension.update_authority != *authority {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -172,12 +172,7 @@ impl<'info> Record<'info> {
 
         // Check if we need to resize, if so, resize the account
         if new_len != current_len {
-            resize_account(
-                record,
-                authority,
-                new_len,
-                new_len < current_len
-            )?;
+            resize_account(record, authority, new_len, new_len < current_len)?;
         }
 
         // Update the data
@@ -191,10 +186,7 @@ impl<'info> Record<'info> {
 
             // Update the data
             let data_buffer = unsafe {
-                core::slice::from_raw_parts_mut(
-                    data_ref.as_mut_ptr().add(offset),
-                    data.len()
-                )
+                core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), data.len())
             };
             data_buffer.clone_from_slice(data.as_bytes());
         }
@@ -245,7 +237,7 @@ impl<'info> Record<'info> {
             data: data_content,
         })
     }
-    
+
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         // Calculate required space
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();

@@ -1,6 +1,6 @@
-use std::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use crate::utils::{ByteReader, ByteWriter};
+use core::mem::size_of;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 pub const DISCRIMINATOR_OFFSET: usize = 0;
 pub const RECORD_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();

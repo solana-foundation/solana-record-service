@@ -8,12 +8,12 @@
 
 import {
   combineCodec,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getStructDecoder,
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type Address,
   type Codec,
@@ -24,7 +24,6 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlyAccount,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -32,19 +31,16 @@ import {
 import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_CLASS_METADATA_DISCRIMINATOR = 1;
+export const FREEZE_CLASS_DISCRIMINATOR = 2;
 
-export function getUpdateClassMetadataDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_CLASS_METADATA_DISCRIMINATOR);
+export function getFreezeClassDiscriminatorBytes() {
+  return getU8Encoder().encode(FREEZE_CLASS_DISCRIMINATOR);
 }
 
-export type UpdateClassMetadataInstruction<
+export type FreezeClassInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountClass extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -57,80 +53,64 @@ export type UpdateClassMetadataInstruction<
       TAccountClass extends string
         ? WritableAccount<TAccountClass>
         : TAccountClass,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type UpdateClassMetadataInstructionData = {
+export type FreezeClassInstructionData = {
   discriminator: number;
-  metadata: string;
+  isFrozen: boolean;
 };
 
-export type UpdateClassMetadataInstructionDataArgs = { metadata: string };
+export type FreezeClassInstructionDataArgs = { isFrozen: boolean };
 
-export function getUpdateClassMetadataInstructionDataEncoder(): Encoder<UpdateClassMetadataInstructionDataArgs> {
+export function getFreezeClassInstructionDataEncoder(): Encoder<FreezeClassInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['metadata', getUtf8Encoder()],
+      ['isFrozen', getBooleanEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: 1 })
+    (value) => ({ ...value, discriminator: 2 })
   );
 }
 
-export function getUpdateClassMetadataInstructionDataDecoder(): Decoder<UpdateClassMetadataInstructionData> {
+export function getFreezeClassInstructionDataDecoder(): Decoder<FreezeClassInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['metadata', getUtf8Decoder()],
+    ['isFrozen', getBooleanDecoder()],
   ]);
 }
 
-export function getUpdateClassMetadataInstructionDataCodec(): Codec<
-  UpdateClassMetadataInstructionDataArgs,
-  UpdateClassMetadataInstructionData
+export function getFreezeClassInstructionDataCodec(): Codec<
+  FreezeClassInstructionDataArgs,
+  FreezeClassInstructionData
 > {
   return combineCodec(
-    getUpdateClassMetadataInstructionDataEncoder(),
-    getUpdateClassMetadataInstructionDataDecoder()
+    getFreezeClassInstructionDataEncoder(),
+    getFreezeClassInstructionDataDecoder()
   );
 }
 
-export type UpdateClassMetadataInput<
+export type FreezeClassInput<
   TAccountAuthority extends string = string,
   TAccountClass extends string = string,
-  TAccountSystemProgram extends string = string,
 > = {
-  /** Authority used to update a class */
+  /** Authority used to freeze/thaw a class */
   authority: TransactionSigner<TAccountAuthority>;
-  /** Class account to be updated */
+  /** Class account to be frozen/thawed */
   class: Address<TAccountClass>;
-  /** System Program used to extend our class account */
-  systemProgram?: Address<TAccountSystemProgram>;
-  metadata: UpdateClassMetadataInstructionDataArgs['metadata'];
+  isFrozen: FreezeClassInstructionDataArgs['isFrozen'];
 };
 
-export function getUpdateClassMetadataInstruction<
+export function getFreezeClassInstruction<
   TAccountAuthority extends string,
   TAccountClass extends string,
-  TAccountSystemProgram extends string,
   TProgramAddress extends
     Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
 >(
-  input: UpdateClassMetadataInput<
-    TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
-  >,
+  input: FreezeClassInput<TAccountAuthority, TAccountClass>,
   config?: { programAddress?: TProgramAddress }
-): UpdateClassMetadataInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountClass,
-  TAccountSystemProgram
-> {
+): FreezeClassInstruction<TProgramAddress, TAccountAuthority, TAccountClass> {
   // Program address.
   const programAddress =
     config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
@@ -139,7 +119,6 @@ export function getUpdateClassMetadataInstruction<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
     class: { value: input.class ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -149,58 +128,48 @@ export function getUpdateClassMetadataInstruction<
   // Original args.
   const args = { ...input };
 
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
-
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
       getAccountMeta(accounts.authority),
       getAccountMeta(accounts.class),
-      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
-    data: getUpdateClassMetadataInstructionDataEncoder().encode(
-      args as UpdateClassMetadataInstructionDataArgs
+    data: getFreezeClassInstructionDataEncoder().encode(
+      args as FreezeClassInstructionDataArgs
     ),
-  } as UpdateClassMetadataInstruction<
+  } as FreezeClassInstruction<
     TProgramAddress,
     TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
+    TAccountClass
   >;
 
   return instruction;
 }
 
-export type ParsedUpdateClassMetadataInstruction<
+export type ParsedFreezeClassInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Authority used to update a class */
+    /** Authority used to freeze/thaw a class */
     authority: TAccountMetas[0];
-    /** Class account to be updated */
+    /** Class account to be frozen/thawed */
     class: TAccountMetas[1];
-    /** System Program used to extend our class account */
-    systemProgram: TAccountMetas[2];
   };
-  data: UpdateClassMetadataInstructionData;
+  data: FreezeClassInstructionData;
 };
 
-export function parseUpdateClassMetadataInstruction<
+export function parseFreezeClassInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedUpdateClassMetadataInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+): ParsedFreezeClassInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 2) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -215,10 +184,7 @@ export function parseUpdateClassMetadataInstruction<
     accounts: {
       authority: getNextAccount(),
       class: getNextAccount(),
-      systemProgram: getNextAccount(),
     },
-    data: getUpdateClassMetadataInstructionDataDecoder().decode(
-      instruction.data
-    ),
+    data: getFreezeClassInstructionDataDecoder().decode(instruction.data),
   };
 }

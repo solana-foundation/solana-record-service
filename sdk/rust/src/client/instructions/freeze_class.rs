@@ -7,23 +7,20 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderStr;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateClassMetadata {
-    /// Authority used to update a class
+pub struct FreezeClass {
+    /// Authority used to freeze/thaw a class
     pub authority: solana_program::pubkey::Pubkey,
-    /// Class account to be updated
+    /// Class account to be frozen/thawed
     pub class: solana_program::pubkey::Pubkey,
-    /// System Program used to extend our class account
-    pub system_program: solana_program::pubkey::Pubkey,
 }
 
-impl UpdateClassMetadata {
+impl FreezeClass {
     pub fn instruction(
         &self,
-        args: UpdateClassMetadataInstructionArgs,
+        args: FreezeClassInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -31,10 +28,10 @@ impl UpdateClassMetadata {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateClassMetadataInstructionArgs,
+        args: FreezeClassInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
@@ -42,12 +39,8 @@ impl UpdateClassMetadata {
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.class, false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.system_program,
-            false,
-        ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateClassMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeClassInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -61,17 +54,17 @@ impl UpdateClassMetadata {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassMetadataInstructionData {
+pub struct FreezeClassInstructionData {
     discriminator: u8,
 }
 
-impl UpdateClassMetadataInstructionData {
+impl FreezeClassInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 1 }
+        Self { discriminator: 2 }
     }
 }
 
-impl Default for UpdateClassMetadataInstructionData {
+impl Default for FreezeClassInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -79,52 +72,43 @@ impl Default for UpdateClassMetadataInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassMetadataInstructionArgs {
-    pub metadata: RemainderStr,
+pub struct FreezeClassInstructionArgs {
+    pub is_frozen: bool,
 }
 
-/// Instruction builder for `UpdateClassMetadata`.
+/// Instruction builder for `FreezeClass`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` class
-///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
-pub struct UpdateClassMetadataBuilder {
+pub struct FreezeClassBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
-    system_program: Option<solana_program::pubkey::Pubkey>,
-    metadata: Option<RemainderStr>,
+    is_frozen: Option<bool>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl UpdateClassMetadataBuilder {
+impl FreezeClassBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Authority used to update a class
+    /// Authority used to freeze/thaw a class
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
         self
     }
-    /// Class account to be updated
+    /// Class account to be frozen/thawed
     #[inline(always)]
     pub fn class(&mut self, class: solana_program::pubkey::Pubkey) -> &mut Self {
         self.class = Some(class);
         self
     }
-    /// `[optional account, default to '11111111111111111111111111111111']`
-    /// System Program used to extend our class account
     #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn metadata(&mut self, metadata: RemainderStr) -> &mut Self {
-        self.metadata = Some(metadata);
+    pub fn is_frozen(&mut self, is_frozen: bool) -> &mut Self {
+        self.is_frozen = Some(is_frozen);
         self
     }
     /// Add an additional account to the instruction.
@@ -147,56 +131,48 @@ impl UpdateClassMetadataBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = UpdateClassMetadata {
+        let accounts = FreezeClass {
             authority: self.authority.expect("authority is not set"),
             class: self.class.expect("class is not set"),
-            system_program: self
-                .system_program
-                .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
-        let args = UpdateClassMetadataInstructionArgs {
-            metadata: self.metadata.clone().expect("metadata is not set"),
+        let args = FreezeClassInstructionArgs {
+            is_frozen: self.is_frozen.clone().expect("is_frozen is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `update_class_metadata` CPI accounts.
-pub struct UpdateClassMetadataCpiAccounts<'a, 'b> {
-    /// Authority used to update a class
+/// `freeze_class` CPI accounts.
+pub struct FreezeClassCpiAccounts<'a, 'b> {
+    /// Authority used to freeze/thaw a class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Class account to be updated
+    /// Class account to be frozen/thawed
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our class account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `update_class_metadata` CPI instruction.
-pub struct UpdateClassMetadataCpi<'a, 'b> {
+/// `freeze_class` CPI instruction.
+pub struct FreezeClassCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority used to update a class
+    /// Authority used to freeze/thaw a class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Class account to be updated
+    /// Class account to be frozen/thawed
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our class account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
     /// The arguments for the instruction.
-    pub __args: UpdateClassMetadataInstructionArgs,
+    pub __args: FreezeClassInstructionArgs,
 }
 
-impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
+impl<'a, 'b> FreezeClassCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: UpdateClassMetadataCpiAccounts<'a, 'b>,
-        args: UpdateClassMetadataInstructionArgs,
+        accounts: FreezeClassCpiAccounts<'a, 'b>,
+        args: FreezeClassInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
             class: accounts.class,
-            system_program: accounts.system_program,
             __args: args,
         }
     }
@@ -234,17 +210,13 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.class.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -254,7 +226,7 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateClassMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeClassInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -263,11 +235,10 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(3 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.class.clone());
-        account_infos.push(self.system_program.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -280,31 +251,29 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateClassMetadata` via CPI.
+/// Instruction builder for `FreezeClass` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` class
-///   2. `[]` system_program
 #[derive(Clone, Debug)]
-pub struct UpdateClassMetadataCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateClassMetadataCpiBuilderInstruction<'a, 'b>>,
+pub struct FreezeClassCpiBuilder<'a, 'b> {
+    instruction: Box<FreezeClassCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
+impl<'a, 'b> FreezeClassCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateClassMetadataCpiBuilderInstruction {
+        let instruction = Box::new(FreezeClassCpiBuilderInstruction {
             __program: program,
             authority: None,
             class: None,
-            system_program: None,
-            metadata: None,
+            is_frozen: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Authority used to update a class
+    /// Authority used to freeze/thaw a class
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -313,24 +282,15 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         self.instruction.authority = Some(authority);
         self
     }
-    /// Class account to be updated
+    /// Class account to be frozen/thawed
     #[inline(always)]
     pub fn class(&mut self, class: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.class = Some(class);
         self
     }
-    /// System Program used to extend our class account
     #[inline(always)]
-    pub fn system_program(
-        &mut self,
-        system_program: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn metadata(&mut self, metadata: RemainderStr) -> &mut Self {
-        self.instruction.metadata = Some(metadata);
+    pub fn is_frozen(&mut self, is_frozen: bool) -> &mut Self {
+        self.instruction.is_frozen = Some(is_frozen);
         self
     }
     /// Add an additional account to the instruction.
@@ -374,24 +334,19 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = UpdateClassMetadataInstructionArgs {
-            metadata: self
+        let args = FreezeClassInstructionArgs {
+            is_frozen: self
                 .instruction
-                .metadata
+                .is_frozen
                 .clone()
-                .expect("metadata is not set"),
+                .expect("is_frozen is not set"),
         };
-        let instruction = UpdateClassMetadataCpi {
+        let instruction = FreezeClassCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
 
             class: self.instruction.class.expect("class is not set"),
-
-            system_program: self
-                .instruction
-                .system_program
-                .expect("system_program is not set"),
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -402,12 +357,11 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateClassMetadataCpiBuilderInstruction<'a, 'b> {
+struct FreezeClassCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    metadata: Option<RemainderStr>,
+    is_frozen: Option<bool>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

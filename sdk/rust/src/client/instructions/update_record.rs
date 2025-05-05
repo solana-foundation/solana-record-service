@@ -11,19 +11,21 @@ use kaigan::types::RemainderStr;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateClassMetadata {
-    /// Authority used to update a class
+pub struct UpdateRecord {
+    /// Authority used to update a record
     pub authority: solana_program::pubkey::Pubkey,
-    /// Class account to be updated
-    pub class: solana_program::pubkey::Pubkey,
-    /// System Program used to extend our class account
+    /// Record account to be updated
+    pub record: solana_program::pubkey::Pubkey,
+    /// System Program used to extend our record account
     pub system_program: solana_program::pubkey::Pubkey,
+    /// Delegate signer for record account
+    pub delegate: Option<solana_program::pubkey::Pubkey>,
 }
 
-impl UpdateClassMetadata {
+impl UpdateRecord {
     pub fn instruction(
         &self,
-        args: UpdateClassMetadataInstructionArgs,
+        args: UpdateRecordInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -31,23 +33,34 @@ impl UpdateClassMetadata {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateClassMetadataInstructionArgs,
+        args: UpdateRecordInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.class, false,
+            self.record,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
+        if let Some(delegate) = self.delegate {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                delegate, true,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::SOLANA_RECORD_SERVICE_ID,
+                false,
+            ));
+        }
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateClassMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -61,17 +74,17 @@ impl UpdateClassMetadata {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassMetadataInstructionData {
+pub struct UpdateRecordInstructionData {
     discriminator: u8,
 }
 
-impl UpdateClassMetadataInstructionData {
+impl UpdateRecordInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 1 }
+        Self { discriminator: 4 }
     }
 }
 
-impl Default for UpdateClassMetadataInstructionData {
+impl Default for UpdateRecordInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -79,52 +92,61 @@ impl Default for UpdateClassMetadataInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateClassMetadataInstructionArgs {
-    pub metadata: RemainderStr,
+pub struct UpdateRecordInstructionArgs {
+    pub data: RemainderStr,
 }
 
-/// Instruction builder for `UpdateClassMetadata`.
+/// Instruction builder for `UpdateRecord`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` class
+///   1. `[writable]` record
 ///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   3. `[signer, optional]` delegate
 #[derive(Clone, Debug, Default)]
-pub struct UpdateClassMetadataBuilder {
+pub struct UpdateRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
-    class: Option<solana_program::pubkey::Pubkey>,
+    record: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
-    metadata: Option<RemainderStr>,
+    delegate: Option<solana_program::pubkey::Pubkey>,
+    data: Option<RemainderStr>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl UpdateClassMetadataBuilder {
+impl UpdateRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Authority used to update a class
+    /// Authority used to update a record
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
         self
     }
-    /// Class account to be updated
+    /// Record account to be updated
     #[inline(always)]
-    pub fn class(&mut self, class: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.class = Some(class);
+    pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.record = Some(record);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
-    /// System Program used to extend our class account
+    /// System Program used to extend our record account
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
         self
     }
+    /// `[optional account]`
+    /// Delegate signer for record account
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: RemainderStr) -> &mut Self {
-        self.metadata = Some(metadata);
+    pub fn delegate(&mut self, delegate: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+        self.delegate = delegate;
+        self
+    }
+    #[inline(always)]
+    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+        self.data = Some(data);
         self
     }
     /// Add an additional account to the instruction.
@@ -147,56 +169,62 @@ impl UpdateClassMetadataBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = UpdateClassMetadata {
+        let accounts = UpdateRecord {
             authority: self.authority.expect("authority is not set"),
-            class: self.class.expect("class is not set"),
+            record: self.record.expect("record is not set"),
             system_program: self
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
+            delegate: self.delegate,
         };
-        let args = UpdateClassMetadataInstructionArgs {
-            metadata: self.metadata.clone().expect("metadata is not set"),
+        let args = UpdateRecordInstructionArgs {
+            data: self.data.clone().expect("data is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `update_class_metadata` CPI accounts.
-pub struct UpdateClassMetadataCpiAccounts<'a, 'b> {
-    /// Authority used to update a class
+/// `update_record` CPI accounts.
+pub struct UpdateRecordCpiAccounts<'a, 'b> {
+    /// Authority used to update a record
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Class account to be updated
-    pub class: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our class account
+    /// Record account to be updated
+    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    /// System Program used to extend our record account
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Delegate signer for record account
+    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-/// `update_class_metadata` CPI instruction.
-pub struct UpdateClassMetadataCpi<'a, 'b> {
+/// `update_record` CPI instruction.
+pub struct UpdateRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority used to update a class
+    /// Authority used to update a record
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Class account to be updated
-    pub class: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our class account
+    /// Record account to be updated
+    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    /// System Program used to extend our record account
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Delegate signer for record account
+    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
-    pub __args: UpdateClassMetadataInstructionArgs,
+    pub __args: UpdateRecordInstructionArgs,
 }
 
-impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
+impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: UpdateClassMetadataCpiAccounts<'a, 'b>,
-        args: UpdateClassMetadataInstructionArgs,
+        accounts: UpdateRecordCpiAccounts<'a, 'b>,
+        args: UpdateRecordInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
-            class: accounts.class,
+            record: accounts.record,
             system_program: accounts.system_program,
+            delegate: accounts.delegate,
             __args: args,
         }
     }
@@ -234,19 +262,30 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.class.key,
+            *self.record.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.system_program.key,
             false,
         ));
+        if let Some(delegate) = self.delegate {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                *delegate.key,
+                true,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::SOLANA_RECORD_SERVICE_ID,
+                false,
+            ));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_program::instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -254,7 +293,7 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateClassMetadataInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -263,11 +302,14 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
-        account_infos.push(self.class.clone());
+        account_infos.push(self.record.clone());
         account_infos.push(self.system_program.clone());
+        if let Some(delegate) = self.delegate {
+            account_infos.push(delegate.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -280,31 +322,33 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateClassMetadata` via CPI.
+/// Instruction builder for `UpdateRecord` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` class
+///   1. `[writable]` record
 ///   2. `[]` system_program
+///   3. `[signer, optional]` delegate
 #[derive(Clone, Debug)]
-pub struct UpdateClassMetadataCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateClassMetadataCpiBuilderInstruction<'a, 'b>>,
+pub struct UpdateRecordCpiBuilder<'a, 'b> {
+    instruction: Box<UpdateRecordCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
+impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateClassMetadataCpiBuilderInstruction {
+        let instruction = Box::new(UpdateRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
-            class: None,
+            record: None,
             system_program: None,
-            metadata: None,
+            delegate: None,
+            data: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Authority used to update a class
+    /// Authority used to update a record
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -313,13 +357,16 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         self.instruction.authority = Some(authority);
         self
     }
-    /// Class account to be updated
+    /// Record account to be updated
     #[inline(always)]
-    pub fn class(&mut self, class: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.class = Some(class);
+    pub fn record(
+        &mut self,
+        record: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.record = Some(record);
         self
     }
-    /// System Program used to extend our class account
+    /// System Program used to extend our record account
     #[inline(always)]
     pub fn system_program(
         &mut self,
@@ -328,9 +375,19 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         self.instruction.system_program = Some(system_program);
         self
     }
+    /// `[optional account]`
+    /// Delegate signer for record account
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: RemainderStr) -> &mut Self {
-        self.instruction.metadata = Some(metadata);
+    pub fn delegate(
+        &mut self,
+        delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.delegate = delegate;
+        self
+    }
+    #[inline(always)]
+    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+        self.instruction.data = Some(data);
         self
     }
     /// Add an additional account to the instruction.
@@ -374,24 +431,22 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = UpdateClassMetadataInstructionArgs {
-            metadata: self
-                .instruction
-                .metadata
-                .clone()
-                .expect("metadata is not set"),
+        let args = UpdateRecordInstructionArgs {
+            data: self.instruction.data.clone().expect("data is not set"),
         };
-        let instruction = UpdateClassMetadataCpi {
+        let instruction = UpdateRecordCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
 
-            class: self.instruction.class.expect("class is not set"),
+            record: self.instruction.record.expect("record is not set"),
 
             system_program: self
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
+
+            delegate: self.instruction.delegate,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -402,12 +457,13 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateClassMetadataCpiBuilderInstruction<'a, 'b> {
+struct UpdateRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    metadata: Option<RemainderStr>,
+    delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    data: Option<RemainderStr>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

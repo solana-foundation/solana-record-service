@@ -25,6 +25,7 @@ import {
   type IInstructionWithAccounts,
   type IInstructionWithData,
   type ReadonlyAccount,
+  type ReadonlySignerAccount,
   type TransactionSigner,
   type WritableAccount,
   type WritableSignerAccount,
@@ -32,19 +33,20 @@ import {
 import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export const UPDATE_CLASS_METADATA_DISCRIMINATOR = 1;
+export const UPDATE_RECORD_DISCRIMINATOR = 4;
 
-export function getUpdateClassMetadataDiscriminatorBytes() {
-  return getU8Encoder().encode(UPDATE_CLASS_METADATA_DISCRIMINATOR);
+export function getUpdateRecordDiscriminatorBytes() {
+  return getU8Encoder().encode(UPDATE_RECORD_DISCRIMINATOR);
 }
 
-export type UpdateClassMetadataInstruction<
+export type UpdateRecordInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountClass extends string | IAccountMeta<string> = string,
+  TAccountRecord extends string | IAccountMeta<string> = string,
   TAccountSystemProgram extends
     | string
     | IAccountMeta<string> = '11111111111111111111111111111111',
+  TAccountDelegate extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -54,82 +56,92 @@ export type UpdateClassMetadataInstruction<
         ? WritableSignerAccount<TAccountAuthority> &
             IAccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
-      TAccountClass extends string
-        ? WritableAccount<TAccountClass>
-        : TAccountClass,
+      TAccountRecord extends string
+        ? WritableAccount<TAccountRecord>
+        : TAccountRecord,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
+      TAccountDelegate extends string
+        ? ReadonlySignerAccount<TAccountDelegate> &
+            IAccountSignerMeta<TAccountDelegate>
+        : TAccountDelegate,
       ...TRemainingAccounts,
     ]
   >;
 
-export type UpdateClassMetadataInstructionData = {
+export type UpdateRecordInstructionData = {
   discriminator: number;
-  metadata: string;
+  data: string;
 };
 
-export type UpdateClassMetadataInstructionDataArgs = { metadata: string };
+export type UpdateRecordInstructionDataArgs = { data: string };
 
-export function getUpdateClassMetadataInstructionDataEncoder(): Encoder<UpdateClassMetadataInstructionDataArgs> {
+export function getUpdateRecordInstructionDataEncoder(): Encoder<UpdateRecordInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['metadata', getUtf8Encoder()],
+      ['data', getUtf8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 1 })
+    (value) => ({ ...value, discriminator: 4 })
   );
 }
 
-export function getUpdateClassMetadataInstructionDataDecoder(): Decoder<UpdateClassMetadataInstructionData> {
+export function getUpdateRecordInstructionDataDecoder(): Decoder<UpdateRecordInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['metadata', getUtf8Decoder()],
+    ['data', getUtf8Decoder()],
   ]);
 }
 
-export function getUpdateClassMetadataInstructionDataCodec(): Codec<
-  UpdateClassMetadataInstructionDataArgs,
-  UpdateClassMetadataInstructionData
+export function getUpdateRecordInstructionDataCodec(): Codec<
+  UpdateRecordInstructionDataArgs,
+  UpdateRecordInstructionData
 > {
   return combineCodec(
-    getUpdateClassMetadataInstructionDataEncoder(),
-    getUpdateClassMetadataInstructionDataDecoder()
+    getUpdateRecordInstructionDataEncoder(),
+    getUpdateRecordInstructionDataDecoder()
   );
 }
 
-export type UpdateClassMetadataInput<
+export type UpdateRecordInput<
   TAccountAuthority extends string = string,
-  TAccountClass extends string = string,
+  TAccountRecord extends string = string,
   TAccountSystemProgram extends string = string,
+  TAccountDelegate extends string = string,
 > = {
-  /** Authority used to update a class */
+  /** Authority used to update a record */
   authority: TransactionSigner<TAccountAuthority>;
-  /** Class account to be updated */
-  class: Address<TAccountClass>;
-  /** System Program used to extend our class account */
+  /** Record account to be updated */
+  record: Address<TAccountRecord>;
+  /** System Program used to extend our record account */
   systemProgram?: Address<TAccountSystemProgram>;
-  metadata: UpdateClassMetadataInstructionDataArgs['metadata'];
+  /** Delegate signer for record account */
+  delegate?: TransactionSigner<TAccountDelegate>;
+  data: UpdateRecordInstructionDataArgs['data'];
 };
 
-export function getUpdateClassMetadataInstruction<
+export function getUpdateRecordInstruction<
   TAccountAuthority extends string,
-  TAccountClass extends string,
+  TAccountRecord extends string,
   TAccountSystemProgram extends string,
+  TAccountDelegate extends string,
   TProgramAddress extends
     Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
 >(
-  input: UpdateClassMetadataInput<
+  input: UpdateRecordInput<
     TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
+    TAccountRecord,
+    TAccountSystemProgram,
+    TAccountDelegate
   >,
   config?: { programAddress?: TProgramAddress }
-): UpdateClassMetadataInstruction<
+): UpdateRecordInstruction<
   TProgramAddress,
   TAccountAuthority,
-  TAccountClass,
-  TAccountSystemProgram
+  TAccountRecord,
+  TAccountSystemProgram,
+  TAccountDelegate
 > {
   // Program address.
   const programAddress =
@@ -138,8 +150,9 @@ export function getUpdateClassMetadataInstruction<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
-    class: { value: input.class ?? null, isWritable: true },
+    record: { value: input.record ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    delegate: { value: input.delegate ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -159,48 +172,52 @@ export function getUpdateClassMetadataInstruction<
   const instruction = {
     accounts: [
       getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.class),
+      getAccountMeta(accounts.record),
       getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.delegate),
     ],
     programAddress,
-    data: getUpdateClassMetadataInstructionDataEncoder().encode(
-      args as UpdateClassMetadataInstructionDataArgs
+    data: getUpdateRecordInstructionDataEncoder().encode(
+      args as UpdateRecordInstructionDataArgs
     ),
-  } as UpdateClassMetadataInstruction<
+  } as UpdateRecordInstruction<
     TProgramAddress,
     TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
+    TAccountRecord,
+    TAccountSystemProgram,
+    TAccountDelegate
   >;
 
   return instruction;
 }
 
-export type ParsedUpdateClassMetadataInstruction<
+export type ParsedUpdateRecordInstruction<
   TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Authority used to update a class */
+    /** Authority used to update a record */
     authority: TAccountMetas[0];
-    /** Class account to be updated */
-    class: TAccountMetas[1];
-    /** System Program used to extend our class account */
+    /** Record account to be updated */
+    record: TAccountMetas[1];
+    /** System Program used to extend our record account */
     systemProgram: TAccountMetas[2];
+    /** Delegate signer for record account */
+    delegate?: TAccountMetas[3] | undefined;
   };
-  data: UpdateClassMetadataInstructionData;
+  data: UpdateRecordInstructionData;
 };
 
-export function parseUpdateClassMetadataInstruction<
+export function parseUpdateRecordInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedUpdateClassMetadataInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+): ParsedUpdateRecordInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -210,15 +227,20 @@ export function parseUpdateClassMetadataInstruction<
     accountIndex += 1;
     return accountMeta;
   };
+  const getNextOptionalAccount = () => {
+    const accountMeta = getNextAccount();
+    return accountMeta.address === SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS
+      ? undefined
+      : accountMeta;
+  };
   return {
     programAddress: instruction.programAddress,
     accounts: {
       authority: getNextAccount(),
-      class: getNextAccount(),
+      record: getNextAccount(),
       systemProgram: getNextAccount(),
+      delegate: getNextOptionalAccount(),
     },
-    data: getUpdateClassMetadataInstructionDataDecoder().decode(
-      instruction.data
-    ),
+    data: getUpdateRecordInstructionDataDecoder().decode(instruction.data),
   };
 }

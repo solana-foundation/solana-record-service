@@ -1,27 +1,38 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{ctx::Context, state::{Record, RecordAuthorityDelegate}, utils::ByteReader};
-
+use crate::{
+    state::{Record, RecordAuthorityDelegate},
+    utils::{ByteReader, Context},
+};
 
 /// CreateRecordAuthorityDelegate instruction.
-/// 
+///
 /// A record authority delegate is an account that holds authority information for a record,
 /// allowing different entities to have specific permissions over the record.
-/// 
+///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the delegate account
 /// 3. Creates the new account
 /// 4. Transfers the minimum rent needed to make the account rent-exempt
 /// 5. Initializes the delegate data with authority settings
-/// 
+///
 /// # Accounts
 /// * `owner` - The current owner of the record (must be a signer)
 /// * `record` - The record account that will be associated with the delegate
 /// * `delegate` - The new delegate account to be created
-/// 
+///
 /// # Security
 /// The owner account must be a signer and must match the current owner of the record.
 /// The delegate account will be owned by the program and can only be modified
@@ -51,7 +62,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAuthorityDelegateAccou
         Ok(Self {
             owner,
             record,
-            delegate
+            delegate,
         })
     }
 }
@@ -72,11 +83,12 @@ pub struct CreateRecordAuthorityDelegate<'info> {
 }
 
 /// Minimum length of instruction data required for CreateRecordAuthorityDelegate
-pub const CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 4 + size_of::<u8>();
+pub const CREATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize =
+    size_of::<Pubkey>() * 4 + size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
     type Error = ProgramError;
-    
+
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = CreateRecordAuthorityDelegateAccounts::try_from(ctx.accounts)?;
@@ -108,12 +120,12 @@ impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
             freeze_authority,
             transfer_authority,
             burn_authority,
-            authority_program
+            authority_program,
         })
     }
 }
 
-impl <'info> CreateRecordAuthorityDelegate<'info> {
+impl<'info> CreateRecordAuthorityDelegate<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
         sol_log("Create Record Authority Delegate");
@@ -125,17 +137,16 @@ impl <'info> CreateRecordAuthorityDelegate<'info> {
         let rent = Rent::get()?.minimum_balance(space);
         let lamports = rent.saturating_sub(self.accounts.delegate.lamports());
 
-        let seeds = [
-            b"authority",
-            self.accounts.record.key().as_ref(),
-        ];
-            
-        let bump: [u8; 1] = [try_find_program_address(&seeds,&crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
+        let seeds = [b"authority", self.accounts.record.key().as_ref()];
+
+        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
         let seeds = [
             Seed::from(b"authority"),
             Seed::from(self.accounts.record.key()),
-            Seed::from(&bump)
+            Seed::from(&bump),
         ];
 
         let signers = [Signer::from(&seeds)];
@@ -145,10 +156,9 @@ impl <'info> CreateRecordAuthorityDelegate<'info> {
             to: self.accounts.delegate,
             lamports,
             space: space as u64,
-            owner: &crate::ID
-        }.invoke_signed(
-            &signers
-        )?;
+            owner: &crate::ID,
+        }
+        .invoke_signed(&signers)?;
 
         let record = RecordAuthorityDelegate {
             record: *self.accounts.delegate.key(),

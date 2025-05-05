@@ -13,20 +13,26 @@ use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Class {
+pub struct Record {
     pub discriminator: u8,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
-    pub authority: Pubkey,
-    pub is_permissioned: bool,
+    pub class: Pubkey,
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
+    )]
+    pub owner: Pubkey,
     pub is_frozen: bool,
+    pub has_authority_extension: bool,
+    pub expiry: i64,
     pub name: U8PrefixString,
-    pub metadata: RemainderStr,
+    pub data: RemainderStr,
 }
 
-impl Class {
+impl Record {
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
         let mut data = data;
@@ -34,7 +40,7 @@ impl Class {
     }
 }
 
-impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Class {
+impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Record {
     type Error = std::io::Error;
 
     fn try_from(
@@ -46,30 +52,30 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Class {
 }
 
 #[cfg(feature = "fetch")]
-pub fn fetch_class(
+pub fn fetch_record(
     rpc: &solana_client::rpc_client::RpcClient,
     address: &solana_program::pubkey::Pubkey,
-) -> Result<crate::shared::DecodedAccount<Class>, std::io::Error> {
-    let accounts = fetch_all_class(rpc, &[*address])?;
+) -> Result<crate::shared::DecodedAccount<Record>, std::io::Error> {
+    let accounts = fetch_all_record(rpc, &[*address])?;
     Ok(accounts[0].clone())
 }
 
 #[cfg(feature = "fetch")]
-pub fn fetch_all_class(
+pub fn fetch_all_record(
     rpc: &solana_client::rpc_client::RpcClient,
     addresses: &[solana_program::pubkey::Pubkey],
-) -> Result<Vec<crate::shared::DecodedAccount<Class>>, std::io::Error> {
+) -> Result<Vec<crate::shared::DecodedAccount<Record>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-    let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Class>> = Vec::new();
+    let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Record>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
         let account = accounts[i].as_ref().ok_or(std::io::Error::new(
             std::io::ErrorKind::Other,
             format!("Account not found: {}", address),
         ))?;
-        let data = Class::from_bytes(&account.data)?;
+        let data = Record::from_bytes(&account.data)?;
         decoded_accounts.push(crate::shared::DecodedAccount {
             address,
             account: account.clone(),
@@ -80,27 +86,27 @@ pub fn fetch_all_class(
 }
 
 #[cfg(feature = "fetch")]
-pub fn fetch_maybe_class(
+pub fn fetch_maybe_record(
     rpc: &solana_client::rpc_client::RpcClient,
     address: &solana_program::pubkey::Pubkey,
-) -> Result<crate::shared::MaybeAccount<Class>, std::io::Error> {
-    let accounts = fetch_all_maybe_class(rpc, &[*address])?;
+) -> Result<crate::shared::MaybeAccount<Record>, std::io::Error> {
+    let accounts = fetch_all_maybe_record(rpc, &[*address])?;
     Ok(accounts[0].clone())
 }
 
 #[cfg(feature = "fetch")]
-pub fn fetch_all_maybe_class(
+pub fn fetch_all_maybe_record(
     rpc: &solana_client::rpc_client::RpcClient,
     addresses: &[solana_program::pubkey::Pubkey],
-) -> Result<Vec<crate::shared::MaybeAccount<Class>>, std::io::Error> {
+) -> Result<Vec<crate::shared::MaybeAccount<Record>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-    let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Class>> = Vec::new();
+    let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Record>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
         if let Some(account) = accounts[i].as_ref() {
-            let data = Class::from_bytes(&account.data)?;
+            let data = Record::from_bytes(&account.data)?;
             decoded_accounts.push(crate::shared::MaybeAccount::Exists(
                 crate::shared::DecodedAccount {
                     address,
@@ -116,26 +122,26 @@ pub fn fetch_all_maybe_class(
 }
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::AccountDeserialize for Class {
+impl anchor_lang::AccountDeserialize for Record {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
         Ok(Self::deserialize(buf)?)
     }
 }
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::AccountSerialize for Class {}
+impl anchor_lang::AccountSerialize for Record {}
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::Owner for Class {
+impl anchor_lang::Owner for Record {
     fn owner() -> Pubkey {
         crate::SOLANA_RECORD_SERVICE_ID
     }
 }
 
 #[cfg(feature = "anchor-idl-build")]
-impl anchor_lang::IdlBuild for Class {}
+impl anchor_lang::IdlBuild for Record {}
 
 #[cfg(feature = "anchor-idl-build")]
-impl anchor_lang::Discriminator for Class {
+impl anchor_lang::Discriminator for Record {
     const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
