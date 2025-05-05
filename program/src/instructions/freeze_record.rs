@@ -1,6 +1,9 @@
+use crate::{
+    state::Record,
+    utils::{ByteReader, Context},
+};
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{ctx::Context, state::Record, utils::ByteReader};
 
 /// FreezeRecord instruction.
 ///
@@ -37,7 +40,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(&record, authority.key(), rest.first())?;
+        Record::check_authority_or_delegate(record, authority.key(), rest.first())?;
 
         Ok(Self { record })
     }

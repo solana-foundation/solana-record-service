@@ -57,7 +57,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAuthorityDelegateAccou
         }
 
         // Check record authority
-        Record::check_authority(&record, owner.key())?;
+        Record::check_authority(record, owner.key())?;
 
         Ok(Self {
             owner,
@@ -100,19 +100,23 @@ impl<'info> TryFrom<Context<'info>> for CreateRecordAuthorityDelegate<'info> {
         }
 
         // Deserialize `update_authority`
-        let update_authority: Pubkey = ByteReader::read_with_offset(ctx.data, UPDATE_AUTHORITY_OFFSET)?;
+        let update_authority: Pubkey =
+            ByteReader::read_with_offset(ctx.data, UPDATE_AUTHORITY_OFFSET)?;
 
         // Deserialize `freeze_authority`
-        let freeze_authority: Pubkey = ByteReader::read_with_offset(ctx.data, FREEZE_AUTHORITY_OFFSET)?;
+        let freeze_authority: Pubkey =
+            ByteReader::read_with_offset(ctx.data, FREEZE_AUTHORITY_OFFSET)?;
 
         // Deserialize `transfer_authority`
-        let transfer_authority: Pubkey = ByteReader::read_with_offset(ctx.data, TRANSFER_AUTHORITY_OFFSET)?;
+        let transfer_authority: Pubkey =
+            ByteReader::read_with_offset(ctx.data, TRANSFER_AUTHORITY_OFFSET)?;
 
         // Deserialize `burn_authority`
         let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize `authority_program`
-        let authority_program: Option<Pubkey> = ByteReader::read_optional_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
+        let authority_program: Option<Pubkey> =
+            ByteReader::read_optional_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             accounts,
@@ -169,6 +173,6 @@ impl<'info> CreateRecordAuthorityDelegate<'info> {
             authority_program: self.authority_program.unwrap_or([0; 32]),
         };
 
-        record.initialize_checked(&self.accounts.record)
+        record.initialize_checked(self.accounts.record)
     }
 }

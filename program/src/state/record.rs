@@ -1,7 +1,11 @@
-use core::{str, mem::size_of};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}};
 use super::RecordAuthorityDelegate;
 use crate::utils::{resize_account, ByteReader, ByteWriter};
+use core::{mem::size_of, str};
+use pinocchio::{
+    account_info::AccountInfo,
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+};
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
@@ -37,13 +41,16 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
 
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() 
-        + size_of::<Pubkey>() * 2 
-        + size_of::<bool>() * 2 
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>()
+        + size_of::<Pubkey>() * 2
+        + size_of::<bool>() * 2
         + size_of::<i64>()
         + size_of::<u8>();
 
-    pub fn check_authority(account_info: &AccountInfo, authority: &Pubkey) -> Result<(), ProgramError> {
+    pub fn check_authority(
+        account_info: &AccountInfo,
+        authority: &Pubkey,
+    ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { account_info.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
@@ -59,13 +66,17 @@ impl<'info> Record<'info> {
 
         // Check authority
         if authority.ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
-            return Err(ProgramError::MissingRequiredSignature)
+            return Err(ProgramError::MissingRequiredSignature);
         }
 
         Ok(())
     }
 
-    pub fn check_authority_or_delegate(record: &AccountInfo, authority: &Pubkey, delegate: Option<&AccountInfo>) -> Result<(), ProgramError> {
+    pub fn check_authority_or_delegate(
+        record: &AccountInfo,
+        authority: &Pubkey,
+        delegate: Option<&AccountInfo>,
+    ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { record.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
@@ -99,7 +110,7 @@ impl<'info> Record<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let extension = RecordAuthorityDelegate::from_bytes_checked(&delegate)?;
+        let extension = RecordAuthorityDelegate::from_bytes_checked(delegate)?;
 
         if extension.update_authority != *authority {
             return Err(ProgramError::MissingRequiredSignature);
@@ -108,7 +119,10 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_is_frozen(record: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+    pub fn update_is_frozen(
+        record: &'info AccountInfo,
+        is_frozen: bool,
+    ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { record.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
@@ -138,7 +152,7 @@ impl<'info> Record<'info> {
         let mut data = record.try_borrow_mut_data()?;
 
         // Check if frozen
-        if data[IS_FROZEN_OFFSET] == 1 as u8 {
+        if data[IS_FROZEN_OFFSET] == 1u8 {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -153,7 +167,11 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_data(record: &'info AccountInfo, authority: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
+    pub fn update_data(
+        record: &'info AccountInfo,
+        authority: &'info AccountInfo,
+        data: &'info str,
+    ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { record.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
@@ -213,19 +231,21 @@ impl<'info> Record<'info> {
         let is_frozen: bool = ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?;
 
         // Deserialize has_authority_extension
-        let has_authority_extension: bool = ByteReader::read_with_offset(data, HAS_AUTHORITY_EXTENSION_OFFSET)?;
+        let has_authority_extension: bool =
+            ByteReader::read_with_offset(data, HAS_AUTHORITY_EXTENSION_OFFSET)?;
 
         // Deserialize expiry
         let expiry: i64 = ByteReader::read_with_offset(data, EXPIRY_OFFSET)?;
 
         // Deserialize variable length data
-        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
+        let mut variable_data: ByteReader<'info> =
+            ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
 
         // Deserialize name
         let name: &'info str = variable_data.read_str_with_length()?;
 
         // Deserialize data
-        let data_content: &'info str =  variable_data.read_str(variable_data.remaining_bytes())?;
+        let data_content: &'info str = variable_data.read_str(variable_data.remaining_bytes())?;
 
         Ok(Self {
             class,
@@ -256,7 +276,7 @@ impl<'info> Record<'info> {
 
         // Write our discriminator
         ByteWriter::write_with_offset(&mut data, DISCRIMINATOR_OFFSET, Self::DISCRIMINATOR)?;
-        
+
         // Write our class
         ByteWriter::write_with_offset(&mut data, CLASS_OFFSET, self.class)?;
 
@@ -267,7 +287,11 @@ impl<'info> Record<'info> {
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
 
         // Set has_authority_extension
-        ByteWriter::write_with_offset(&mut data, HAS_AUTHORITY_EXTENSION_OFFSET, self.has_authority_extension)?;
+        ByteWriter::write_with_offset(
+            &mut data,
+            HAS_AUTHORITY_EXTENSION_OFFSET,
+            self.has_authority_extension,
+        )?;
 
         // Write expiry if present
         ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;

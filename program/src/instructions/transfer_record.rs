@@ -49,7 +49,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Record::check_authority_or_delegate(&record, authority.key(), rest.first())?;
+        Record::check_authority_or_delegate(record, authority.key(), rest.first())?;
 
         Ok(Self { record })
     }

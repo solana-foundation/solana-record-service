@@ -90,18 +90,19 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
             return Err(ProgramError::InvalidArgument);
         }
 
-        // Deserialize `is_permissioned`    
+        // Deserialize `is_permissioned`
         let is_permissioned: bool = ByteReader::read_with_offset(ctx.data, IS_PERMISSIONED_OFFSET)?;
 
         // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         // Read the variable length data
-        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
+        let mut variable_data: ByteReader<'info> =
+            ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
 
         // Read the name
         let name: &'info str = variable_data.read_str_with_length()?;
-        
+
         #[cfg(not(feature = "perf"))]
         if name.len() > MAX_NAME_LEN {
             return Err(ProgramError::InvalidArgument);
@@ -140,7 +141,7 @@ impl<'info> CreateClass<'info> {
         let seeds = [
             b"class",
             self.accounts.authority.key().as_ref(),
-            &self.name.as_bytes(),
+            self.name.as_bytes(),
         ];
 
         let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)

@@ -1,6 +1,11 @@
-use pinocchio::{account_info::{AccountInfo, RefMut}, sysvars::{rent::Rent, Sysvar}, ProgramResult, program_error::ProgramError};
+use core::mem::size_of;
+use pinocchio::{
+    account_info::{AccountInfo, RefMut},
+    program_error::ProgramError,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 use pinocchio_system::instructions::Transfer;
-
 pub struct Context<'info> {
     pub accounts: &'info [AccountInfo],
     pub data: &'info [u8],
@@ -34,23 +39,30 @@ pub fn resize_account(
     let new_minimum_balance = rent.minimum_balance(new_size);
 
     // First handle lamport transfers
-    if new_minimum_balance > target_account.lamports() {
-        // Need more lamports for rent exemption
-        let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
-        Transfer {
-            from: authority,
-            to: target_account,
-            lamports: lamports_diff,
+    match new_minimum_balance.cmp(&target_account.lamports()) {
+        core::cmp::Ordering::Greater => {
+            // Need more lamports for rent exemption
+            let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
+            Transfer {
+                from: authority,
+                to: target_account,
+                lamports: lamports_diff,
+            }
+            .invoke()?;
         }
-        .invoke()?;
-    } else if new_minimum_balance < target_account.lamports() {
-        // Can return excess lamports to authority
-        let lamports_diff = target_account
-            .lamports()
-            .saturating_sub(new_minimum_balance);
-        *authority.try_borrow_mut_lamports()? = authority.lamports().saturating_add(lamports_diff);
-        *target_account.try_borrow_mut_lamports()? =
-            target_account.lamports().saturating_sub(lamports_diff);
+        core::cmp::Ordering::Less => {
+            // Can return excess lamports to authority
+            let lamports_diff = target_account
+                .lamports()
+                .saturating_sub(new_minimum_balance);
+            *authority.try_borrow_mut_lamports()? =
+                authority.lamports().saturating_add(lamports_diff);
+            *target_account.try_borrow_mut_lamports()? =
+                target_account.lamports().saturating_sub(lamports_diff);
+        }
+        core::cmp::Ordering::Equal => {
+            // No lamport transfer needed
+        }
     }
 
     // Now reallocate the account
@@ -108,7 +120,10 @@ impl<'info> ByteReader<'info> {
         self.read_str(len as usize)
     }
 
-    pub fn read_with_offset<T: Sized + Copy>(data: &'info [u8], offset: usize) -> Result<T, ProgramError> {
+    pub fn read_with_offset<T: Sized + Copy>(
+        data: &'info [u8],
+        offset: usize,
+    ) -> Result<T, ProgramError> {
         let size = size_of::<T>();
 
         if offset + size > data.len() {
@@ -123,12 +138,18 @@ impl<'info> ByteReader<'info> {
         Ok(value)
     }
 
-    pub fn read_optional_with_offset<T: Sized + Copy>(data: &'info [u8], offset: usize) -> Result<Option<T>, ProgramError> {
+    pub fn read_optional_with_offset<T: Sized + Copy>(
+        data: &'info [u8],
+        offset: usize,
+    ) -> Result<Option<T>, ProgramError> {
         let is_some: u8 = Self::read_with_offset(data, offset)?;
         if is_some == 0 {
             Ok(None)
         } else if is_some == 1 {
-            Ok(Some(Self::read_with_offset(data, offset + size_of::<u8>())?))
+            Ok(Some(Self::read_with_offset(
+                data,
+                offset + size_of::<u8>(),
+            )?))
         } else {
             Err(ProgramError::InvalidInstructionData)
         }
@@ -187,7 +208,11 @@ impl<'info> ByteWriter<'info> {
         self.write_str(str)
     }
 
-    pub fn write_with_offset<T: Sized + Copy>(data: &mut RefMut<'_, [u8]>, offset: usize, value: T) -> Result<(), ProgramError> {
+    pub fn write_with_offset<T: Sized + Copy>(
+        data: &mut RefMut<'_, [u8]>,
+        offset: usize,
+        value: T,
+    ) -> Result<(), ProgramError> {
         if offset + size_of::<T>() > data.len() {
             return Err(ProgramError::InvalidInstructionData);
         }

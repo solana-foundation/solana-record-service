@@ -57,7 +57,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
         }
 
         // Check class permission
-        Class::check_permission(&class, rest.first())?;
+        Class::check_permission(class, rest.first())?;
 
         Ok(Self {
             owner,
@@ -68,12 +68,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
 }
 
 const EXPIRY_OFFSET: usize = 0;
-const NAME_LEN_OFFSET_WITH_EXPIRY: usize = EXPIRY_OFFSET + size_of::<u8>() +size_of::<i64>();
+const NAME_LEN_OFFSET_WITH_EXPIRY: usize = EXPIRY_OFFSET + size_of::<u8>() + size_of::<i64>();
 const NAME_LEN_OFFSET_WITHOUT_EXPIRY: usize = EXPIRY_OFFSET + size_of::<u8>();
 
 pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
-    expiry: i64,
+    expiry: Option<i64>,
     name: &'info str,
     data: &'info str,
 }
@@ -98,8 +98,15 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         let expiry: Option<i64> = ByteReader::read_optional_with_offset(ctx.data, EXPIRY_OFFSET)?;
 
         // Deserialize variable length data
-        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, if expiry.is_some() { NAME_LEN_OFFSET_WITH_EXPIRY } else { NAME_LEN_OFFSET_WITHOUT_EXPIRY });
-        
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(
+            ctx.data,
+            if expiry.is_some() {
+                NAME_LEN_OFFSET_WITH_EXPIRY
+            } else {
+                NAME_LEN_OFFSET_WITHOUT_EXPIRY
+            },
+        );
+
         // Deserialize `name`
         let name: &str = variable_data.read_str_with_length()?;
 

@@ -1,3 +1,6 @@
+use crate::constants::MAX_METADATA_LEN;
+use crate::state::Class;
+use crate::utils::{ByteReader, Context};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
 /// UpdateClass instruction.

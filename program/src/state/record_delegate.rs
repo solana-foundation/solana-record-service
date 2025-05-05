@@ -41,13 +41,15 @@ impl RecordAuthorityDelegate {
         let freeze_authority: Pubkey = ByteReader::read_with_offset(data, FREEZE_AUTHORITY_OFFSET)?;
 
         // Deserialize transfer authority
-        let transfer_authority: Pubkey = ByteReader::read_with_offset(data, TRANSFER_AUTHORITY_OFFSET)?;
+        let transfer_authority: Pubkey =
+            ByteReader::read_with_offset(data, TRANSFER_AUTHORITY_OFFSET)?;
 
         // Deserialize burn authority
         let burn_authority: Pubkey = ByteReader::read_with_offset(data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize authority program
-        let authority_program: Pubkey = ByteReader::read_with_offset(data, AUTHORITY_PROGRAM_OFFSET)?;
+        let authority_program: Pubkey =
+            ByteReader::read_with_offset(data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             record,
@@ -83,7 +85,7 @@ impl RecordAuthorityDelegate {
 
         // Write our discriminator
         ByteWriter::write_with_offset(&mut data, DISCRIMINATOR_OFFSET, Self::DISCRIMINATOR)?;
-        
+
         // Write our record
         ByteWriter::write_with_offset(&mut data, RECORD_OFFSET, self.record)?;
 
@@ -94,7 +96,11 @@ impl RecordAuthorityDelegate {
         ByteWriter::write_with_offset(&mut data, FREEZE_AUTHORITY_OFFSET, self.freeze_authority)?;
 
         // Write our transfer authority
-        ByteWriter::write_with_offset(&mut data, TRANSFER_AUTHORITY_OFFSET, self.transfer_authority)?;
+        ByteWriter::write_with_offset(
+            &mut data,
+            TRANSFER_AUTHORITY_OFFSET,
+            self.transfer_authority,
+        )?;
 
         // Write our burn authority
         ByteWriter::write_with_offset(&mut data, BURN_AUTHORITY_OFFSET, self.burn_authority)?;
@@ -104,7 +110,7 @@ impl RecordAuthorityDelegate {
 
         Ok(())
     }
-    
+
     pub fn initialize_checked(&self, account_info: &AccountInfo) -> Result<(), ProgramError> {
         #[cfg(not(feature = "perf"))]
         if unsafe { account_info.owner().ne(&crate::ID) } {
