@@ -41,7 +41,7 @@ impl CreateRecord {
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.owner, true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.class, false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
@@ -96,7 +96,7 @@ pub struct CreateRecordInstructionArgs {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` owner
-///   1. `[writable]` class
+///   1. `[]` class
 ///   2. `[writable]` record
 ///   3. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
@@ -275,7 +275,7 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
             *self.owner.key,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.class.key,
             false,
         ));
@@ -326,7 +326,7 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` owner
-///   1. `[writable]` class
+///   1. `[]` class
 ///   2. `[writable]` record
 ///   3. `[]` system_program
 #[derive(Clone, Debug)]

@@ -54,7 +54,7 @@ export type Record = {
   hasAuthorityExtension: boolean;
   expiry: bigint;
   name: string;
-  metadata: string;
+  data: string;
 };
 
 export type RecordArgs = {
@@ -64,7 +64,7 @@ export type RecordArgs = {
   hasAuthorityExtension: boolean;
   expiry: number | bigint;
   name: string;
-  metadata: string;
+  data: string;
 };
 
 export function getRecordEncoder(): Encoder<RecordArgs> {
@@ -77,7 +77,7 @@ export function getRecordEncoder(): Encoder<RecordArgs> {
       ['hasAuthorityExtension', getBooleanEncoder()],
       ['expiry', getI64Encoder()],
       ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['metadata', getUtf8Encoder()],
+      ['data', getUtf8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: 2 })
   );
@@ -92,7 +92,7 @@ export function getRecordDecoder(): Decoder<Record> {
     ['hasAuthorityExtension', getBooleanDecoder()],
     ['expiry', getI64Decoder()],
     ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['metadata', getUtf8Decoder()],
+    ['data', getUtf8Decoder()],
   ]);
 }
 

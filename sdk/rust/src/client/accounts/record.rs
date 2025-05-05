@@ -29,7 +29,7 @@ pub struct Record {
     pub has_authority_extension: bool,
     pub expiry: i64,
     pub name: U8PrefixString,
-    pub metadata: RemainderStr,
+    pub data: RemainderStr,
 }
 
 impl Record {

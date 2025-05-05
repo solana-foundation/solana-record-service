@@ -138,7 +138,7 @@ impl <'info> CreateRecord<'info> {
             class: *self.accounts.class.key(),
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_extension: self.expiry != 0,
+            has_authority_extension: self.expiry > 0,
             expiry: self.expiry,
             name: self.name,
             data: self.data

@@ -34,7 +34,7 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'hasAuthorityExtension', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
                     structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    structFieldTypeNode({ name: 'metadata', type: stringTypeNode("utf8") }),
+                    structFieldTypeNode({ name: 'data', type: stringTypeNode("utf8") }),
                 ])
             })
         ],
@@ -171,7 +171,7 @@ const root = rootNode(
                     instructionAccountNode({
                         name: "class",
                         isSigner: false,
-                        isWritable: true,
+                        isWritable: false,
                         docs: ["Class account of the record"]
                     }),
                     instructionAccountNode({

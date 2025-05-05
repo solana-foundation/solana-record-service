@@ -60,7 +60,7 @@ export type CreateRecordInstruction<
             IAccountSignerMeta<TAccountOwner>
         : TAccountOwner,
       TAccountClass extends string
-        ? WritableAccount<TAccountClass>
+        ? ReadonlyAccount<TAccountClass>
         : TAccountClass,
       TAccountRecord extends string
         ? WritableAccount<TAccountRecord>
@@ -164,7 +164,7 @@ export function getCreateRecordInstruction<
   // Original accounts.
   const originalAccounts = {
     owner: { value: input.owner ?? null, isWritable: true },
-    class: { value: input.class ?? null, isWritable: true },
+    class: { value: input.class ?? null, isWritable: false },
     record: { value: input.record ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
