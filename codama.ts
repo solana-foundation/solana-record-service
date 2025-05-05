@@ -238,6 +238,42 @@ const root = rootNode(
                         docs: ["Delegate signer for record account"]
                     }),
                 ]
+            }),
+            instructionNode({
+                name: "transferRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(5)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(5),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'newOwner', type: publicKeyTypeNode() }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to update a record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be updated"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isOptional: true,
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Delegate signer for record account"]
+                    }),
+                ]
             })
         ]
     })
