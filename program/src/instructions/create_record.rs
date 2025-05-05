@@ -57,7 +57,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
         }
 
         // Check class permission
-        Class::check_permission(&class.try_borrow_data()?, rest.first())?;
+        Class::check_permission(&class, rest.first())?;
 
         Ok(Self {
             owner,
@@ -66,6 +66,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
         })
     }
 }
+
+const EXPIRY_OFFSET: usize = 0;
+const NAME_LEN_OFFSET_WITH_EXPIRY: usize = EXPIRY_OFFSET + size_of::<u8>() +size_of::<i64>();
+const NAME_LEN_OFFSET_WITHOUT_EXPIRY: usize = EXPIRY_OFFSET + size_of::<u8>();
 
 pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
@@ -84,14 +88,20 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         // Deserialize our accounts array
         let accounts = CreateRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, CREATE_RECORD_MIN_IX_LENGTH)?;
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < CREATE_RECORD_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Deserialize `expiry`
-        let expiry: i64 = data.read()?;
+        let expiry: Option<i64> = ByteReader::read_optional_with_offset(ctx.data, EXPIRY_OFFSET)?;
 
+        // Deserialize variable length data
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, if expiry.is_some() { NAME_LEN_OFFSET_WITH_EXPIRY } else { NAME_LEN_OFFSET_WITHOUT_EXPIRY });
+        
         // Deserialize `name`
-        let name: &str = data.read_str_with_length()?;
+        let name: &str = variable_data.read_str_with_length()?;
 
         #[cfg(not(feature = "perf"))]
         if name.len() > MAX_NAME_LEN {
@@ -99,7 +109,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         }
 
         // Deserialize `data`
-        let data: &str = data.read_str(data.remaining_bytes())?;
+        let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;
 
         Ok(Self {
             accounts,
@@ -154,8 +164,8 @@ impl<'info> CreateRecord<'info> {
             class: *self.accounts.class.key(),
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_extension: self.expiry > 0,
-            expiry: self.expiry,
+            has_authority_extension: false,
+            expiry: self.expiry.unwrap_or(0),
             name: self.name,
             data: self.data,
         };

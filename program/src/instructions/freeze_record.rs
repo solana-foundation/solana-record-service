@@ -1,13 +1,6 @@
 use core::mem::size_of;
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
-
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-
-use crate::{
-    state::Record,
-    utils::{ByteReader, Context},
-};
+use crate::{ctx::Context, state::Record, utils::ByteReader};
 
 /// FreezeRecord instruction.
 ///
@@ -50,13 +43,15 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
     }
 }
 
+const IS_FROZEN_OFFSET: usize = 0;
+
 pub struct FreezeRecord<'info> {
     accounts: FreezeRecordAccounts<'info>,
     is_frozen: bool,
 }
 
 /// Minimum length of instruction data required for FreezeRecord
-const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
+pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 
 impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
     type Error = ProgramError;
@@ -65,11 +60,14 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
         // Deserialize our accounts array
         let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, FREEZE_RECORD_MIN_IX_LENGTH)?;
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < FREEZE_RECORD_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Deserialize `is_frozen`
-        let is_frozen: bool = data.read()?;
+        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         Ok(Self {
             accounts,

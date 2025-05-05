@@ -1,12 +1,6 @@
-#![cfg_attr(not(test), no_std)]
-use instructions::{
-    CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord,
-    UpdateClassMetadata, UpdateRecord,
-};
-use pinocchio::{
-    account_info::AccountInfo, default_allocator, program_entrypoint, program_error::ProgramError,
-    pubkey::Pubkey, ProgramResult,
-};
+// #![cfg_attr(not(test), no_std)]
+use instructions::{CreateClass, CreateRecord, DeleteRecord, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata, UpdateRecord};
+use pinocchio::{account_info::AccountInfo, default_allocator, nostd_panic_handler, program_entrypoint, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use utils::Context;
 
 #[cfg(not(test))]

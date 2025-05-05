@@ -1,17 +1,18 @@
+use core::{str, mem::size_of};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}};
 use super::RecordAuthorityDelegate;
 use crate::utils::{resize_account, ByteReader, ByteWriter};
-use core::{mem::size_of, str};
-use pinocchio::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
-    pubkey::{try_find_program_address, Pubkey},
-};
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
-const NAME_LEN_OFFSET: usize =
-    size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<i64>();
+const DISCRIMINATOR_OFFSET: usize = 0;
+const CLASS_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
+const OWNER_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
+const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
+const HAS_AUTHORITY_EXTENSION_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
+const EXPIRY_OFFSET: usize = HAS_AUTHORITY_EXTENSION_OFFSET + size_of::<bool>();
+const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -23,7 +24,7 @@ pub struct Record<'info> {
     pub is_frozen: bool,
     /// Flag indicating if authority extension exists
     pub has_authority_extension: bool,
-    /// Optional expiration timestamp
+    /// Optional expiration timestamp, if not set, the expiry is [0; 8]
     pub expiry: i64,
     /// The record name/key
     pub name: &'info str,
@@ -36,42 +37,55 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
 
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize =
-        size_of::<u8>() * 2 + size_of::<bool>() * 2 + size_of::<Pubkey>() * 2 + size_of::<i64>();
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() 
+        + size_of::<Pubkey>() * 2 
+        + size_of::<bool>() * 2 
+        + size_of::<i64>()
+        + size_of::<u8>();
 
-    pub fn check_authority(data: &[u8], authority: &Pubkey) -> Result<(), ProgramError> {
+    pub fn check_authority(account_info: &AccountInfo, authority: &Pubkey) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { account_info.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
+        let data = account_info.try_borrow_data()?;
+
         // Check discriminator
-        if data[0].ne(&Self::DISCRIMINATOR) {
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check authority
-        if authority.ne(&data[33..65]) {
-            return Err(ProgramError::MissingRequiredSignature);
+        if authority.ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature)
         }
 
         Ok(())
     }
 
-    pub fn check_authority_or_delegate(
-        record: &AccountInfo,
-        authority: &Pubkey,
-        delegate: Option<&AccountInfo>,
-    ) -> Result<(), ProgramError> {
+    pub fn check_authority_or_delegate(record: &AccountInfo, authority: &Pubkey, delegate: Option<&AccountInfo>) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
         let data = record.try_borrow_data()?;
 
         // Check discriminator
-        if data[0].ne(&Self::DISCRIMINATOR) {
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if authority is the owner
-        if authority.eq(&data[33..65]) {
+        if authority.eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Ok(());
         }
 
         // If not owner, check delegate
-        let has_authority_extension = data[66] == 1;
+        let has_authority_extension = data[HAS_AUTHORITY_EXTENSION_OFFSET] == 1;
         if !has_authority_extension {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -85,8 +99,7 @@ impl<'info> Record<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let delegate_data = delegate.try_borrow_data()?;
-        let extension = RecordAuthorityDelegate::from_bytes(&delegate_data)?;
+        let extension = RecordAuthorityDelegate::from_bytes_checked(&delegate)?;
 
         if extension.update_authority != *authority {
             return Err(ProgramError::MissingRequiredSignature);
@@ -95,42 +108,57 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_is_frozen(
-        record: &'info AccountInfo,
-        is_frozen: bool,
-    ) -> Result<(), ProgramError> {
+    pub fn update_is_frozen(record: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
         let mut data = record.try_borrow_mut_data()?;
 
-        if data[65] == is_frozen as u8 {
+        // Check if frozen is the same
+        if data[IS_FROZEN_OFFSET] == is_frozen as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        data[65] = is_frozen as u8;
+        // Update the frozen status
+        data[IS_FROZEN_OFFSET] = is_frozen as u8;
 
         Ok(())
     }
 
     pub fn update_owner(record: &'info AccountInfo, new_owner: Pubkey) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Get the account data
         let mut data = record.try_borrow_mut_data()?;
 
-        if data[67] == 1 as u8 {
+        // Check if frozen
+        if data[IS_FROZEN_OFFSET] == 1 as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        if new_owner.eq(&data[33..65]) {
+        // Check if new owner is the same as the current owner
+        if new_owner.eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        data[33..65].clone_from_slice(&new_owner);
+        // Update the owner
+        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(&new_owner);
 
         Ok(())
     }
 
-    pub fn update_data(
-        record: &'info AccountInfo,
-        authority: &'info AccountInfo,
-        data: &'info str,
-    ) -> Result<(), ProgramError> {
+    pub fn update_data(record: &'info AccountInfo, authority: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
+        // Check program id
+        if unsafe { record.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
         // Get the name length
         let name_len = {
             let data_ref = record.try_borrow_data()?;
@@ -150,6 +178,13 @@ impl<'info> Record<'info> {
         // Update the data
         {
             let mut data_ref = record.try_borrow_mut_data()?;
+
+            // Check the discriminator
+            if data_ref[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            // Update the data
             let data_buffer = unsafe {
                 core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), data.len())
             };
@@ -160,36 +195,37 @@ impl<'info> Record<'info> {
     }
 
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
-        // Check account data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(data, Self::MINIMUM_CLASS_SIZE)?;
+        // Check discriminator
+        let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;
 
-        // Deserialize discriminator
-        let discriminator: u8 = data.read()?;
-
-        if discriminator != Self::DISCRIMINATOR {
+        // Check discriminator
+        if discriminator.ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Deserialize class
-        let class: Pubkey = data.read()?;
+        let class: Pubkey = ByteReader::read_with_offset(data, CLASS_OFFSET)?;
 
         // Deserialize owner
-        let owner: Pubkey = data.read()?;
+        let owner: Pubkey = ByteReader::read_with_offset(data, OWNER_OFFSET)?;
 
         // Deserialize is_frozen
-        let is_frozen: bool = data.read()?;
+        let is_frozen: bool = ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?;
 
         // Deserialize has_authority_extension
-        let has_authority_extension: bool = data.read()?;
+        let has_authority_extension: bool = ByteReader::read_with_offset(data, HAS_AUTHORITY_EXTENSION_OFFSET)?;
 
         // Deserialize expiry
-        let expiry: i64 = data.read()?;
+        let expiry: i64 = ByteReader::read_with_offset(data, EXPIRY_OFFSET)?;
+
+        // Deserialize variable length data
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
 
         // Deserialize name
-        let name: &'info str = data.read_str_with_length()?;
+        let name: &'info str = variable_data.read_str_with_length()?;
 
         // Deserialize data
-        let data_content: &'info str = data.read_str(data.remaining_bytes())?;
+        let data_content: &'info str =  variable_data.read_str(variable_data.remaining_bytes())?;
 
         Ok(Self {
             class,
@@ -206,6 +242,10 @@ impl<'info> Record<'info> {
         // Calculate required space
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
 
+        if account_info.data_len() < required_space {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;
 
@@ -214,32 +254,32 @@ impl<'info> Record<'info> {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
-        // Create a ByteWriter
-        let mut writer = ByteWriter::new_with_minimum_size(&mut data, required_space)?;
-
         // Write our discriminator
-        writer.write(Self::DISCRIMINATOR)?;
-
+        ByteWriter::write_with_offset(&mut data, DISCRIMINATOR_OFFSET, Self::DISCRIMINATOR)?;
+        
         // Write our class
-        writer.write(self.class)?;
+        ByteWriter::write_with_offset(&mut data, CLASS_OFFSET, self.class)?;
 
         // Write our owner
-        writer.write(self.owner)?;
+        ByteWriter::write_with_offset(&mut data, OWNER_OFFSET, self.owner)?;
 
         // Set is_frozen
-        writer.write(self.is_frozen)?;
+        ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
 
         // Set has_authority_extension
-        writer.write(self.has_authority_extension)?;
+        ByteWriter::write_with_offset(&mut data, HAS_AUTHORITY_EXTENSION_OFFSET, self.has_authority_extension)?;
 
         // Write expiry if present
-        writer.write(self.expiry)?;
+        ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;
+
+        // Write variable length data
+        let mut variable_data = ByteWriter::new_with_offset(&mut data, NAME_LEN_OFFSET);
 
         // Write name with length
-        writer.write_str_with_length(self.name)?;
+        variable_data.write_str_with_length(self.name)?;
 
         // Write data
-        writer.write_str(self.data)?;
+        variable_data.write_str(self.data)?;
 
         Ok(())
     }

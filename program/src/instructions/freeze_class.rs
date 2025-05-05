@@ -44,6 +44,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeClassAccounts<'info> {
     }
 }
 
+const IS_FROZEN_OFFSET: usize = 0;
 pub struct FreezeClass<'info> {
     accounts: FreezeClassAccounts<'info>,
     is_frozen: bool,
@@ -59,11 +60,14 @@ impl<'info> TryFrom<Context<'info>> for FreezeClass<'info> {
         // Deserialize our accounts array
         let accounts = FreezeClassAccounts::try_from(ctx.accounts)?;
 
-        // Check ix data has minimum length and create a byte reader
-        let mut data = ByteReader::new_with_minimum_size(ctx.data, FREEZE_CLASS_MIN_IX_LENGTH)?;
+        // Check minimum instruction data length
+        #[cfg(not(feature = "perf"))]
+        if ctx.data.len() < FREEZE_CLASS_MIN_IX_LENGTH {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Deserialize `is_frozen`
-        let is_frozen: bool = data.read()?;
+        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         Ok(Self {
             accounts,
