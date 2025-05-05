@@ -1,13 +1,25 @@
-use core::str::FromStr;
 use borsh::de::BorshDeserialize;
 use borsh::ser::BorshSerialize;
+use core::str::FromStr;
 
 use kaigan::types::{RemainderStr, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
-use solana_program::example_mocks::solana_keypair::Keypair;
-use solana_sdk::{account::{Account, WritableAccount}, pubkey::Pubkey};
+use solana_sdk::{
+    account::{Account, WritableAccount},
+    pubkey::Pubkey,
+};
 
-use solana_record_service_sdk::{accounts::{Class, Record}, instructions::{CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs, DeleteRecord, FreezeClass, FreezeClassInstructionArgs, TransferRecord, TransferRecordInstructionArgs, UpdateClassMetadata, UpdateClassMetadataInstructionArgs, UpdateRecord, UpdateRecordInstructionArgs}, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_sdk::{
+    accounts::{Class, Record},
+    instructions::{
+        CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs,
+        DeleteRecord, FreezeClass, FreezeClassInstructionArgs, FreezeRecord,
+        FreezeRecordInstructionArgs, TransferRecord, TransferRecordInstructionArgs,
+        UpdateClassMetadata, UpdateClassMetadataInstructionArgs, UpdateRecord,
+        UpdateRecordInstructionArgs,
+    },
+    programs::SOLANA_RECORD_SERVICE_ID,
+};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -15,7 +27,8 @@ pub const NEW_OWNER: Pubkey = Pubkey::new_from_array([0xcc; 32]);
 
 /* Helpers */
 fn make_u8prefix_string(s: &str) -> U8PrefixString {
-    U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat()).expect("Invalid name")
+    U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat())
+        .expect("Invalid name")
 }
 
 fn make_remainder_str(s: &str) -> RemainderStr {
@@ -23,19 +36,31 @@ fn make_remainder_str(s: &str) -> RemainderStr {
 }
 
 fn keyed_account_for_authority() -> (Pubkey, Account) {
-    (AUTHORITY, Account::new(100_000_000u64,  0, &Pubkey::default()))
+    (
+        AUTHORITY,
+        Account::new(100_000_000u64, 0, &Pubkey::default()),
+    )
 }
 
 fn keyed_account_for_owner() -> (Pubkey, Account) {
-    (OWNER, Account::new(100_000_000u64,  0, &Pubkey::default()))
+    (OWNER, Account::new(100_000_000u64, 0, &Pubkey::default()))
 }
 
 fn keyed_account_for_class_default() -> (Pubkey, Account) {
     keyed_account_for_class(AUTHORITY, false, false, "test", "test")
 }
 
-fn keyed_account_for_class(authority: Pubkey, is_permissioned: bool, is_frozen: bool, name: &str, metadata: &str, ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(&[b"class", &authority.as_ref(), name.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+fn keyed_account_for_class(
+    authority: Pubkey,
+    is_permissioned: bool,
+    is_frozen: bool,
+    name: &str,
+    metadata: &str,
+) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"class", &authority.as_ref(), name.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
     let class_account_data = Class {
         discriminator: 1,
         authority,
@@ -43,15 +68,33 @@ fn keyed_account_for_class(authority: Pubkey, is_permissioned: bool, is_frozen: 
         is_frozen,
         name: make_u8prefix_string(name),
         metadata: make_remainder_str(metadata),
-    }.try_to_vec().expect("Invalid class");
+    }
+    .try_to_vec()
+    .expect("Invalid class");
 
-    let mut class_account = Account::new(100_000_000u64,  class_account_data.len(), &Pubkey::from(crate::ID));
-    class_account.data_as_mut_slice().clone_from_slice(&class_account_data);
+    let mut class_account = Account::new(
+        100_000_000u64,
+        class_account_data.len(),
+        &Pubkey::from(crate::ID),
+    );
+    class_account
+        .data_as_mut_slice()
+        .clone_from_slice(&class_account_data);
     (address, class_account)
 }
 
-fn keyed_account_for_record(class: Pubkey, owner: Pubkey, is_frozen: bool, expiry: i64, name: &str, data: &str, ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(&[b"record", &class.as_ref(), name.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+fn keyed_account_for_record(
+    class: Pubkey,
+    owner: Pubkey,
+    is_frozen: bool,
+    expiry: i64,
+    name: &str,
+    data: &str,
+) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), name.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
     let record_account_data = Record {
         discriminator: 2,
         class,
@@ -61,10 +104,18 @@ fn keyed_account_for_record(class: Pubkey, owner: Pubkey, is_frozen: bool, expir
         expiry,
         name: make_u8prefix_string(name),
         data: make_remainder_str(data),
-    }.try_to_vec().expect("Invalid record");
+    }
+    .try_to_vec()
+    .expect("Invalid record");
 
-    let mut record_account = Account::new(100_000_000u64,  record_account_data.len(), &Pubkey::from(crate::ID));
-    record_account.data_as_mut_slice().clone_from_slice(&record_account_data);
+    let mut record_account = Account::new(
+        100_000_000u64,
+        record_account_data.len(),
+        &Pubkey::from(crate::ID),
+    );
+    record_account
+        .data_as_mut_slice()
+        .clone_from_slice(&record_account_data);
 
     (address, record_account)
 }
@@ -85,46 +136,40 @@ fn create_class() {
         authority,
         class,
         system_program,
-    }.instruction(CreateClassInstructionArgs { 
-        is_permissioned: false, 
+    }
+    .instruction(CreateClassInstructionArgs {
+        is_permissioned: false,
         is_frozen: false,
         name: make_u8prefix_string("test"),
-        metadata: make_remainder_str("test")
+        metadata: make_remainder_str("test"),
     });
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (
-                authority,
-                authority_data
-            ),
-            (
-                class,
-                Account::default()
-            ),
-            (
-                system_program, 
-                system_program_data
-            ),
+            (authority, authority_data),
+            (class, Account::default()),
+            (system_program, system_program_data),
         ],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data.data).build()
-        ]
+            Check::account(&class).data(&class_data.data).build(),
+        ],
     );
 }
 
 #[test]
 fn update_class_metadata() {
-
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
     // Class
     let (class, class_data) = keyed_account_for_class_default();
-    
+
     // Class Updated
     let (_, class_data_updated) = keyed_account_for_class(authority, false, false, "test", "test2");
     //System Program
@@ -134,32 +179,29 @@ fn update_class_metadata() {
         authority,
         class,
         system_program,
-    }.instruction(UpdateClassMetadataInstructionArgs { 
-        metadata: RemainderStr::from_str("test2").unwrap()
+    }
+    .instruction(UpdateClassMetadataInstructionArgs {
+        metadata: RemainderStr::from_str("test2").unwrap(),
     });
-    
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (
-                authority,
-                authority_data,
-            ),
-            (
-                class, 
-                class_data,
-            ),
-            (
-                system_program, 
-                system_program_data
-            ),
+            (authority, authority_data),
+            (class, class_data),
+            (system_program, system_program_data),
         ],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data_updated.data).build()
-        ]
+            Check::account(&class)
+                .data(&class_data_updated.data)
+                .build(),
+        ],
     );
 }
 
@@ -171,32 +213,22 @@ fn update_class_frozen() {
     let (class, class_data) = keyed_account_for_class_default();
     // Class frozen
     let (_, class_data_frozen) = keyed_account_for_class(authority, false, true, "test", "test");
-    
-    let instruction = FreezeClass {
-        authority,
-        class,
-    }.instruction(FreezeClassInstructionArgs { 
-        is_frozen: true
-    });
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let instruction = FreezeClass { authority, class }
+        .instruction(FreezeClassInstructionArgs { is_frozen: true });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[
-            (
-                authority,
-                authority_data,
-            ),
-            (
-                class, 
-                class_data
-            )
-        ],
+        &[(authority, authority_data), (class, class_data)],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data_frozen.data).build()
-        ]
+            Check::account(&class).data(&class_data_frozen.data).build(),
+        ],
     );
 }
 
@@ -216,40 +248,31 @@ fn create_record() {
         class,
         record,
         system_program,
-        authority: None
-    }.instruction(CreateRecordInstructionArgs { 
+        authority: None,
+    }
+    .instruction(CreateRecordInstructionArgs {
         expiration: 0,
         name: make_u8prefix_string("test"),
-        data: make_remainder_str("test")
+        data: make_remainder_str("test"),
     });
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (
-                owner,
-                owner_data,
-            ),
-            (
-                class,
-                class_data,
-            ),
-            (
-                record, 
-                Account::default()
-            ),
-            (
-                system_program,
-                system_program_data
-            )
-            
+            (owner, owner_data),
+            (class, class_data),
+            (record, Account::default()),
+            (system_program, system_program_data),
         ],
         &[
             Check::success(),
             Check::account(&record).data(&record_data.data).build(),
-        ]
+        ],
     );
 }
 
@@ -262,7 +285,8 @@ fn update_record() {
     // Record
     let (record, record_data) = keyed_account_for_record(class, OWNER, false, 0, "test", "test");
     // Record updated
-    let (_, record_data_updated) = keyed_account_for_record(class, OWNER, false, 0, "test", "test2");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, OWNER, false, 0, "test", "test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -271,34 +295,30 @@ fn update_record() {
         authority,
         record,
         system_program,
-        delegate: None
-    }.instruction(UpdateRecordInstructionArgs { 
-        data: make_remainder_str("test2")
+        delegate: None,
+    }
+    .instruction(UpdateRecordInstructionArgs {
+        data: make_remainder_str("test2"),
     });
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (
-                authority,
-                authority_data,
-            ),
-            (
-                record, 
-                record_data
-            ),
-            (
-                system_program,
-                system_program_data
-            )
-            
+            (authority, authority_data),
+            (record, record_data),
+            (system_program, system_program_data),
         ],
         &[
             Check::success(),
-            Check::account(&record).data(&record_data_updated.data).build()
-        ]
+            Check::account(&record)
+                .data(&record_data_updated.data)
+                .build(),
+        ],
     );
 }
 
@@ -311,34 +331,32 @@ fn transfer_record() {
     // Record
     let (record, record_data) = keyed_account_for_record(class, OWNER, false, 0, "test", "test");
     // Record updated
-    let (_, record_data_updated) = keyed_account_for_record(class, NEW_OWNER, false, 0, "test", "test");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, NEW_OWNER, false, 0, "test", "test");
 
     let instruction = TransferRecord {
         authority,
         record,
-        delegate: None
-    }.instruction(TransferRecordInstructionArgs { 
-        new_owner: Pubkey::new_from_array([0xcc; 32])
+        delegate: None,
+    }
+    .instruction(TransferRecordInstructionArgs {
+        new_owner: Pubkey::new_from_array([0xcc; 32]),
     });
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[
-            (
-                authority,
-                authority_data,
-            ),
-            (
-                record, 
-                record_data
-            )
-        ],
+        &[(authority, authority_data), (record, record_data)],
         &[
             Check::success(),
-            Check::account(&record).data(&record_data_updated.data).build()
-        ]
+            Check::account(&record)
+                .data(&record_data_updated.data)
+                .build(),
+        ],
     );
 }
 
@@ -354,26 +372,53 @@ fn delete_record() {
     let instruction = DeleteRecord {
         authority,
         record,
-        delegate: None
-    }.instruction();
+        delegate: None,
+    }
+    .instruction();
 
-    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/solana_record_service");
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[
-            (
-                authority,
-                authority_data,
-            ),
-            (
-                record, 
-                record_data
-            )
-        ],
+        &[(authority, authority_data), (record, record_data)],
+        &[Check::success(), Check::account(&record).data(&[]).build()],
+    );
+}
+
+#[test]
+fn freeze_record() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_owner();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, OWNER, false, 0, "test", "test");
+    // Record frozen
+    let (_, record_data_frozen) = keyed_account_for_record(class, OWNER, true, 0, "test", "test");
+
+    let instruction = FreezeRecord {
+        authority,
+        record,
+        delegate: None,
+    }
+    .instruction(FreezeRecordInstructionArgs { is_frozen: true });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[(authority, authority_data), (record, record_data)],
         &[
             Check::success(),
-            Check::account(&record).data(&[]).build()
-        ]
+            Check::account(&record)
+                .data(&record_data_frozen.data)
+                .build(),
+        ],
     );
 }

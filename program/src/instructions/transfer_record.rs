@@ -1,36 +1,41 @@
-#[cfg(not(feature="perf"))]
-use pinocchio::log::sol_log;
+use crate::{
+    state::Record,
+    utils::{ByteReader, Context},
+};
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
-use crate::{state::Record, utils::{ByteReader, Context}};
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
+use pinocchio::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+};
 
 /// TransferRecord instruction.
-/// 
+///
 /// This function:
 /// 1. Loads the current record state
 /// 2. Updates the owner to the new owner
 /// 3. Saves the updated state
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to transfer the record (must be a signer)
 /// * `record` - The record account to be transferred
-/// 
+///
 /// # Optional Accounts
 /// * `record_delegate` - Required if the authority is not the record owner
-/// 
+///
 /// # Security
-/// 
+///
 /// The authority must be either:
 /// 1. The record owner, or
 /// 2. A delegate with transfer authority (requires record_delegate account)
-/// 
+///
 /// The instruction will fail if:
 /// 1. The record is frozen (frozen records cannot be transferred)
 /// 2. The authority is not the record owner or a valid delegate
 /// 3. The new owner is the same as the current owner
 pub struct TransferRecordAccounts<'info> {
     record: &'info AccountInfo,
-}    
+}
 
 impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
     type Error = ProgramError;
@@ -46,9 +51,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
 
         Record::check_authority_or_delegate(&record, authority.key(), rest.first())?;
 
-        Ok(Self {
-            record,
-        })
+        Ok(Self { record })
     }
 }
 
@@ -75,7 +78,7 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
 
         Ok(Self {
             accounts,
-            new_owner
+            new_owner,
         })
     }
 }

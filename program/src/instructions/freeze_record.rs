@@ -1,25 +1,28 @@
-#[cfg(not(feature="perf"))]
-use pinocchio::log::sol_log;
 use core::mem::size_of;
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
 
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::{state::Record, utils::{ByteReader, Context}};
+use crate::{
+    state::Record,
+    utils::{ByteReader, Context},
+};
 
 /// FreezeRecord instruction.
-/// 
+///
 /// This function:
 /// 1. Loads the current record state
 /// 2. Updates the frozen status
 /// 3. Saves the updated state
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
 /// * `record` - The record account to be frozen/unfrozen
-/// 
+///
 /// # Optional Accounts
 /// * `record_delegate` - Required if the authority is not the record owner
-/// 
+///
 /// # Security
 /// The authority must be either:
 /// 1. The record owner, or
@@ -43,9 +46,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_authority_or_delegate(&record, authority.key(), rest.first())?;
 
-        Ok(Self {
-            record,
-        })
+        Ok(Self { record })
     }
 }
 
@@ -60,7 +61,7 @@ const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
 

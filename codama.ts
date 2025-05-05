@@ -309,6 +309,42 @@ const root = rootNode(
                         docs: ["Delegate signer for record account"]
                     }),
                 ]
+            }),
+            instructionNode({
+                name: "freezeRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(7)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(7),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'isFrozen', type: booleanTypeNode() })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to update a record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be updated"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isOptional: true,
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Delegate signer for record account"]
+                    }),
+                ]
             })
         ]
     })

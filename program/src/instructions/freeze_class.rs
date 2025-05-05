@@ -1,22 +1,25 @@
-#[cfg(not(feature="perf"))]
-use pinocchio::log::sol_log;
+use crate::{
+    state::Class,
+    utils::{ByteReader, Context},
+};
 use core::mem::size_of;
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{state::Class, utils::{ByteReader, Context}};
 
 /// FreezeClass instruction.
-/// 
+///
 /// This function:
 /// 1. Loads the current class state
 /// 2. Updates the frozen status
 /// 3. Saves the updated state
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to freeze/unfreeze the class (must be a signer)
 /// * `class` - The class account to be frozen/unfrozen
-/// 
+///
 /// # Security
-/// 
+///
 /// The authority must be the class owner to perform this operation.
 /// This is a critical operation as it affects all records within the class.
 pub struct FreezeClassAccounts<'info> {
@@ -37,10 +40,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self {
-            authority,
-            class,
-        })
+        Ok(Self { authority, class })
     }
 }
 

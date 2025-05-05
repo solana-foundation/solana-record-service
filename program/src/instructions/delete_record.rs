@@ -1,22 +1,22 @@
-#[cfg(not(feature="perf"))]
+use crate::{state::Record, utils::Context};
+#[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{state::Record, utils::Context};
 
 /// DeleteRecord instruction.
-/// 
+///
 /// This function:
 /// 1. Reallocates the record account to 0 bytes
 /// 2. Transfers the lamports from the record to the authority
 /// 3. Closes the record account
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to delete the record (must be a signer)
 /// * `record` - The record account to be deleted
-/// 
+///
 /// # Optional Accounts
 /// * `record_delegate` - Required if the authority is not the record owner
-/// 
+///
 /// # Security
 /// The authority must be either:
 /// 1. The record owner, or
@@ -42,10 +42,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_authority_or_delegate(&record, authority.key(), rest.first())?;
 
-        Ok(Self {
-            authority,
-            record,
-        })
+        Ok(Self { authority, record })
     }
 }
 
@@ -60,9 +57,7 @@ impl<'info> TryFrom<Context<'info>> for DeleteRecord<'info> {
         // Deserialize our accounts array
         let accounts = DeleteRecordAccounts::try_from(ctx.accounts)?;
 
-        Ok(Self {
-            accounts,
-        })
+        Ok(Self { accounts })
     }
 }
 
@@ -78,7 +73,8 @@ impl<'info> DeleteRecord<'info> {
         self.accounts.record.realloc(0, true)?;
 
         // Transfer the lamports from the record to the authority
-        *self.accounts.authority.try_borrow_mut_lamports()? += *self.accounts.record.try_borrow_lamports()?;
+        *self.accounts.authority.try_borrow_mut_lamports()? +=
+            *self.accounts.record.try_borrow_lamports()?;
         *self.accounts.record.try_borrow_mut_lamports()? = 0;
 
         // Close the record account

@@ -1,6 +1,6 @@
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-use core::mem::size_of;
 use crate::utils::{ByteReader, ByteWriter};
+use core::mem::size_of;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 #[repr(C)]
 pub struct RecordAuthorityDelegate {
@@ -14,7 +14,8 @@ pub struct RecordAuthorityDelegate {
 
 impl RecordAuthorityDelegate {
     pub const DISCRIMINATOR: u8 = 3;
-    pub const MINIMUM_RECORD_SIZE: usize = size_of::<u8>() + size_of::<Pubkey>() * 6 + size_of::<u8>();
+    pub const MINIMUM_RECORD_SIZE: usize =
+        size_of::<u8>() + size_of::<Pubkey>() * 6 + size_of::<u8>();
 
     pub fn from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         // Check account data has minimum length and create a byte reader
@@ -68,7 +69,7 @@ impl RecordAuthorityDelegate {
 
         // Write our discriminator
         writer.write(Self::DISCRIMINATOR)?;
-        
+
         // Write our record
         writer.write(self.record)?;
 

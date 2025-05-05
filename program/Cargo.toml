@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["lib", "cdylib"]
 
 [features]
-default = []
+default = ["perf"]
 perf = []
 
 [dependencies]

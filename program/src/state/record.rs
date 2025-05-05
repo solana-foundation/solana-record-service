@@ -1,12 +1,17 @@
-use core::{str, mem::size_of};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::{Pubkey, try_find_program_address}};
 use super::RecordAuthorityDelegate;
 use crate::utils::{resize_account, ByteReader, ByteWriter};
+use core::{mem::size_of, str};
+use pinocchio::{
+    account_info::AccountInfo,
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+};
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
-const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<i64>();
+const NAME_LEN_OFFSET: usize =
+    size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<i64>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -29,12 +34,10 @@ pub struct Record<'info> {
 impl<'info> Record<'info> {
     /// The discriminator byte used to identify this account type
     pub const DISCRIMINATOR: u8 = 2;
-    
+
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 2 
-        + size_of::<bool>() * 2 
-        + size_of::<Pubkey>() * 2 
-        + size_of::<i64>();
+    pub const MINIMUM_CLASS_SIZE: usize =
+        size_of::<u8>() * 2 + size_of::<bool>() * 2 + size_of::<Pubkey>() * 2 + size_of::<i64>();
 
     pub fn check_authority(data: &[u8], authority: &Pubkey) -> Result<(), ProgramError> {
         // Check discriminator
@@ -44,13 +47,17 @@ impl<'info> Record<'info> {
 
         // Check authority
         if authority.ne(&data[33..65]) {
-            return Err(ProgramError::MissingRequiredSignature)
+            return Err(ProgramError::MissingRequiredSignature);
         }
 
         Ok(())
     }
 
-    pub fn check_authority_or_delegate(record: &AccountInfo, authority: &Pubkey, delegate: Option<&AccountInfo>) -> Result<(), ProgramError> {
+    pub fn check_authority_or_delegate(
+        record: &AccountInfo,
+        authority: &Pubkey,
+        delegate: Option<&AccountInfo>,
+    ) -> Result<(), ProgramError> {
         let data = record.try_borrow_data()?;
 
         // Check discriminator
@@ -71,8 +78,8 @@ impl<'info> Record<'info> {
 
         let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
         let seeds = [b"authority", record.key().as_ref()];
-        let (derived_delegate, _) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let (derived_delegate, _) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
 
         if derived_delegate != *delegate.key() {
             return Err(ProgramError::MissingRequiredSignature);
@@ -80,7 +87,7 @@ impl<'info> Record<'info> {
 
         let delegate_data = delegate.try_borrow_data()?;
         let extension = RecordAuthorityDelegate::from_bytes(&delegate_data)?;
-        
+
         if extension.update_authority != *authority {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -88,14 +95,17 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_is_frozen(record: &'info AccountInfo, is_frozen: bool) -> Result<(), ProgramError> {
+    pub fn update_is_frozen(
+        record: &'info AccountInfo,
+        is_frozen: bool,
+    ) -> Result<(), ProgramError> {
         let mut data = record.try_borrow_mut_data()?;
 
-        if data[67] == is_frozen as u8 {
+        if data[65] == is_frozen as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        data[67] = is_frozen as u8;
+        data[65] = is_frozen as u8;
 
         Ok(())
     }
@@ -116,7 +126,11 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub fn update_data(record: &'info AccountInfo, authority: &'info AccountInfo, data: &'info str) -> Result<(), ProgramError> {
+    pub fn update_data(
+        record: &'info AccountInfo,
+        authority: &'info AccountInfo,
+        data: &'info str,
+    ) -> Result<(), ProgramError> {
         // Get the name length
         let name_len = {
             let data_ref = record.try_borrow_data()?;
@@ -130,22 +144,14 @@ impl<'info> Record<'info> {
 
         // Check if we need to resize, if so, resize the account
         if new_len != current_len {
-            resize_account(
-                record,
-                authority,
-                new_len,
-                new_len < current_len
-            )?;
+            resize_account(record, authority, new_len, new_len < current_len)?;
         }
 
         // Update the data
         {
             let mut data_ref = record.try_borrow_mut_data()?;
             let data_buffer = unsafe {
-                core::slice::from_raw_parts_mut(
-                    data_ref.as_mut_ptr().add(offset),
-                    data.len()
-                )
+                core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), data.len())
             };
             data_buffer.clone_from_slice(data.as_bytes());
         }
@@ -162,7 +168,7 @@ impl<'info> Record<'info> {
 
         if discriminator != Self::DISCRIMINATOR {
             return Err(ProgramError::InvalidAccountData);
-        }   
+        }
 
         // Deserialize class
         let class: Pubkey = data.read()?;
@@ -196,7 +202,6 @@ impl<'info> Record<'info> {
         })
     }
 
-    
     pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         // Calculate required space
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
@@ -214,7 +219,7 @@ impl<'info> Record<'info> {
 
         // Write our discriminator
         writer.write(Self::DISCRIMINATOR)?;
-        
+
         // Write our class
         writer.write(self.class)?;
 

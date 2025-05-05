@@ -1,31 +1,41 @@
-#[cfg(not(feature="perf"))]
-use pinocchio::log::sol_log;
-#[cfg(not(feature="perf"))]
+#[cfg(not(feature = "perf"))]
 use crate::constants::MAX_NAME_LEN;
+#[cfg(not(feature = "perf"))]
+use pinocchio::log::sol_log;
 
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 use pinocchio_system::instructions::CreateAccount;
 
-use crate::{state::{Class, Record}, utils::{ByteReader, Context}};
+use crate::{
+    state::{Class, Record},
+    utils::{ByteReader, Context},
+};
 
 /// CreateRecord instruction.
-/// 
+///
 /// A record represents an entity within a class (e.g., a Twitter handle, a D3 domain).
-/// 
+///
 /// This function:
 /// 1. Calculates required account space and rent
 /// 2. Derives the PDA for the record account
 /// 3. Creates the new account
 /// 4. Initializes the record data
-/// 
+///
 /// # Accounts
 /// * `owner` - The account that will own the record (must be a signer)
 /// * `class` - The class account that this record belongs to
 /// * `record` - The new record account to be created
-/// 
+///
 /// # Security
-/// 
+///
 /// The owner account must be a signer.
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
@@ -37,7 +47,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, class, record, _system_program, rest @..] = accounts else {
+        let [owner, class, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -95,12 +105,12 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
             accounts,
             expiry,
             name,
-            data
+            data,
         })
     }
 }
 
-impl <'info> CreateRecord<'info> {
+impl<'info> CreateRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
         sol_log("Create Record");
@@ -117,14 +127,16 @@ impl <'info> CreateRecord<'info> {
             self.accounts.class.key().as_ref(),
             self.name.as_bytes(),
         ];
-            
-        let bump: [u8; 1] = [try_find_program_address(&seeds,&crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
+
+        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
         let seeds = [
             Seed::from(b"record"),
             Seed::from(self.accounts.class.key()),
             Seed::from(self.name.as_bytes()),
-            Seed::from(&bump)
+            Seed::from(&bump),
         ];
 
         let signers = [Signer::from(&seeds)];
@@ -134,10 +146,9 @@ impl <'info> CreateRecord<'info> {
             to: self.accounts.record,
             lamports,
             space: space as u64,
-            owner: &crate::ID
-        }.invoke_signed(
-            &signers
-        )?;
+            owner: &crate::ID,
+        }
+        .invoke_signed(&signers)?;
 
         let record = Record {
             class: *self.accounts.class.key(),
@@ -146,7 +157,7 @@ impl <'info> CreateRecord<'info> {
             has_authority_extension: self.expiry > 0,
             expiry: self.expiry,
             name: self.name,
-            data: self.data
+            data: self.data,
         };
 
         record.initialize(self.accounts.record)

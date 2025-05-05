@@ -1,20 +1,24 @@
-#[cfg(not(feature="perf"))]
+use crate::{
+    constants::MAX_METADATA_LEN,
+    state::Class,
+    utils::{ByteReader, Context},
+};
+#[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
-use crate::{constants::MAX_METADATA_LEN, state::Class, utils::{ByteReader, Context}};
 
 /// UpdateClass instruction.
-/// 
+///
 /// This function:
 /// 1. Loads the current class state
 /// 2. Updates the metadata
 /// 3. Saves the updated state
-/// 
+///
 /// # Accounts
 /// * `authority` - The account that has permission to update the class (must be a signer)
 /// * `class` - The class account to be updated
 /// * `system_program` - Required for account resizing operations
-/// 
+///
 /// # Security
 /// The authority must be:
 /// 1. The class owner
@@ -38,10 +42,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self {
-            authority,
-            class
-        })
+        Ok(Self { authority, class })
     }
 }
 
@@ -72,9 +73,9 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
     }
 }
 
-impl <'info> UpdateClassMetadata<'info> {
+impl<'info> UpdateClassMetadata<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature="perf"))]
+        #[cfg(not(feature = "perf"))]
         sol_log("Update Class Metadata");
         Self::try_from(ctx)?.execute()
     }
