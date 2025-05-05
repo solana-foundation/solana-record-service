@@ -10,3 +10,4 @@ export * from './createClass';
 export * from './createRecord';
 export * from './freezeClass';
 export * from './updateClassMetadata';
+export * from './updateRecord';

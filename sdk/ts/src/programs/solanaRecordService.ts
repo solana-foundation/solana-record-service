@@ -17,6 +17,7 @@ import {
   type ParsedCreateRecordInstruction,
   type ParsedFreezeClassInstruction,
   type ParsedUpdateClassMetadataInstruction,
+  type ParsedUpdateRecordInstruction,
 } from '../instructions';
 
 export const SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS =
@@ -47,6 +48,7 @@ export enum SolanaRecordServiceInstruction {
   UpdateClassMetadata,
   FreezeClass,
   CreateRecord,
+  UpdateRecord,
 }
 
 export function identifySolanaRecordServiceInstruction(
@@ -64,6 +66,9 @@ export function identifySolanaRecordServiceInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
     return SolanaRecordServiceInstruction.CreateRecord;
+  }
+  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
+    return SolanaRecordServiceInstruction.UpdateRecord;
   }
   throw new Error(
     'The provided instruction could not be identified as a solanaRecordService instruction.'
@@ -84,4 +89,7 @@ export type ParsedSolanaRecordServiceInstruction<
     } & ParsedFreezeClassInstruction<TProgram>)
   | ({
       instructionType: SolanaRecordServiceInstruction.CreateRecord;
-    } & ParsedCreateRecordInstruction<TProgram>);
+    } & ParsedCreateRecordInstruction<TProgram>)
+  | ({
+      instructionType: SolanaRecordServiceInstruction.UpdateRecord;
+    } & ParsedUpdateRecordInstruction<TProgram>);

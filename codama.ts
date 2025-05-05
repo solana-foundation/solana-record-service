@@ -110,7 +110,7 @@ const root = rootNode(
                         defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
                         isSigner: false,
                         isWritable: false,
-                        docs: ["System Program used to open our new class account"]
+                        docs: ["System Program used to extend our class account"]
                     }),
                 ]
             }),
@@ -126,7 +126,7 @@ const root = rootNode(
                         defaultValue: numberValueNode(2),
                         defaultValueStrategy: 'omitted',
                     }),
-                    instructionArgumentNode({ name: 'is_frozen', type: booleanTypeNode() }),
+                    instructionArgumentNode({ name: 'isFrozen', type: booleanTypeNode() }),
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -166,13 +166,13 @@ const root = rootNode(
                         name: "owner",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to create a record"]
+                        docs: ["Owner of the new record"]
                     }),
                     instructionAccountNode({
                         name: "class",
                         isSigner: false,
-                        isWritable: false,
-                        docs: ["Class account of the record"]
+                        isWritable: true,
+                        docs: ["Class account for the record to be created"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -185,7 +185,57 @@ const root = rootNode(
                         defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
                         isSigner: false,
                         isWritable: false,
-                        docs: ["System Program used to open our new record account"]
+                        docs: ["System Program used to create our record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "authority",
+                        isOptional: true,
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Optional authority for permissioned classes"]
+                    }),
+                ]
+            }),
+            instructionNode({
+                name: "updateRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(4)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(4),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'data', type: stringTypeNode("utf8") }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to update a record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be updated"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to extend our record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isOptional: true,
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Delegate signer for record account"]
                     }),
                 ]
             })

@@ -1,3 +1,5 @@
+#[cfg(not(feature="perf"))]
+use pinocchio::log::sol_log;
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 use crate::{state::Record, utils::{ByteReader, Context}};

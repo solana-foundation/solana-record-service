@@ -1,3 +1,8 @@
+#[cfg(not(feature="perf"))]
+use pinocchio::log::sol_log;
+#[cfg(not(feature="perf"))]
+use crate::constants::MAX_NAME_LEN;
+
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;

@@ -6,7 +6,7 @@ use crate::utils::{resize_account, ByteReader, ByteWriter};
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
-const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<u8>() + size_of::<i64>();
+const NAME_LEN_OFFSET: usize = size_of::<u8>() + size_of::<Pubkey>() * 2 + size_of::<bool>() * 2 + size_of::<i64>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -31,7 +31,7 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
     
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 3 
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 2 
         + size_of::<bool>() * 2 
         + size_of::<Pubkey>() * 2 
         + size_of::<i64>();

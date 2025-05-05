@@ -1,3 +1,5 @@
+#[cfg(not(feature="perf"))]
+use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 use crate::{state::Record, utils::Context};
 
