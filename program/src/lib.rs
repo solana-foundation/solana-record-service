@@ -1,4 +1,4 @@
-// #![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_std)]
 use instructions::{
     CreateClass, CreateRecord, CreateRecordAuthorityDelegate, DeleteRecord,
     DeleteRecordAuthorityDelegate, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata,
@@ -22,6 +22,10 @@ pub mod utils;
 
 program_entrypoint!(process_instruction);
 default_allocator!();
+
+#[cfg(not(test))]
+nostd_panic_handler!();
+
 
 // srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa
 pub const ID: Pubkey = [

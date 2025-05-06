@@ -384,7 +384,7 @@ fn delete_record() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[(authority, authority_data), (record, record_data)],
-        &[Check::success(), Check::account(&record).data(&[]).build()],
+        &[Check::success(), Check::account(&record).data(&[0xff]).build()],
     );
 }
 
