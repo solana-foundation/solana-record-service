@@ -1,12 +1,11 @@
-use core::mem::MaybeUninit;
-
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
+use pinocchio_token::instructions::{InitializeAccount3, InitializeMint2, MintToChecked};
 
 use crate::{
-    constants::{TOKEN_2022_METADATA_POINTER_EXTENSION_INITIALIZE_IX, TOKEN_2022_METADATA_POINTER_EXTENSION_IX, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID}, state::Record, utils::Context
+    constants::{SRS_TICKER, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN}, state::Record, token2022::{InitializeMetadata, InitializeMetadataPointer, InitializeMintCloseAuthority, InitializePermanentDelegate}, utils::Context
 };
-use pinocchio::{account_info::AccountInfo, cpi::invoke_signed, instruction::{AccountMeta, Instruction, Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
 use pinocchio_system::instructions::CreateAccount;
 
 /// MintRecordToken instruction.
@@ -34,15 +33,15 @@ pub struct MintRecordTokenAccounts<'info> {
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
-    associated_token_program: &'info AccountInfo,
-    token_2022_program: &'info AccountInfo,
+    // associated_token_program: &'info AccountInfo,
+    // token_2022_program: &'info AccountInfo,
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, associated_token_program, token_2022_program, _system_program, rest @ ..] = accounts else {
+        let [authority, record, mint, token_account, _associated_token_program, _token_2022_program, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -53,7 +52,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
         // Check if authority is the record owner
         Record::check_authority(record, authority.key())?;
 
-        Ok(Self { authority, record, mint, token_account, associated_token_program, token_2022_program })
+        Ok(Self { authority, record, mint, token_account })
     }
 }
 
@@ -75,40 +74,42 @@ impl<'info> TryFrom<Context<'info>> for MintRecordToken<'info> {
 impl<'info> MintRecordToken<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
-        sol_log("Update Record");
+        sol_log("Mint Record Token");
         Self::try_from(ctx)?.execute()
     }
 
     pub fn execute(&self) -> ProgramResult {
         // Get Mint length
-        let bump = self.get_bump()?;
-        // Create the mint account in System Program
+        let bump = self.derive_mint_address_bump()?;
+        // Get record name and data
+        let data = self.accounts.record.try_borrow_data()?;
+        let (name, uri) = unsafe {
+            Record::get_name_and_data_unchecked(&data)?
+        };
+        // Create mint account
         self.create_mint_account(&bump)?;
-        // Initialize the permanent delegate extension
-        self.initialize_permanent_delegate(&bump)?;
-        // Initialize the metadata pointer
-        self.initialize_metadata_pointer(&bump)?;
+        // Initialize permanent delegate extension
+        self.initialize_permanent_delegate()?;
+        // Initialize mint close authority extension
+        self.initialize_mint_close_authority()?;
+        // Initialize the metadata pointer extension
+        self.initialize_metadata_pointer()?;
+        // Initialize mint
+        self.initialize_mint()?;
         // Initialize metadata
-        self.initialize_metadata(&bump)?;
-        // Initialize metadata
-        self.initialize_mint2(&bump)?;
+        self.initialize_metadata(name, SRS_TICKER, uri)?;
         // Initialize token account for user
-        self.initialize_token_account_idempotent()?;
-        // Step 1) Create our permanent delegate extension account
-        self.mint_to_token_account()?;
-        
-        // createInitializePermanentDelegateInstruction(
-        //     mint,
-        //     permanentDelegate.publicKey,
-        //     TOKEN_2022_PROGRAM_ID,
-        // )
-        // Update the record data [this is safe, check safety docs]
+        self.initialize_token_account()?;
+        // Mint record token
+        self.mint_to_token_account(&bump)?;
+
+        // TODO: Update state to reflect it being tokenized
         unsafe {
             Record::update_is_frozen_unchecked(self.accounts.record, true)
         }
     }
 
-    fn get_bump(&self) -> Result<[u8;1], ProgramError> {
+    fn derive_mint_address_bump(&self) -> Result<[u8;1], ProgramError> {
         let seeds = [
             b"mint",
             self.accounts.record.key().as_ref()
@@ -121,8 +122,7 @@ impl<'info> MintRecordToken<'info> {
 
     fn create_mint_account(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
         let space = TOKEN_2022_PERMANENT_DELEGATE_LEN + 
-        TOKEN_2022_METADATA_POINTER_LEN +
-        unsafe { Record::metadata_length_unchecked(self.accounts.record)? };
+        TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
 
         let lamports = Rent::get()?.minimum_balance(space);
 
@@ -145,46 +145,58 @@ impl<'info> MintRecordToken<'info> {
         .invoke_signed(&signers)
     }
 
-    fn initialize_permanent_delegate(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
-        let seeds = [
-            Seed::from(b"mint"),
-            Seed::from(self.accounts.record.key()),
-            Seed::from(bump),
-        ];
-
-        let signers = [Signer::from(&seeds)];
-
-        let data = unsafe {
-            let mut data: MaybeUninit<[u8; 33]> = core::mem::MaybeUninit::uninit();
-            // Get data pointer
-            let data_ptr = data.as_mut_ptr();
-            // Set first byte to 35
-            *(data_ptr as *mut u8) = 35u8;
-            // Copy remaining 32 bytes from Mint key
-            core::ptr::copy_nonoverlapping(
-                self.accounts.mint.key().as_ref().as_ptr() as *const Pubkey,
-                data_ptr.add(size_of::<u8>()) as *mut Pubkey,
-                size_of::<Pubkey>(),
-            );
-            data.assume_init()
-        };
-
-        invoke_signed(
-            &Instruction {
-                program_id: &TOKEN_2022_PROGRAM_ID,
-                data: data.as_ref(),
-                accounts: &[
-                    AccountMeta::new(self.accounts.mint.key(), true, true)
-                ]
-            },
-            &[
-                self.accounts.mint
-            ],
-            &signers
-        )
+    fn initialize_permanent_delegate(&self) -> Result<(), ProgramError> {
+        InitializePermanentDelegate {
+            mint: self.accounts.mint,
+            delegate: self.accounts.mint.key()
+        }.invoke()
     }
 
-    fn initialize_metadata_pointer(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
+    fn initialize_mint_close_authority(&self) -> Result<(), ProgramError> {
+        InitializeMintCloseAuthority {
+            mint: self.accounts.mint,
+            close_authority: self.accounts.mint.key()
+        }.invoke()
+    }
+
+    fn initialize_metadata_pointer(&self) -> Result<(), ProgramError> {
+        InitializeMetadataPointer {
+            mint: self.accounts.mint,
+            authority: self.accounts.mint.key(),
+            metadata_address: self.accounts.mint.key(),
+        }.invoke()
+    }
+
+    fn initialize_mint(&self) -> Result<(), ProgramError> {
+        InitializeMint2 {
+            mint: self.accounts.mint,
+            decimals: 0,
+            mint_authority: self.accounts.mint.key(),
+            freeze_authority: None,
+        }.invoke()
+    }
+
+    fn initialize_metadata(&self, name: &'info str, symbol: &'info str, uri: &'info str) -> Result<(), ProgramError> {
+        InitializeMetadata {
+            metadata: self.accounts.mint,
+            update_authority: self.accounts.mint,
+            mint: self.accounts.mint,
+            mint_authority: self.accounts.mint,
+            name,
+            symbol,
+            uri,
+        }.invoke()
+    }
+
+    fn initialize_token_account(&self) -> Result<(), ProgramError> {
+        InitializeAccount3 {
+            account: self.accounts.token_account,
+            mint: self.accounts.mint,
+            owner: self.accounts.authority.key(),
+        }.invoke()
+    }
+
+    fn mint_to_token_account(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -193,41 +205,12 @@ impl<'info> MintRecordToken<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        let data = unsafe {
-            let mut data: MaybeUninit<[u8; 65]> = core::mem::MaybeUninit::uninit();
-            // Get data pointer
-            let data_ptr = data.as_mut_ptr();
-            // Set first byte to 35
-            *(data_ptr as *mut u8) = TOKEN_2022_METADATA_POINTER_EXTENSION_IX;
-            *(data_ptr.add(1) as *mut u8) = TOKEN_2022_METADATA_POINTER_EXTENSION_INITIALIZE_IX;
-            // Copy remaining 32 bytes from Mint key
-            core::ptr::copy_nonoverlapping(
-                self.accounts.mint.key().as_ref().as_ptr() as *const Pubkey,
-                data_ptr.add(size_of::<u8>()) as *mut Pubkey,
-                size_of::<Pubkey>(),
-            );
-
-            core::ptr::copy_nonoverlapping(
-                self.accounts.mint.key().as_ref().as_ptr() as *const Pubkey,
-                data_ptr.add(size_of::<u8>() + size_of::<Pubkey>()) as *mut Pubkey,
-                size_of::<Pubkey>(),
-            );
-            data.assume_init()
-        };
-
-        invoke_signed(
-            &Instruction {
-                program_id: &self.accounts.token_2022_program.key(),
-                data: data.as_ref(),
-                accounts: &[
-                    AccountMeta::new(self.accounts.mint.key(), true, true),
-                    AccountMeta::new(self.accounts.mint.key(), true, true)
-                ]
-            },
-            &[
-                self.accounts.mint
-            ],
-            &signers
-        )
+        MintToChecked {
+            mint: self.accounts.mint,
+            account: self.accounts.token_account,
+            mint_authority: self.accounts.mint,
+            amount: 1,
+            decimals: 0
+        }.invoke_signed(&signers)
     }
 }

@@ -1,9 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-use instructions::{
-    CreateClass, CreateRecord, CreateRecordAuthorityDelegate, DeleteRecord,
-    DeleteRecordAuthorityDelegate, FreezeClass, FreezeRecord, TransferRecord, UpdateClassMetadata,
-    UpdateRecord, UpdateRecordAuthorityDelegate,
-};
+use instructions::*;
 use pinocchio::{
     account_info::AccountInfo, default_allocator, program_entrypoint, program_error::ProgramError,
     pubkey::Pubkey, ProgramResult,
@@ -16,6 +12,7 @@ use pinocchio::nostd_panic_handler;
 pub mod constants;
 pub mod instructions;
 pub mod state;
+pub mod token2022;
 #[cfg(test)]
 pub mod tests;
 pub mod utils;
@@ -54,7 +51,6 @@ fn process_instruction(
         9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
         10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
         11 => MintRecordToken::process(Context { accounts, data }),
-        12 => RedeemRecordToken::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

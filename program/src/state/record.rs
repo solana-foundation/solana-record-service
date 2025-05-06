@@ -2,7 +2,7 @@ use super::RecordAuthorityDelegate;
 use crate::utils::{resize_account, ByteReader, ByteWriter};
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::AccountInfo,
+    account_info::{AccountInfo, Ref},
     program_error::ProgramError,
     pubkey::{try_find_program_address, Pubkey},
 };
@@ -287,12 +287,18 @@ impl<'info> Record<'info> {
     /// This function is unsafe because it does not check the program id or discriminator
     /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions    
-    pub unsafe fn metadata_length_unchecked(record: &'info AccountInfo) -> Result<usize, ProgramError> {
-        // Get the account data
-        let data = record.try_borrow_data()?;
-        
+    pub unsafe fn get_name_and_data_unchecked(data: &'info Ref<'info, [u8]>) -> Result<(&'info str, &'info str), ProgramError> {        
+        let record_data_offset = NAME_LEN_OFFSET + data[NAME_LEN_OFFSET] as usize;
         // Get metadata length
-        Ok(record.data_len().saturating_sub(data[NAME_LEN_OFFSET] as usize).saturating_sub(NAME_LEN_OFFSET + 1))
+        let record_name = str::from_utf8_unchecked(
+            &data[NAME_LEN_OFFSET..record_data_offset]
+        );
+
+        let record_data = str::from_utf8_unchecked(
+            &data[record_data_offset..]
+        );
+
+        Ok((record_name, record_data))
     }
 
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
