@@ -7,56 +7,35 @@
  */
 
 import {
-  combineCodec,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  bool,
+  mapSerializer,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const FREEZE_CLASS_DISCRIMINATOR = 2;
+// Accounts.
+export type FreezeClassInstructionAccounts = {
+  /** Authority used to freeze/thaw a class */
+  authority: Signer;
+  /** Class account to be frozen/thawed */
+  class: PublicKey | Pda;
+};
 
-export function getFreezeClassDiscriminatorBytes() {
-  return getU8Encoder().encode(FREEZE_CLASS_DISCRIMINATOR);
-}
-
-export type FreezeClassInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountClass extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountClass extends string
-        ? WritableAccount<TAccountClass>
-        : TAccountClass,
-      ...TRemainingAccounts,
-    ]
-  >;
-
+// Data.
 export type FreezeClassInstructionData = {
   discriminator: number;
   isFrozen: boolean;
@@ -64,127 +43,78 @@ export type FreezeClassInstructionData = {
 
 export type FreezeClassInstructionDataArgs = { isFrozen: boolean };
 
-export function getFreezeClassInstructionDataEncoder(): Encoder<FreezeClassInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['isFrozen', getBooleanEncoder()],
-    ]),
-    (value) => ({ ...value, discriminator: 2 })
-  );
-}
-
-export function getFreezeClassInstructionDataDecoder(): Decoder<FreezeClassInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['isFrozen', getBooleanDecoder()],
-  ]);
-}
-
-export function getFreezeClassInstructionDataCodec(): Codec<
+export function getFreezeClassInstructionDataSerializer(): Serializer<
   FreezeClassInstructionDataArgs,
   FreezeClassInstructionData
 > {
-  return combineCodec(
-    getFreezeClassInstructionDataEncoder(),
-    getFreezeClassInstructionDataDecoder()
-  );
-}
-
-export type FreezeClassInput<
-  TAccountAuthority extends string = string,
-  TAccountClass extends string = string,
-> = {
-  /** Authority used to freeze/thaw a class */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** Class account to be frozen/thawed */
-  class: Address<TAccountClass>;
-  isFrozen: FreezeClassInstructionDataArgs['isFrozen'];
-};
-
-export function getFreezeClassInstruction<
-  TAccountAuthority extends string,
-  TAccountClass extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: FreezeClassInput<TAccountAuthority, TAccountClass>,
-  config?: { programAddress?: TProgramAddress }
-): FreezeClassInstruction<TProgramAddress, TAccountAuthority, TAccountClass> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
-    class: { value: input.class ?? null, isWritable: true },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.class),
-    ],
-    programAddress,
-    data: getFreezeClassInstructionDataEncoder().encode(
-      args as FreezeClassInstructionDataArgs
+  return mapSerializer<
+    FreezeClassInstructionDataArgs,
+    any,
+    FreezeClassInstructionData
+  >(
+    struct<FreezeClassInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['isFrozen', bool()],
+      ],
+      { description: 'FreezeClassInstructionData' }
     ),
-  } as FreezeClassInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountClass
-  >;
-
-  return instruction;
+    (value) => ({ ...value, discriminator: 2 })
+  ) as Serializer<FreezeClassInstructionDataArgs, FreezeClassInstructionData>;
 }
 
-export type ParsedFreezeClassInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Authority used to freeze/thaw a class */
-    authority: TAccountMetas[0];
-    /** Class account to be frozen/thawed */
-    class: TAccountMetas[1];
-  };
-  data: FreezeClassInstructionData;
-};
+// Args.
+export type FreezeClassInstructionArgs = FreezeClassInstructionDataArgs;
 
-export function parseFreezeClassInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedFreezeClassInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      authority: getNextAccount(),
-      class: getNextAccount(),
+// Instruction.
+export function freezeClass(
+  context: Pick<Context, 'programs'>,
+  input: FreezeClassInstructionAccounts & FreezeClassInstructionArgs
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+
+  // Accounts.
+  const resolvedAccounts = {
+    authority: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.authority ?? null,
     },
-    data: getFreezeClassInstructionDataDecoder().decode(instruction.data),
-  };
+    class: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.class ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Arguments.
+  const resolvedArgs: FreezeClassInstructionArgs = { ...input };
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getFreezeClassInstructionDataSerializer().serialize(
+    resolvedArgs as FreezeClassInstructionDataArgs
+  );
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

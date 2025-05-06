@@ -7,62 +7,37 @@
  */
 
 import {
-  combineCodec,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type ReadonlySignerAccount,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  bool,
+  mapSerializer,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const FREEZE_RECORD_DISCRIMINATOR = 7;
+// Accounts.
+export type FreezeRecordInstructionAccounts = {
+  /** Authority used to update a record */
+  authority: Signer;
+  /** Record account to be updated */
+  record: PublicKey | Pda;
+  /** Delegate signer for record account */
+  delegate?: Signer;
+};
 
-export function getFreezeRecordDiscriminatorBytes() {
-  return getU8Encoder().encode(FREEZE_RECORD_DISCRIMINATOR);
-}
-
-export type FreezeRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountRecord extends string | IAccountMeta<string> = string,
-  TAccountDelegate extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountRecord extends string
-        ? WritableAccount<TAccountRecord>
-        : TAccountRecord,
-      TAccountDelegate extends string
-        ? ReadonlySignerAccount<TAccountDelegate> &
-            IAccountSignerMeta<TAccountDelegate>
-        : TAccountDelegate,
-      ...TRemainingAccounts,
-    ]
-  >;
-
+// Data.
 export type FreezeRecordInstructionData = {
   discriminator: number;
   isFrozen: boolean;
@@ -70,148 +45,83 @@ export type FreezeRecordInstructionData = {
 
 export type FreezeRecordInstructionDataArgs = { isFrozen: boolean };
 
-export function getFreezeRecordInstructionDataEncoder(): Encoder<FreezeRecordInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['isFrozen', getBooleanEncoder()],
-    ]),
-    (value) => ({ ...value, discriminator: 7 })
-  );
-}
-
-export function getFreezeRecordInstructionDataDecoder(): Decoder<FreezeRecordInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['isFrozen', getBooleanDecoder()],
-  ]);
-}
-
-export function getFreezeRecordInstructionDataCodec(): Codec<
+export function getFreezeRecordInstructionDataSerializer(): Serializer<
   FreezeRecordInstructionDataArgs,
   FreezeRecordInstructionData
 > {
-  return combineCodec(
-    getFreezeRecordInstructionDataEncoder(),
-    getFreezeRecordInstructionDataDecoder()
-  );
-}
-
-export type FreezeRecordInput<
-  TAccountAuthority extends string = string,
-  TAccountRecord extends string = string,
-  TAccountDelegate extends string = string,
-> = {
-  /** Authority used to update a record */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** Record account to be updated */
-  record: Address<TAccountRecord>;
-  /** Delegate signer for record account */
-  delegate?: TransactionSigner<TAccountDelegate>;
-  isFrozen: FreezeRecordInstructionDataArgs['isFrozen'];
-};
-
-export function getFreezeRecordInstruction<
-  TAccountAuthority extends string,
-  TAccountRecord extends string,
-  TAccountDelegate extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: FreezeRecordInput<TAccountAuthority, TAccountRecord, TAccountDelegate>,
-  config?: { programAddress?: TProgramAddress }
-): FreezeRecordInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountRecord,
-  TAccountDelegate
-> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
-    record: { value: input.record ?? null, isWritable: true },
-    delegate: { value: input.delegate ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.record),
-      getAccountMeta(accounts.delegate),
-    ],
-    programAddress,
-    data: getFreezeRecordInstructionDataEncoder().encode(
-      args as FreezeRecordInstructionDataArgs
+  return mapSerializer<
+    FreezeRecordInstructionDataArgs,
+    any,
+    FreezeRecordInstructionData
+  >(
+    struct<FreezeRecordInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['isFrozen', bool()],
+      ],
+      { description: 'FreezeRecordInstructionData' }
     ),
-  } as FreezeRecordInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountRecord,
-    TAccountDelegate
-  >;
-
-  return instruction;
+    (value) => ({ ...value, discriminator: 7 })
+  ) as Serializer<FreezeRecordInstructionDataArgs, FreezeRecordInstructionData>;
 }
 
-export type ParsedFreezeRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Authority used to update a record */
-    authority: TAccountMetas[0];
-    /** Record account to be updated */
-    record: TAccountMetas[1];
-    /** Delegate signer for record account */
-    delegate?: TAccountMetas[2] | undefined;
-  };
-  data: FreezeRecordInstructionData;
-};
+// Args.
+export type FreezeRecordInstructionArgs = FreezeRecordInstructionDataArgs;
 
-export function parseFreezeRecordInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedFreezeRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  const getNextOptionalAccount = () => {
-    const accountMeta = getNextAccount();
-    return accountMeta.address === SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS
-      ? undefined
-      : accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      authority: getNextAccount(),
-      record: getNextAccount(),
-      delegate: getNextOptionalAccount(),
+// Instruction.
+export function freezeRecord(
+  context: Pick<Context, 'programs'>,
+  input: FreezeRecordInstructionAccounts & FreezeRecordInstructionArgs
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+
+  // Accounts.
+  const resolvedAccounts = {
+    authority: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.authority ?? null,
     },
-    data: getFreezeRecordInstructionDataDecoder().decode(instruction.data),
-  };
+    record: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.record ?? null,
+    },
+    delegate: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.delegate ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Arguments.
+  const resolvedArgs: FreezeRecordInstructionArgs = { ...input };
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getFreezeRecordInstructionDataSerializer().serialize(
+    resolvedArgs as FreezeRecordInstructionDataArgs
+  );
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

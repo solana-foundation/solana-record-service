@@ -7,138 +7,145 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
+  Account,
+  Context,
+  Pda,
+  PublicKey,
+  RpcAccount,
+  RpcGetAccountOptions,
+  RpcGetAccountsOptions,
   assertAccountExists,
-  assertAccountsExist,
-  combineCodec,
-  decodeAccount,
-  fetchEncodedAccount,
-  fetchEncodedAccounts,
-  getAddressDecoder,
-  getAddressEncoder,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  transformEncoder,
-  type Account,
-  type Address,
-  type Codec,
-  type Decoder,
-  type EncodedAccount,
-  type Encoder,
-  type FetchAccountConfig,
-  type FetchAccountsConfig,
-  type MaybeAccount,
-  type MaybeEncodedAccount,
-} from '@solana/kit';
+  deserializeAccount,
+  gpaBuilder,
+  publicKey as toPublicKey,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  bool,
+  mapSerializer,
+  publicKey as publicKeySerializer,
+  string,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
 
-export const CLASS_DISCRIMINATOR = 1;
+export type Class = Account<ClassAccountData>;
 
-export function getClassDiscriminatorBytes() {
-  return getU8Encoder().encode(CLASS_DISCRIMINATOR);
-}
-
-export type Class = {
+export type ClassAccountData = {
   discriminator: number;
-  authority: Address;
+  authority: PublicKey;
   isPermissioned: boolean;
   isFrozen: boolean;
   name: string;
   metadata: string;
 };
 
-export type ClassArgs = {
-  authority: Address;
+export type ClassAccountDataArgs = {
+  authority: PublicKey;
   isPermissioned: boolean;
   isFrozen: boolean;
   name: string;
   metadata: string;
 };
 
-export function getClassEncoder(): Encoder<ClassArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['authority', getAddressEncoder()],
-      ['isPermissioned', getBooleanEncoder()],
-      ['isFrozen', getBooleanEncoder()],
-      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['metadata', getUtf8Encoder()],
-    ]),
+export function getClassAccountDataSerializer(): Serializer<
+  ClassAccountDataArgs,
+  ClassAccountData
+> {
+  return mapSerializer<ClassAccountDataArgs, any, ClassAccountData>(
+    struct<ClassAccountData>(
+      [
+        ['discriminator', u8()],
+        ['authority', publicKeySerializer()],
+        ['isPermissioned', bool()],
+        ['isFrozen', bool()],
+        ['name', string({ size: u8() })],
+        ['metadata', string({ size: 'variable' })],
+      ],
+      { description: 'ClassAccountData' }
+    ),
     (value) => ({ ...value, discriminator: 1 })
+  ) as Serializer<ClassAccountDataArgs, ClassAccountData>;
+}
+
+export function deserializeClass(rawAccount: RpcAccount): Class {
+  return deserializeAccount(rawAccount, getClassAccountDataSerializer());
+}
+
+export async function fetchClass(
+  context: Pick<Context, 'rpc'>,
+  publicKey: PublicKey | Pda,
+  options?: RpcGetAccountOptions
+): Promise<Class> {
+  const maybeAccount = await context.rpc.getAccount(
+    toPublicKey(publicKey, false),
+    options
   );
+  assertAccountExists(maybeAccount, 'Class');
+  return deserializeClass(maybeAccount);
 }
 
-export function getClassDecoder(): Decoder<Class> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['authority', getAddressDecoder()],
-    ['isPermissioned', getBooleanDecoder()],
-    ['isFrozen', getBooleanDecoder()],
-    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['metadata', getUtf8Decoder()],
-  ]);
-}
-
-export function getClassCodec(): Codec<ClassArgs, Class> {
-  return combineCodec(getClassEncoder(), getClassDecoder());
-}
-
-export function decodeClass<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
-): Account<Class, TAddress>;
-export function decodeClass<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
-): MaybeAccount<Class, TAddress>;
-export function decodeClass<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
-): Account<Class, TAddress> | MaybeAccount<Class, TAddress> {
-  return decodeAccount(
-    encodedAccount as MaybeEncodedAccount<TAddress>,
-    getClassDecoder()
+export async function safeFetchClass(
+  context: Pick<Context, 'rpc'>,
+  publicKey: PublicKey | Pda,
+  options?: RpcGetAccountOptions
+): Promise<Class | null> {
+  const maybeAccount = await context.rpc.getAccount(
+    toPublicKey(publicKey, false),
+    options
   );
-}
-
-export async function fetchClass<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
-): Promise<Account<Class, TAddress>> {
-  const maybeAccount = await fetchMaybeClass(rpc, address, config);
-  assertAccountExists(maybeAccount);
-  return maybeAccount;
-}
-
-export async function fetchMaybeClass<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
-): Promise<MaybeAccount<Class, TAddress>> {
-  const maybeAccount = await fetchEncodedAccount(rpc, address, config);
-  return decodeClass(maybeAccount);
+  return maybeAccount.exists ? deserializeClass(maybeAccount) : null;
 }
 
 export async function fetchAllClass(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
-): Promise<Account<Class>[]> {
-  const maybeAccounts = await fetchAllMaybeClass(rpc, addresses, config);
-  assertAccountsExist(maybeAccounts);
-  return maybeAccounts;
+  context: Pick<Context, 'rpc'>,
+  publicKeys: Array<PublicKey | Pda>,
+  options?: RpcGetAccountsOptions
+): Promise<Class[]> {
+  const maybeAccounts = await context.rpc.getAccounts(
+    publicKeys.map((key) => toPublicKey(key, false)),
+    options
+  );
+  return maybeAccounts.map((maybeAccount) => {
+    assertAccountExists(maybeAccount, 'Class');
+    return deserializeClass(maybeAccount);
+  });
 }
 
-export async function fetchAllMaybeClass(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
-): Promise<MaybeAccount<Class>[]> {
-  const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeClass(maybeAccount));
+export async function safeFetchAllClass(
+  context: Pick<Context, 'rpc'>,
+  publicKeys: Array<PublicKey | Pda>,
+  options?: RpcGetAccountsOptions
+): Promise<Class[]> {
+  const maybeAccounts = await context.rpc.getAccounts(
+    publicKeys.map((key) => toPublicKey(key, false)),
+    options
+  );
+  return maybeAccounts
+    .filter((maybeAccount) => maybeAccount.exists)
+    .map((maybeAccount) => deserializeClass(maybeAccount as RpcAccount));
+}
+
+export function getClassGpaBuilder(context: Pick<Context, 'rpc' | 'programs'>) {
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+  return gpaBuilder(context, programId)
+    .registerFields<{
+      discriminator: number;
+      authority: PublicKey;
+      isPermissioned: boolean;
+      isFrozen: boolean;
+      name: string;
+      metadata: string;
+    }>({
+      discriminator: [0, u8()],
+      authority: [1, publicKeySerializer()],
+      isPermissioned: [33, bool()],
+      isFrozen: [34, bool()],
+      name: [35, string({ size: u8() })],
+      metadata: [null, string({ size: 'variable' })],
+    })
+    .deserializeUsing<Class>((account) => deserializeClass(account));
 }

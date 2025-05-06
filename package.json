@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
-  "engines" : {
+  "engines": {
     "node": ">=20.18.0"
   },
   "scripts": {
@@ -12,11 +12,11 @@
   },
   "dependencies": {
     "@codama/renderers": "^1.0.19",
-    "@solana/kit": "^2.1.0",
     "@types/mocha": "^10.0.10",
     "codama": "^1.2.11",
-    "gill": "^0.8.2",
+    "litesvm": "^0.2.0",
     "mocha": "^11.1.0",
+    "solana-bankrun": "^0.4.0",
     "tsx": "^4.19.3"
   }
 }

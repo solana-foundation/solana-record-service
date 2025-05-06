@@ -7,49 +7,35 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
+  Account,
+  Context,
+  Pda,
+  PublicKey,
+  RpcAccount,
+  RpcGetAccountOptions,
+  RpcGetAccountsOptions,
   assertAccountExists,
-  assertAccountsExist,
-  combineCodec,
-  decodeAccount,
-  fetchEncodedAccount,
-  fetchEncodedAccounts,
-  getAddressDecoder,
-  getAddressEncoder,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getI64Decoder,
-  getI64Encoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  transformEncoder,
-  type Account,
-  type Address,
-  type Codec,
-  type Decoder,
-  type EncodedAccount,
-  type Encoder,
-  type FetchAccountConfig,
-  type FetchAccountsConfig,
-  type MaybeAccount,
-  type MaybeEncodedAccount,
-} from '@solana/kit';
+  deserializeAccount,
+  gpaBuilder,
+  publicKey as toPublicKey,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  bool,
+  i64,
+  mapSerializer,
+  publicKey as publicKeySerializer,
+  string,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
 
-export const RECORD_DISCRIMINATOR = 2;
+export type Record = Account<RecordAccountData>;
 
-export function getRecordDiscriminatorBytes() {
-  return getU8Encoder().encode(RECORD_DISCRIMINATOR);
-}
-
-export type Record = {
+export type RecordAccountData = {
   discriminator: number;
-  class: Address;
-  owner: Address;
+  class: PublicKey;
+  owner: PublicKey;
   isFrozen: boolean;
   hasAuthorityExtension: boolean;
   expiry: bigint;
@@ -57,9 +43,9 @@ export type Record = {
   data: string;
 };
 
-export type RecordArgs = {
-  class: Address;
-  owner: Address;
+export type RecordAccountDataArgs = {
+  class: PublicKey;
+  owner: PublicKey;
   isFrozen: boolean;
   hasAuthorityExtension: boolean;
   expiry: number | bigint;
@@ -67,88 +53,112 @@ export type RecordArgs = {
   data: string;
 };
 
-export function getRecordEncoder(): Encoder<RecordArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['class', getAddressEncoder()],
-      ['owner', getAddressEncoder()],
-      ['isFrozen', getBooleanEncoder()],
-      ['hasAuthorityExtension', getBooleanEncoder()],
-      ['expiry', getI64Encoder()],
-      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['data', getUtf8Encoder()],
-    ]),
+export function getRecordAccountDataSerializer(): Serializer<
+  RecordAccountDataArgs,
+  RecordAccountData
+> {
+  return mapSerializer<RecordAccountDataArgs, any, RecordAccountData>(
+    struct<RecordAccountData>(
+      [
+        ['discriminator', u8()],
+        ['class', publicKeySerializer()],
+        ['owner', publicKeySerializer()],
+        ['isFrozen', bool()],
+        ['hasAuthorityExtension', bool()],
+        ['expiry', i64()],
+        ['name', string({ size: u8() })],
+        ['data', string({ size: 'variable' })],
+      ],
+      { description: 'RecordAccountData' }
+    ),
     (value) => ({ ...value, discriminator: 2 })
+  ) as Serializer<RecordAccountDataArgs, RecordAccountData>;
+}
+
+export function deserializeRecord(rawAccount: RpcAccount): Record {
+  return deserializeAccount(rawAccount, getRecordAccountDataSerializer());
+}
+
+export async function fetchRecord(
+  context: Pick<Context, 'rpc'>,
+  publicKey: PublicKey | Pda,
+  options?: RpcGetAccountOptions
+): Promise<Record> {
+  const maybeAccount = await context.rpc.getAccount(
+    toPublicKey(publicKey, false),
+    options
   );
+  assertAccountExists(maybeAccount, 'Record');
+  return deserializeRecord(maybeAccount);
 }
 
-export function getRecordDecoder(): Decoder<Record> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['class', getAddressDecoder()],
-    ['owner', getAddressDecoder()],
-    ['isFrozen', getBooleanDecoder()],
-    ['hasAuthorityExtension', getBooleanDecoder()],
-    ['expiry', getI64Decoder()],
-    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['data', getUtf8Decoder()],
-  ]);
-}
-
-export function getRecordCodec(): Codec<RecordArgs, Record> {
-  return combineCodec(getRecordEncoder(), getRecordDecoder());
-}
-
-export function decodeRecord<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
-): Account<Record, TAddress>;
-export function decodeRecord<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
-): MaybeAccount<Record, TAddress>;
-export function decodeRecord<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
-): Account<Record, TAddress> | MaybeAccount<Record, TAddress> {
-  return decodeAccount(
-    encodedAccount as MaybeEncodedAccount<TAddress>,
-    getRecordDecoder()
+export async function safeFetchRecord(
+  context: Pick<Context, 'rpc'>,
+  publicKey: PublicKey | Pda,
+  options?: RpcGetAccountOptions
+): Promise<Record | null> {
+  const maybeAccount = await context.rpc.getAccount(
+    toPublicKey(publicKey, false),
+    options
   );
-}
-
-export async function fetchRecord<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
-): Promise<Account<Record, TAddress>> {
-  const maybeAccount = await fetchMaybeRecord(rpc, address, config);
-  assertAccountExists(maybeAccount);
-  return maybeAccount;
-}
-
-export async function fetchMaybeRecord<TAddress extends string = string>(
-  rpc: Parameters<typeof fetchEncodedAccount>[0],
-  address: Address<TAddress>,
-  config?: FetchAccountConfig
-): Promise<MaybeAccount<Record, TAddress>> {
-  const maybeAccount = await fetchEncodedAccount(rpc, address, config);
-  return decodeRecord(maybeAccount);
+  return maybeAccount.exists ? deserializeRecord(maybeAccount) : null;
 }
 
 export async function fetchAllRecord(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
-): Promise<Account<Record>[]> {
-  const maybeAccounts = await fetchAllMaybeRecord(rpc, addresses, config);
-  assertAccountsExist(maybeAccounts);
-  return maybeAccounts;
+  context: Pick<Context, 'rpc'>,
+  publicKeys: Array<PublicKey | Pda>,
+  options?: RpcGetAccountsOptions
+): Promise<Record[]> {
+  const maybeAccounts = await context.rpc.getAccounts(
+    publicKeys.map((key) => toPublicKey(key, false)),
+    options
+  );
+  return maybeAccounts.map((maybeAccount) => {
+    assertAccountExists(maybeAccount, 'Record');
+    return deserializeRecord(maybeAccount);
+  });
 }
 
-export async function fetchAllMaybeRecord(
-  rpc: Parameters<typeof fetchEncodedAccounts>[0],
-  addresses: Array<Address>,
-  config?: FetchAccountsConfig
-): Promise<MaybeAccount<Record>[]> {
-  const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeRecord(maybeAccount));
+export async function safeFetchAllRecord(
+  context: Pick<Context, 'rpc'>,
+  publicKeys: Array<PublicKey | Pda>,
+  options?: RpcGetAccountsOptions
+): Promise<Record[]> {
+  const maybeAccounts = await context.rpc.getAccounts(
+    publicKeys.map((key) => toPublicKey(key, false)),
+    options
+  );
+  return maybeAccounts
+    .filter((maybeAccount) => maybeAccount.exists)
+    .map((maybeAccount) => deserializeRecord(maybeAccount as RpcAccount));
+}
+
+export function getRecordGpaBuilder(
+  context: Pick<Context, 'rpc' | 'programs'>
+) {
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+  return gpaBuilder(context, programId)
+    .registerFields<{
+      discriminator: number;
+      class: PublicKey;
+      owner: PublicKey;
+      isFrozen: boolean;
+      hasAuthorityExtension: boolean;
+      expiry: number | bigint;
+      name: string;
+      data: string;
+    }>({
+      discriminator: [0, u8()],
+      class: [1, publicKeySerializer()],
+      owner: [33, publicKeySerializer()],
+      isFrozen: [65, bool()],
+      hasAuthorityExtension: [66, bool()],
+      expiry: [67, i64()],
+      name: [75, string({ size: u8() })],
+      data: [null, string({ size: 'variable' })],
+    })
+    .deserializeUsing<Record>((account) => deserializeRecord(account));
 }

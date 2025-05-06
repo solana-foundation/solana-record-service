@@ -7,77 +7,42 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
-  combineCodec,
-  getI64Decoder,
-  getI64Encoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type ReadonlyAccount,
-  type ReadonlySignerAccount,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  i64,
+  mapSerializer,
+  string,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const CREATE_RECORD_DISCRIMINATOR = 3;
+// Accounts.
+export type CreateRecordInstructionAccounts = {
+  /** Owner of the new record */
+  owner: Signer;
+  /** Class account for the record to be created */
+  class: PublicKey | Pda;
+  /** Record account to be created */
+  record: PublicKey | Pda;
+  /** System Program used to create our record account */
+  systemProgram?: PublicKey | Pda;
+  /** Optional authority for permissioned classes */
+  authority?: Signer;
+};
 
-export function getCreateRecordDiscriminatorBytes() {
-  return getU8Encoder().encode(CREATE_RECORD_DISCRIMINATOR);
-}
-
-export type CreateRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountOwner extends string | IAccountMeta<string> = string,
-  TAccountClass extends string | IAccountMeta<string> = string,
-  TAccountRecord extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountOwner extends string
-        ? WritableSignerAccount<TAccountOwner> &
-            IAccountSignerMeta<TAccountOwner>
-        : TAccountOwner,
-      TAccountClass extends string
-        ? WritableAccount<TAccountClass>
-        : TAccountClass,
-      TAccountRecord extends string
-        ? WritableAccount<TAccountRecord>
-        : TAccountRecord,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      TAccountAuthority extends string
-        ? ReadonlySignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      ...TRemainingAccounts,
-    ]
-  >;
-
+// Data.
 export type CreateRecordInstructionData = {
   discriminator: number;
   expiration: bigint;
@@ -91,188 +56,104 @@ export type CreateRecordInstructionDataArgs = {
   data: string;
 };
 
-export function getCreateRecordInstructionDataEncoder(): Encoder<CreateRecordInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['expiration', getI64Encoder()],
-      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['data', getUtf8Encoder()],
-    ]),
-    (value) => ({ ...value, discriminator: 3 })
-  );
-}
-
-export function getCreateRecordInstructionDataDecoder(): Decoder<CreateRecordInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['expiration', getI64Decoder()],
-    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['data', getUtf8Decoder()],
-  ]);
-}
-
-export function getCreateRecordInstructionDataCodec(): Codec<
+export function getCreateRecordInstructionDataSerializer(): Serializer<
   CreateRecordInstructionDataArgs,
   CreateRecordInstructionData
 > {
-  return combineCodec(
-    getCreateRecordInstructionDataEncoder(),
-    getCreateRecordInstructionDataDecoder()
-  );
-}
-
-export type CreateRecordInput<
-  TAccountOwner extends string = string,
-  TAccountClass extends string = string,
-  TAccountRecord extends string = string,
-  TAccountSystemProgram extends string = string,
-  TAccountAuthority extends string = string,
-> = {
-  /** Owner of the new record */
-  owner: TransactionSigner<TAccountOwner>;
-  /** Class account for the record to be created */
-  class: Address<TAccountClass>;
-  /** Record account to be created */
-  record: Address<TAccountRecord>;
-  /** System Program used to create our record account */
-  systemProgram?: Address<TAccountSystemProgram>;
-  /** Optional authority for permissioned classes */
-  authority?: TransactionSigner<TAccountAuthority>;
-  expiration: CreateRecordInstructionDataArgs['expiration'];
-  name: CreateRecordInstructionDataArgs['name'];
-  data: CreateRecordInstructionDataArgs['data'];
-};
-
-export function getCreateRecordInstruction<
-  TAccountOwner extends string,
-  TAccountClass extends string,
-  TAccountRecord extends string,
-  TAccountSystemProgram extends string,
-  TAccountAuthority extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: CreateRecordInput<
-    TAccountOwner,
-    TAccountClass,
-    TAccountRecord,
-    TAccountSystemProgram,
-    TAccountAuthority
-  >,
-  config?: { programAddress?: TProgramAddress }
-): CreateRecordInstruction<
-  TProgramAddress,
-  TAccountOwner,
-  TAccountClass,
-  TAccountRecord,
-  TAccountSystemProgram,
-  TAccountAuthority
-> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    owner: { value: input.owner ?? null, isWritable: true },
-    class: { value: input.class ?? null, isWritable: true },
-    record: { value: input.record ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-    authority: { value: input.authority ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.owner),
-      getAccountMeta(accounts.class),
-      getAccountMeta(accounts.record),
-      getAccountMeta(accounts.systemProgram),
-      getAccountMeta(accounts.authority),
-    ],
-    programAddress,
-    data: getCreateRecordInstructionDataEncoder().encode(
-      args as CreateRecordInstructionDataArgs
+  return mapSerializer<
+    CreateRecordInstructionDataArgs,
+    any,
+    CreateRecordInstructionData
+  >(
+    struct<CreateRecordInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['expiration', i64()],
+        ['name', string({ size: u8() })],
+        ['data', string({ size: 'variable' })],
+      ],
+      { description: 'CreateRecordInstructionData' }
     ),
-  } as CreateRecordInstruction<
-    TProgramAddress,
-    TAccountOwner,
-    TAccountClass,
-    TAccountRecord,
-    TAccountSystemProgram,
-    TAccountAuthority
-  >;
-
-  return instruction;
+    (value) => ({ ...value, discriminator: 3 })
+  ) as Serializer<CreateRecordInstructionDataArgs, CreateRecordInstructionData>;
 }
 
-export type ParsedCreateRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Owner of the new record */
-    owner: TAccountMetas[0];
-    /** Class account for the record to be created */
-    class: TAccountMetas[1];
-    /** Record account to be created */
-    record: TAccountMetas[2];
-    /** System Program used to create our record account */
-    systemProgram: TAccountMetas[3];
-    /** Optional authority for permissioned classes */
-    authority?: TAccountMetas[4] | undefined;
-  };
-  data: CreateRecordInstructionData;
-};
+// Args.
+export type CreateRecordInstructionArgs = CreateRecordInstructionDataArgs;
 
-export function parseCreateRecordInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedCreateRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  const getNextOptionalAccount = () => {
-    const accountMeta = getNextAccount();
-    return accountMeta.address === SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS
-      ? undefined
-      : accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      owner: getNextAccount(),
-      class: getNextAccount(),
-      record: getNextAccount(),
-      systemProgram: getNextAccount(),
-      authority: getNextOptionalAccount(),
+// Instruction.
+export function createRecord(
+  context: Pick<Context, 'programs'>,
+  input: CreateRecordInstructionAccounts & CreateRecordInstructionArgs
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+
+  // Accounts.
+  const resolvedAccounts = {
+    owner: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.owner ?? null,
     },
-    data: getCreateRecordInstructionDataDecoder().decode(instruction.data),
-  };
+    class: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.class ?? null,
+    },
+    record: {
+      index: 2,
+      isWritable: true as boolean,
+      value: input.record ?? null,
+    },
+    systemProgram: {
+      index: 3,
+      isWritable: false as boolean,
+      value: input.systemProgram ?? null,
+    },
+    authority: {
+      index: 4,
+      isWritable: false as boolean,
+      value: input.authority ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Arguments.
+  const resolvedArgs: CreateRecordInstructionArgs = { ...input };
+
+  // Default values.
+  if (!resolvedAccounts.systemProgram.value) {
+    resolvedAccounts.systemProgram.value = context.programs.getPublicKey(
+      'systemProgram',
+      '11111111111111111111111111111111'
+    );
+    resolvedAccounts.systemProgram.isWritable = false;
+  }
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getCreateRecordInstructionDataSerializer().serialize(
+    resolvedArgs as CreateRecordInstructionDataArgs
+  );
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

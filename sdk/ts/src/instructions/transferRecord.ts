@@ -7,215 +7,124 @@
  */
 
 import {
-  combineCodec,
-  getAddressDecoder,
-  getAddressEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type ReadonlySignerAccount,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  mapSerializer,
+  publicKey as publicKeySerializer,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const TRANSFER_RECORD_DISCRIMINATOR = 5;
-
-export function getTransferRecordDiscriminatorBytes() {
-  return getU8Encoder().encode(TRANSFER_RECORD_DISCRIMINATOR);
-}
-
-export type TransferRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountRecord extends string | IAccountMeta<string> = string,
-  TAccountDelegate extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountRecord extends string
-        ? WritableAccount<TAccountRecord>
-        : TAccountRecord,
-      TAccountDelegate extends string
-        ? ReadonlySignerAccount<TAccountDelegate> &
-            IAccountSignerMeta<TAccountDelegate>
-        : TAccountDelegate,
-      ...TRemainingAccounts,
-    ]
-  >;
-
-export type TransferRecordInstructionData = {
-  discriminator: number;
-  newOwner: Address;
+// Accounts.
+export type TransferRecordInstructionAccounts = {
+  /** Authority used to update a record */
+  authority: Signer;
+  /** Record account to be updated */
+  record: PublicKey | Pda;
+  /** Delegate signer for record account */
+  delegate?: Signer;
 };
 
-export type TransferRecordInstructionDataArgs = { newOwner: Address };
+// Data.
+export type TransferRecordInstructionData = {
+  discriminator: number;
+  newOwner: PublicKey;
+};
 
-export function getTransferRecordInstructionDataEncoder(): Encoder<TransferRecordInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['newOwner', getAddressEncoder()],
-    ]),
-    (value) => ({ ...value, discriminator: 5 })
-  );
-}
+export type TransferRecordInstructionDataArgs = { newOwner: PublicKey };
 
-export function getTransferRecordInstructionDataDecoder(): Decoder<TransferRecordInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['newOwner', getAddressDecoder()],
-  ]);
-}
-
-export function getTransferRecordInstructionDataCodec(): Codec<
+export function getTransferRecordInstructionDataSerializer(): Serializer<
   TransferRecordInstructionDataArgs,
   TransferRecordInstructionData
 > {
-  return combineCodec(
-    getTransferRecordInstructionDataEncoder(),
-    getTransferRecordInstructionDataDecoder()
-  );
-}
-
-export type TransferRecordInput<
-  TAccountAuthority extends string = string,
-  TAccountRecord extends string = string,
-  TAccountDelegate extends string = string,
-> = {
-  /** Authority used to update a record */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** Record account to be updated */
-  record: Address<TAccountRecord>;
-  /** Delegate signer for record account */
-  delegate?: TransactionSigner<TAccountDelegate>;
-  newOwner: TransferRecordInstructionDataArgs['newOwner'];
-};
-
-export function getTransferRecordInstruction<
-  TAccountAuthority extends string,
-  TAccountRecord extends string,
-  TAccountDelegate extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: TransferRecordInput<
-    TAccountAuthority,
-    TAccountRecord,
-    TAccountDelegate
-  >,
-  config?: { programAddress?: TProgramAddress }
-): TransferRecordInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountRecord,
-  TAccountDelegate
-> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
-    record: { value: input.record ?? null, isWritable: true },
-    delegate: { value: input.delegate ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.record),
-      getAccountMeta(accounts.delegate),
-    ],
-    programAddress,
-    data: getTransferRecordInstructionDataEncoder().encode(
-      args as TransferRecordInstructionDataArgs
+  return mapSerializer<
+    TransferRecordInstructionDataArgs,
+    any,
+    TransferRecordInstructionData
+  >(
+    struct<TransferRecordInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['newOwner', publicKeySerializer()],
+      ],
+      { description: 'TransferRecordInstructionData' }
     ),
-  } as TransferRecordInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountRecord,
-    TAccountDelegate
+    (value) => ({ ...value, discriminator: 5 })
+  ) as Serializer<
+    TransferRecordInstructionDataArgs,
+    TransferRecordInstructionData
   >;
-
-  return instruction;
 }
 
-export type ParsedTransferRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Authority used to update a record */
-    authority: TAccountMetas[0];
-    /** Record account to be updated */
-    record: TAccountMetas[1];
-    /** Delegate signer for record account */
-    delegate?: TAccountMetas[2] | undefined;
-  };
-  data: TransferRecordInstructionData;
-};
+// Args.
+export type TransferRecordInstructionArgs = TransferRecordInstructionDataArgs;
 
-export function parseTransferRecordInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedTransferRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  const getNextOptionalAccount = () => {
-    const accountMeta = getNextAccount();
-    return accountMeta.address === SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS
-      ? undefined
-      : accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      authority: getNextAccount(),
-      record: getNextAccount(),
-      delegate: getNextOptionalAccount(),
+// Instruction.
+export function transferRecord(
+  context: Pick<Context, 'programs'>,
+  input: TransferRecordInstructionAccounts & TransferRecordInstructionArgs
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+
+  // Accounts.
+  const resolvedAccounts = {
+    authority: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.authority ?? null,
     },
-    data: getTransferRecordInstructionDataDecoder().decode(instruction.data),
-  };
+    record: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.record ?? null,
+    },
+    delegate: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.delegate ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Arguments.
+  const resolvedArgs: TransferRecordInstructionArgs = { ...input };
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getTransferRecordInstructionDataSerializer().serialize(
+    resolvedArgs as TransferRecordInstructionDataArgs
+  );
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

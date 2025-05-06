@@ -7,113 +7,49 @@
  */
 
 import {
-  containsBytes,
-  getU8Encoder,
-  type Address,
-  type ReadonlyUint8Array,
-} from '@solana/kit';
+  ClusterFilter,
+  Context,
+  Program,
+  PublicKey,
+} from '@metaplex-foundation/umi';
 import {
-  type ParsedCreateClassInstruction,
-  type ParsedCreateRecordInstruction,
-  type ParsedDeleteRecordInstruction,
-  type ParsedFreezeClassInstruction,
-  type ParsedFreezeRecordInstruction,
-  type ParsedTransferRecordInstruction,
-  type ParsedUpdateClassMetadataInstruction,
-  type ParsedUpdateRecordInstruction,
-} from '../instructions';
+  getSolanaRecordServiceErrorFromCode,
+  getSolanaRecordServiceErrorFromName,
+} from '../errors';
 
-export const SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS =
-  'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa' as Address<'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'>;
+export const SOLANA_RECORD_SERVICE_PROGRAM_ID =
+  'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa' as PublicKey<'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'>;
 
-export enum SolanaRecordServiceAccount {
-  Class,
-  Record,
+export function createSolanaRecordServiceProgram(): Program {
+  return {
+    name: 'solanaRecordService',
+    publicKey: SOLANA_RECORD_SERVICE_PROGRAM_ID,
+    getErrorFromCode(code: number, cause?: Error) {
+      return getSolanaRecordServiceErrorFromCode(code, this, cause);
+    },
+    getErrorFromName(name: string, cause?: Error) {
+      return getSolanaRecordServiceErrorFromName(name, this, cause);
+    },
+    isOnCluster() {
+      return true;
+    },
+  };
 }
 
-export function identifySolanaRecordServiceAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
-): SolanaRecordServiceAccount {
-  const data = 'data' in account ? account.data : account;
-  if (containsBytes(data, getU8Encoder().encode(1), 0)) {
-    return SolanaRecordServiceAccount.Class;
-  }
-  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return SolanaRecordServiceAccount.Record;
-  }
-  throw new Error(
-    'The provided account could not be identified as a solanaRecordService account.'
+export function getSolanaRecordServiceProgram<T extends Program = Program>(
+  context: Pick<Context, 'programs'>,
+  clusterFilter?: ClusterFilter
+): T {
+  return context.programs.get<T>('solanaRecordService', clusterFilter);
+}
+
+export function getSolanaRecordServiceProgramId(
+  context: Pick<Context, 'programs'>,
+  clusterFilter?: ClusterFilter
+): PublicKey {
+  return context.programs.getPublicKey(
+    'solanaRecordService',
+    SOLANA_RECORD_SERVICE_PROGRAM_ID,
+    clusterFilter
   );
 }
-
-export enum SolanaRecordServiceInstruction {
-  CreateClass,
-  UpdateClassMetadata,
-  FreezeClass,
-  CreateRecord,
-  UpdateRecord,
-  TransferRecord,
-  DeleteRecord,
-  FreezeRecord,
-}
-
-export function identifySolanaRecordServiceInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
-): SolanaRecordServiceInstruction {
-  const data = 'data' in instruction ? instruction.data : instruction;
-  if (containsBytes(data, getU8Encoder().encode(0), 0)) {
-    return SolanaRecordServiceInstruction.CreateClass;
-  }
-  if (containsBytes(data, getU8Encoder().encode(1), 0)) {
-    return SolanaRecordServiceInstruction.UpdateClassMetadata;
-  }
-  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return SolanaRecordServiceInstruction.FreezeClass;
-  }
-  if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return SolanaRecordServiceInstruction.CreateRecord;
-  }
-  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
-    return SolanaRecordServiceInstruction.UpdateRecord;
-  }
-  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
-    return SolanaRecordServiceInstruction.TransferRecord;
-  }
-  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
-    return SolanaRecordServiceInstruction.DeleteRecord;
-  }
-  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
-    return SolanaRecordServiceInstruction.FreezeRecord;
-  }
-  throw new Error(
-    'The provided instruction could not be identified as a solanaRecordService instruction.'
-  );
-}
-
-export type ParsedSolanaRecordServiceInstruction<
-  TProgram extends string = 'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa',
-> =
-  | ({
-      instructionType: SolanaRecordServiceInstruction.CreateClass;
-    } & ParsedCreateClassInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.UpdateClassMetadata;
-    } & ParsedUpdateClassMetadataInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.FreezeClass;
-    } & ParsedFreezeClassInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.CreateRecord;
-    } & ParsedCreateRecordInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.UpdateRecord;
-    } & ParsedUpdateRecordInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.TransferRecord;
-    } & ParsedTransferRecordInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.DeleteRecord;
-    } & ParsedDeleteRecordInstruction<TProgram>)
-  | ({
-      instructionType: SolanaRecordServiceInstruction.FreezeRecord;
-    } & ParsedFreezeRecordInstruction<TProgram>);

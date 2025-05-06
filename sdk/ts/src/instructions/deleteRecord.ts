@@ -7,194 +7,105 @@
  */
 
 import {
-  combineCodec,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type ReadonlySignerAccount,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  mapSerializer,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const DELETE_RECORD_DISCRIMINATOR = 6;
+// Accounts.
+export type DeleteRecordInstructionAccounts = {
+  /** Authority used to update a record */
+  authority: Signer;
+  /** Record account to be updated */
+  record: PublicKey | Pda;
+  /** Delegate signer for record account */
+  delegate?: Signer;
+};
 
-export function getDeleteRecordDiscriminatorBytes() {
-  return getU8Encoder().encode(DELETE_RECORD_DISCRIMINATOR);
-}
-
-export type DeleteRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountRecord extends string | IAccountMeta<string> = string,
-  TAccountDelegate extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountRecord extends string
-        ? WritableAccount<TAccountRecord>
-        : TAccountRecord,
-      TAccountDelegate extends string
-        ? ReadonlySignerAccount<TAccountDelegate> &
-            IAccountSignerMeta<TAccountDelegate>
-        : TAccountDelegate,
-      ...TRemainingAccounts,
-    ]
-  >;
-
+// Data.
 export type DeleteRecordInstructionData = { discriminator: number };
 
 export type DeleteRecordInstructionDataArgs = {};
 
-export function getDeleteRecordInstructionDataEncoder(): Encoder<DeleteRecordInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 6 })
-  );
-}
-
-export function getDeleteRecordInstructionDataDecoder(): Decoder<DeleteRecordInstructionData> {
-  return getStructDecoder([['discriminator', getU8Decoder()]]);
-}
-
-export function getDeleteRecordInstructionDataCodec(): Codec<
+export function getDeleteRecordInstructionDataSerializer(): Serializer<
   DeleteRecordInstructionDataArgs,
   DeleteRecordInstructionData
 > {
-  return combineCodec(
-    getDeleteRecordInstructionDataEncoder(),
-    getDeleteRecordInstructionDataDecoder()
+  return mapSerializer<
+    DeleteRecordInstructionDataArgs,
+    any,
+    DeleteRecordInstructionData
+  >(
+    struct<DeleteRecordInstructionData>([['discriminator', u8()]], {
+      description: 'DeleteRecordInstructionData',
+    }),
+    (value) => ({ ...value, discriminator: 6 })
+  ) as Serializer<DeleteRecordInstructionDataArgs, DeleteRecordInstructionData>;
+}
+
+// Instruction.
+export function deleteRecord(
+  context: Pick<Context, 'programs'>,
+  input: DeleteRecordInstructionAccounts
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
   );
-}
 
-export type DeleteRecordInput<
-  TAccountAuthority extends string = string,
-  TAccountRecord extends string = string,
-  TAccountDelegate extends string = string,
-> = {
-  /** Authority used to update a record */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** Record account to be updated */
-  record: Address<TAccountRecord>;
-  /** Delegate signer for record account */
-  delegate?: TransactionSigner<TAccountDelegate>;
-};
-
-export function getDeleteRecordInstruction<
-  TAccountAuthority extends string,
-  TAccountRecord extends string,
-  TAccountDelegate extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: DeleteRecordInput<TAccountAuthority, TAccountRecord, TAccountDelegate>,
-  config?: { programAddress?: TProgramAddress }
-): DeleteRecordInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountRecord,
-  TAccountDelegate
-> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
-    record: { value: input.record ?? null, isWritable: true },
-    delegate: { value: input.delegate ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.record),
-      getAccountMeta(accounts.delegate),
-    ],
-    programAddress,
-    data: getDeleteRecordInstructionDataEncoder().encode({}),
-  } as DeleteRecordInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountRecord,
-    TAccountDelegate
-  >;
-
-  return instruction;
-}
-
-export type ParsedDeleteRecordInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Authority used to update a record */
-    authority: TAccountMetas[0];
-    /** Record account to be updated */
-    record: TAccountMetas[1];
-    /** Delegate signer for record account */
-    delegate?: TAccountMetas[2] | undefined;
-  };
-  data: DeleteRecordInstructionData;
-};
-
-export function parseDeleteRecordInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedDeleteRecordInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  const getNextOptionalAccount = () => {
-    const accountMeta = getNextAccount();
-    return accountMeta.address === SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS
-      ? undefined
-      : accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      authority: getNextAccount(),
-      record: getNextAccount(),
-      delegate: getNextOptionalAccount(),
+  // Accounts.
+  const resolvedAccounts = {
+    authority: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.authority ?? null,
     },
-    data: getDeleteRecordInstructionDataDecoder().decode(instruction.data),
-  };
+    record: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.record ?? null,
+    },
+    delegate: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.delegate ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getDeleteRecordInstructionDataSerializer().serialize({});
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

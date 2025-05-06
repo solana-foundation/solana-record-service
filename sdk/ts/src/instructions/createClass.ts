@@ -7,67 +7,38 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
-  combineCodec,
-  getBooleanDecoder,
-  getBooleanEncoder,
-  getStructDecoder,
-  getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
-  transformEncoder,
-  type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
-  type ReadonlyAccount,
-  type TransactionSigner,
-  type WritableAccount,
-  type WritableSignerAccount,
-} from '@solana/kit';
-import { SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+  Context,
+  Pda,
+  PublicKey,
+  Signer,
+  TransactionBuilder,
+  transactionBuilder,
+} from '@metaplex-foundation/umi';
+import {
+  Serializer,
+  bool,
+  mapSerializer,
+  string,
+  struct,
+  u8,
+} from '@metaplex-foundation/umi/serializers';
+import {
+  ResolvedAccount,
+  ResolvedAccountsWithIndices,
+  getAccountMetasAndSigners,
+} from '../shared';
 
-export const CREATE_CLASS_DISCRIMINATOR = 0;
+// Accounts.
+export type CreateClassInstructionAccounts = {
+  /** Authority used to create a new class */
+  authority: Signer;
+  /** New class account to be initialized */
+  class: PublicKey | Pda;
+  /** System Program used to open our new class account */
+  systemProgram?: PublicKey | Pda;
+};
 
-export function getCreateClassDiscriminatorBytes() {
-  return getU8Encoder().encode(CREATE_CLASS_DISCRIMINATOR);
-}
-
-export type CreateClassInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TAccountClass extends string | IAccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
-    [
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountClass extends string
-        ? WritableAccount<TAccountClass>
-        : TAccountClass,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
-      ...TRemainingAccounts,
-    ]
-  >;
-
+// Data.
 export type CreateClassInstructionData = {
   discriminator: number;
   isPermissioned: boolean;
@@ -83,161 +54,95 @@ export type CreateClassInstructionDataArgs = {
   metadata: string;
 };
 
-export function getCreateClassInstructionDataEncoder(): Encoder<CreateClassInstructionDataArgs> {
-  return transformEncoder(
-    getStructEncoder([
-      ['discriminator', getU8Encoder()],
-      ['isPermissioned', getBooleanEncoder()],
-      ['isFrozen', getBooleanEncoder()],
-      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU8Encoder())],
-      ['metadata', getUtf8Encoder()],
-    ]),
-    (value) => ({ ...value, discriminator: 0 })
-  );
-}
-
-export function getCreateClassInstructionDataDecoder(): Decoder<CreateClassInstructionData> {
-  return getStructDecoder([
-    ['discriminator', getU8Decoder()],
-    ['isPermissioned', getBooleanDecoder()],
-    ['isFrozen', getBooleanDecoder()],
-    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU8Decoder())],
-    ['metadata', getUtf8Decoder()],
-  ]);
-}
-
-export function getCreateClassInstructionDataCodec(): Codec<
+export function getCreateClassInstructionDataSerializer(): Serializer<
   CreateClassInstructionDataArgs,
   CreateClassInstructionData
 > {
-  return combineCodec(
-    getCreateClassInstructionDataEncoder(),
-    getCreateClassInstructionDataDecoder()
-  );
-}
-
-export type CreateClassInput<
-  TAccountAuthority extends string = string,
-  TAccountClass extends string = string,
-  TAccountSystemProgram extends string = string,
-> = {
-  /** Authority used to create a new class */
-  authority: TransactionSigner<TAccountAuthority>;
-  /** New class account to be initialized */
-  class: Address<TAccountClass>;
-  /** System Program used to open our new class account */
-  systemProgram?: Address<TAccountSystemProgram>;
-  isPermissioned: CreateClassInstructionDataArgs['isPermissioned'];
-  isFrozen: CreateClassInstructionDataArgs['isFrozen'];
-  name: CreateClassInstructionDataArgs['name'];
-  metadata: CreateClassInstructionDataArgs['metadata'];
-};
-
-export function getCreateClassInstruction<
-  TAccountAuthority extends string,
-  TAccountClass extends string,
-  TAccountSystemProgram extends string,
-  TProgramAddress extends
-    Address = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
->(
-  input: CreateClassInput<
-    TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
-  >,
-  config?: { programAddress?: TProgramAddress }
-): CreateClassInstruction<
-  TProgramAddress,
-  TAccountAuthority,
-  TAccountClass,
-  TAccountSystemProgram
-> {
-  // Program address.
-  const programAddress =
-    config?.programAddress ?? SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS;
-
-  // Original accounts.
-  const originalAccounts = {
-    authority: { value: input.authority ?? null, isWritable: true },
-    class: { value: input.class ?? null, isWritable: true },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
-  };
-  const accounts = originalAccounts as Record<
-    keyof typeof originalAccounts,
-    ResolvedAccount
-  >;
-
-  // Original args.
-  const args = { ...input };
-
-  // Resolve default values.
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-  }
-
-  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
-  const instruction = {
-    accounts: [
-      getAccountMeta(accounts.authority),
-      getAccountMeta(accounts.class),
-      getAccountMeta(accounts.systemProgram),
-    ],
-    programAddress,
-    data: getCreateClassInstructionDataEncoder().encode(
-      args as CreateClassInstructionDataArgs
+  return mapSerializer<
+    CreateClassInstructionDataArgs,
+    any,
+    CreateClassInstructionData
+  >(
+    struct<CreateClassInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['isPermissioned', bool()],
+        ['isFrozen', bool()],
+        ['name', string({ size: u8() })],
+        ['metadata', string({ size: 'variable' })],
+      ],
+      { description: 'CreateClassInstructionData' }
     ),
-  } as CreateClassInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountClass,
-    TAccountSystemProgram
-  >;
-
-  return instruction;
+    (value) => ({ ...value, discriminator: 0 })
+  ) as Serializer<CreateClassInstructionDataArgs, CreateClassInstructionData>;
 }
 
-export type ParsedCreateClassInstruction<
-  TProgram extends string = typeof SOLANA_RECORD_SERVICE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
-> = {
-  programAddress: Address<TProgram>;
-  accounts: {
-    /** Authority used to create a new class */
-    authority: TAccountMetas[0];
-    /** New class account to be initialized */
-    class: TAccountMetas[1];
-    /** System Program used to open our new class account */
-    systemProgram: TAccountMetas[2];
-  };
-  data: CreateClassInstructionData;
-};
+// Args.
+export type CreateClassInstructionArgs = CreateClassInstructionDataArgs;
 
-export function parseCreateClassInstruction<
-  TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
->(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
-): ParsedCreateClassInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-    // TODO: Coded error.
-    throw new Error('Not enough accounts');
-  }
-  let accountIndex = 0;
-  const getNextAccount = () => {
-    const accountMeta = instruction.accounts![accountIndex]!;
-    accountIndex += 1;
-    return accountMeta;
-  };
-  return {
-    programAddress: instruction.programAddress,
-    accounts: {
-      authority: getNextAccount(),
-      class: getNextAccount(),
-      systemProgram: getNextAccount(),
+// Instruction.
+export function createClass(
+  context: Pick<Context, 'programs'>,
+  input: CreateClassInstructionAccounts & CreateClassInstructionArgs
+): TransactionBuilder {
+  // Program ID.
+  const programId = context.programs.getPublicKey(
+    'solanaRecordService',
+    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+  );
+
+  // Accounts.
+  const resolvedAccounts = {
+    authority: {
+      index: 0,
+      isWritable: true as boolean,
+      value: input.authority ?? null,
     },
-    data: getCreateClassInstructionDataDecoder().decode(instruction.data),
-  };
+    class: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.class ?? null,
+    },
+    systemProgram: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.systemProgram ?? null,
+    },
+  } satisfies ResolvedAccountsWithIndices;
+
+  // Arguments.
+  const resolvedArgs: CreateClassInstructionArgs = { ...input };
+
+  // Default values.
+  if (!resolvedAccounts.systemProgram.value) {
+    resolvedAccounts.systemProgram.value = context.programs.getPublicKey(
+      'systemProgram',
+      '11111111111111111111111111111111'
+    );
+    resolvedAccounts.systemProgram.isWritable = false;
+  }
+
+  // Accounts in order.
+  const orderedAccounts: ResolvedAccount[] = Object.values(
+    resolvedAccounts
+  ).sort((a, b) => a.index - b.index);
+
+  // Keys and Signers.
+  const [keys, signers] = getAccountMetasAndSigners(
+    orderedAccounts,
+    'programId',
+    programId
+  );
+
+  // Data.
+  const data = getCreateClassInstructionDataSerializer().serialize(
+    resolvedArgs as CreateClassInstructionDataArgs
+  );
+
+  // Bytes Created On Chain.
+  const bytesCreatedOnChain = 0;
+
+  return transactionBuilder([
+    { instruction: { keys, programId, data }, signers, bytesCreatedOnChain },
+  ]);
 }

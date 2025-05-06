@@ -1,4 +1,4 @@
-import { renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
+import { renderJavaScriptUmiVisitor, renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
 import { accountNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, programNode, publicKeyTypeNode, publicKeyValueNode, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, structFieldTypeNode, structTypeNode } from "codama"
 
 const root = rootNode(
@@ -352,5 +352,5 @@ const root = rootNode(
 
 const codama = createFromRoot(root)
 
-codama.accept(renderJavaScriptVisitor('sdk/ts/src', { formatCode: true }));
+codama.accept(renderJavaScriptUmiVisitor('sdk/ts/src', { formatCode: true }));
 codama.accept(renderRustVisitor('sdk/rust/src/client', { crateFolder: 'sdk/rust/', formatCode: true }));

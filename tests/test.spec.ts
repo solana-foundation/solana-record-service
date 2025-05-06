@@ -1,4 +1,5 @@
 import * as program from "../sdk/ts/src/index";
+import { LiteSVM } from "litesvm";
 import { createSolanaClient, createTransaction, generateKeyPairSigner, getExplorerLink, getProgramDerivedAddress, getSignatureFromTransaction, KeyPairSigner, signTransactionMessageWithSigners } from "gill";
 
 describe('test', () => {
