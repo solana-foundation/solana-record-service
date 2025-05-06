@@ -30,3 +30,6 @@ pub use update_record_authority_delegate::UpdateRecordAuthorityDelegate;
 
 pub mod delete_record_authority_delegate;
 pub use delete_record_authority_delegate::DeleteRecordAuthorityDelegate;
+
+pub mod mint_record_token;
+pub use mint_record_token::*;

@@ -1,4 +1,4 @@
-use crate::utils::{resize_account, ByteReader, ByteWriter};
+use crate::{constants::CLOSE_ACCOUNT_DISCRIMINATOR, utils::{resize_account, ByteReader, ByteWriter}};
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -136,20 +136,21 @@ impl RecordAuthorityDelegate {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function uses static offsets to set the first byte of this account to the CLOSE_ACCOUNT_DISCRIMINATOR.
     pub unsafe fn delete_record_delegate_unchecked(
         record_delegate: &AccountInfo,
         authority: &AccountInfo,
     ) -> Result<(), ProgramError> {
-        // Resize the account to 1 byte
-        resize_account(record_delegate, authority, 1, true)?;
-
-        // Update the Discriminator
+        // Update the Discriminator to CLOSE_ACCOUNT_DISCRIMINATOR to prevent reinitialization
         {
             let mut data_ref = record_delegate.try_borrow_mut_data()?;
-            data_ref[DISCRIMINATOR_OFFSET] = 0xff;
+            data_ref[DISCRIMINATOR_OFFSET] = CLOSE_ACCOUNT_DISCRIMINATOR;
         }
-
-        Ok(())
+        
+        // Resize the account to 1 byte
+        resize_account(record_delegate, authority, 0, true)
     }
 
     pub fn delete_record_delegate(
@@ -209,6 +210,9 @@ impl RecordAuthorityDelegate {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function uses static offsets to deserialize the statically sized portions of this account.
     pub unsafe fn from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
         let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;
 
@@ -259,6 +263,9 @@ impl RecordAuthorityDelegate {
         unsafe { Self::from_bytes(account_info.try_borrow_data()?.as_ref()) }
     }
 
+    /// # Safety
+    ///
+    /// This function uses static offsets to serialize the statically sized portions of this account.
     pub unsafe fn initialize(&self, account_info: &AccountInfo) -> Result<(), ProgramError> {
         // Borrow our account data
         let mut data = account_info.try_borrow_mut_data()?;

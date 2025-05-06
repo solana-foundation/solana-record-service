@@ -13,10 +13,13 @@ perf = []
 [dependencies]
 pinocchio = "0.8.3"
 pinocchio-system = "0.2.3"
+pinocchio-token = "0.3.0"
 
 [dev-dependencies]
 solana-record-service-sdk = { workspace = true }
-mollusk-svm = "0.1.4"
+mollusk-svm = "0.1.5"
+mollusk-svm-programs-token = "0.1.5"
+spl-token-2022 = "8.0.1"
 solana-sdk = "2.2.0"
 solana-program = "2.2.0"
 kaigan = ">=0.2.6"

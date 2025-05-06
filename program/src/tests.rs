@@ -10,14 +10,8 @@ use solana_sdk::{
 };
 
 use solana_record_service_sdk::{
-    accounts::{Class, Record},
-    instructions::{
-        CreateClass, CreateClassInstructionArgs, CreateRecord, CreateRecordInstructionArgs,
-        DeleteRecord, FreezeClass, FreezeClassInstructionArgs, FreezeRecord,
-        FreezeRecordInstructionArgs, TransferRecord, TransferRecordInstructionArgs,
-        UpdateClassMetadata, UpdateClassMetadataInstructionArgs, UpdateRecord,
-        UpdateRecordInstructionArgs,
-    },
+    accounts::*,
+    instructions::*,
     programs::SOLANA_RECORD_SERVICE_ID,
 };
 

@@ -53,6 +53,8 @@ fn process_instruction(
         8 => CreateRecordAuthorityDelegate::process(Context { accounts, data }),
         9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
         10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
+        11 => MintRecordToken::process(Context { accounts, data }),
+        12 => RedeemRecordToken::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

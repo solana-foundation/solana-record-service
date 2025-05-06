@@ -282,6 +282,19 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function is unsafe because it does not check the program id or discriminator
+    /// but it's safe for the program to call it because it's used after performing checks
+    /// from the `check_authority` and `check_authority_or_delegate` functions    
+    pub unsafe fn metadata_length_unchecked(record: &'info AccountInfo) -> Result<usize, ProgramError> {
+        // Get the account data
+        let data = record.try_borrow_data()?;
+        
+        // Get metadata length
+        Ok(record.data_len().saturating_sub(data[NAME_LEN_OFFSET] as usize).saturating_sub(NAME_LEN_OFFSET + 1))
+    }
+
     pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
         // Check discriminator
         let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;
