@@ -160,7 +160,7 @@ impl<'info> CreateRecordAuthorityDelegate<'info> {
         .invoke_signed(&signers)?;
 
         let record_delegate = RecordAuthorityDelegate {
-            record: *self.accounts.delegate.key(),
+            record: *self.accounts.record.key(),
             update_authority: self.update_authority,
             burn_authority: self.burn_authority,
             freeze_authority: self.freeze_authority,

@@ -114,6 +114,41 @@ fn keyed_account_for_record(
     (address, record_account)
 }
 
+fn keyed_account_for_delegate(
+    record: Pubkey,
+    update_authority: Pubkey,
+    freeze_authority: Pubkey,
+    transfer_authority: Pubkey,
+    burn_authority: Pubkey,
+    authority_program: Pubkey,
+) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"authority", &record.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    let record_account_data = RecordDelegate {
+        discriminator: 3,
+        record,
+        update_authority,
+        freeze_authority,
+        transfer_authority,
+        burn_authority,
+        authority_program,
+    }
+    .try_to_vec()
+    .expect("Invalid class");
+
+    let mut record_account = Account::new(
+        100_000_000u64,
+        record_account_data.len(),
+        &Pubkey::from(crate::ID),
+    );
+    record_account
+        .data_as_mut_slice()
+        .clone_from_slice(&record_account_data);
+    (address, record_account)
+}
+
 /* Tests */
 
 #[test]
@@ -412,6 +447,55 @@ fn freeze_record() {
             Check::success(),
             Check::account(&record)
                 .data(&record_data_frozen.data)
+                .build(),
+        ],
+    );
+}
+
+#[test]
+fn create_record_authority_delegate() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    // Delegate
+    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+    //System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = CreateRecordAuthorityDelegate {
+        authority,
+        record,
+        delegate,
+        system_program
+    }
+    .instruction(CreateRecordAuthorityDelegateInstructionArgs { 
+        update_authority: NEW_OWNER, 
+        freeze_authority: NEW_OWNER, 
+        transfer_authority: NEW_OWNER, 
+        burn_authority: NEW_OWNER,
+        authority_program: NEW_OWNER
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data), 
+            (record, record_data),
+            (delegate, Account::default()),
+            (system_program, system_program_data)
+        ],
+        &[
+            Check::success(),
+            Check::account(&delegate)
+                .data(&delegate_data.data)
                 .build(),
         ],
     );

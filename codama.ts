@@ -36,8 +36,23 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
                     structFieldTypeNode({ name: 'data', type: stringTypeNode("utf8") }),
                 ])
+            }),
+            accountNode({
+                name: "recordDelegate",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(3)))
+                ],
+                data: structTypeNode([
+                    structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(3), defaultValueStrategy: 'omitted' }),
+                    structFieldTypeNode({ name: 'record', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'authorityProgram', type: publicKeyTypeNode() }),
+                ])
             })
-        ],
+       ],
         instructions: [
             instructionNode({
                 name: "createClass",
@@ -345,9 +360,59 @@ const root = rootNode(
                         docs: ["Delegate signer for record account"]
                     }),
                 ]
+            }),
+            instructionNode({
+                name: "createRecordAuthorityDelegate",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(8)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(8),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'authorityProgram', type: publicKeyTypeNode() })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to create a delegate"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to create delegate for"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Delegate for record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to extend our record account"]
+                    }),
+                ]
             })
         ]
     })
+    // 9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
+    // 10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
+    // 11 => MintRecordToken::process(Context { accounts, data }),
+
 )
 
 const codama = createFromRoot(root)

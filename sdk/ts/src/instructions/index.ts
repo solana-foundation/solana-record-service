@@ -8,6 +8,7 @@
 
 export * from './createClass';
 export * from './createRecord';
+export * from './createRecordAuthorityDelegate';
 export * from './deleteRecord';
 export * from './freezeClass';
 export * from './freezeRecord';

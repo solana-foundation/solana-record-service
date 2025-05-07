@@ -7,6 +7,7 @@
 
 pub(crate) mod r#create_class;
 pub(crate) mod r#create_record;
+pub(crate) mod r#create_record_authority_delegate;
 pub(crate) mod r#delete_record;
 pub(crate) mod r#freeze_class;
 pub(crate) mod r#freeze_record;
@@ -16,6 +17,7 @@ pub(crate) mod r#update_record;
 
 pub use self::r#create_class::*;
 pub use self::r#create_record::*;
+pub use self::r#create_record_authority_delegate::*;
 pub use self::r#delete_record::*;
 pub use self::r#freeze_class::*;
 pub use self::r#freeze_record::*;

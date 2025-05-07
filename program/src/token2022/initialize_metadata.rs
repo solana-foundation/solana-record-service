@@ -1,4 +1,5 @@
 use core::slice::from_raw_parts;
+use core::mem::size_of;
 
 use pinocchio::{
     account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, ProgramResult

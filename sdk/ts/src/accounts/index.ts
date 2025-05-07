@@ -8,3 +8,4 @@
 
 export * from './class';
 export * from './record';
+export * from './recordDelegate';
