@@ -41,7 +41,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAuthorityDelegateAccou
         }
 
         // Check record authority
-        Record::check_authority(record, owner.key())?;
+        Record::check_authority_or_delegate(record, owner, Some(delegate), Record::UPDATE_AUTHORITY_DELEGATION_TYPE)?;
 
         Ok(Self { delegate })
     }
@@ -51,6 +51,7 @@ const UPDATE_AUTHORITY_OFFSET: usize = 0;
 const FREEZE_AUTHORITY_OFFSET: usize = UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>();
 const TRANSFER_AUTHORITY_OFFSET: usize = FREEZE_AUTHORITY_OFFSET + size_of::<Pubkey>();
 const BURN_AUTHORITY_OFFSET: usize = TRANSFER_AUTHORITY_OFFSET + size_of::<Pubkey>();
+const AUTHORITY_PROGRAM_OFFSET: usize = BURN_AUTHORITY_OFFSET + size_of::<Pubkey>();
 
 pub struct UpdateRecordAuthorityDelegate<'info> {
     accounts: UpdateRecordAuthorityDelegateAccounts<'info>,
@@ -58,10 +59,11 @@ pub struct UpdateRecordAuthorityDelegate<'info> {
     freeze_authority: Pubkey,
     transfer_authority: Pubkey,
     burn_authority: Pubkey,
+    authority_program: Pubkey,
 }
 
 /// Minimum length of instruction data required for CreateRecordAuthorityDelegate
-pub const UPDATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 4;
+pub const UPDATE_RECORD_AUTHORITY_DELEGATE_MIN_IX_LENGTH: usize = size_of::<Pubkey>() * 5;
 
 impl<'info> TryFrom<Context<'info>> for UpdateRecordAuthorityDelegate<'info> {
     type Error = ProgramError;
@@ -91,12 +93,16 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordAuthorityDelegate<'info> {
         // Deserialize `burn_authority`
         let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
+        // Deserialize `burn_authority`
+        let authority_program: Pubkey = ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
+
         Ok(Self {
             accounts,
             update_authority,
             freeze_authority,
             transfer_authority,
             burn_authority,
+            authority_program
         })
     }
 }
@@ -115,6 +121,7 @@ impl<'info> UpdateRecordAuthorityDelegate<'info> {
             self.freeze_authority,
             self.transfer_authority,
             self.burn_authority,
+            self.authority_program,
         )
     }
 }

@@ -406,11 +406,82 @@ const root = rootNode(
                         docs: ["System Program used to extend our record account"]
                     }),
                 ]
+            }),
+            instructionNode({
+                name: "updateRecordAuthorityDelegate",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(9)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(9),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
+                    instructionArgumentNode({ name: 'authorityProgram', type: publicKeyTypeNode() })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to create a delegate"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Record account to create delegate for"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Delegate for record account"]
+                    })
+                ]
+            }),
+            instructionNode({
+                name: "deleteRecordAuthorityDelegate",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(10)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(10),
+                        defaultValueStrategy: 'omitted',
+                    })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to create a delegate"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Record account to create delegate for"]
+                    }),
+                    instructionAccountNode({
+                        name: "delegate",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Delegate for record account"]
+                    })
+                ]
             })
         ]
     })
-    // 9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
-    // 10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
     // 11 => MintRecordToken::process(Context { accounts, data }),
 
 )

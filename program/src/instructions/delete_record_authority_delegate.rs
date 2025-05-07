@@ -4,7 +4,7 @@ use crate::{
 };
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{account_info::AccountInfo, log::sol_log, program_error::ProgramError, ProgramResult};
 
 /// DeleteRecordAuthorityDelegate instruction.
 ///
@@ -40,7 +40,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAuthorityDelegateAccou
         }
 
         // Check record authority
-        Record::check_authority(record, owner.key())?;
+        Record::check_authority_or_delegate(record, owner, Some(delegate), Record::BURN_AUTHORITY_DELEGATION_TYPE)?;
 
         Ok(Self { owner, delegate })
     }

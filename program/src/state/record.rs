@@ -72,10 +72,10 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    pub const UPDATE_AUTHORITY_DELEGATION_TYPE: u8 = 0;
-    pub const FREEZE_AUTHORITY_DELEGATION_TYPE: u8 = 1;
-    pub const TRANSFER_AUTHORITY_DELEGATION_TYPE: u8 = 2;
-    pub const BURN_AUTHORITY_DELEGATION_TYPE: u8 = 3;
+    pub const UPDATE_AUTHORITY_DELEGATION_TYPE: u8 = 1;
+    pub const FREEZE_AUTHORITY_DELEGATION_TYPE: u8 = 2;
+    pub const TRANSFER_AUTHORITY_DELEGATION_TYPE: u8 = 3;
+    pub const BURN_AUTHORITY_DELEGATION_TYPE: u8 = 4;
 
     pub fn check_authority_or_delegate(
         record: &AccountInfo,

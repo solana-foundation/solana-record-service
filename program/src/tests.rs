@@ -500,3 +500,89 @@ fn create_record_authority_delegate() {
         ],
     );
 }
+
+#[test]
+fn update_record_authority_delegate() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    // Delegate
+    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+    // Delegate
+    let (_, delegate_updated_data) = keyed_account_for_delegate(record, OWNER, OWNER, OWNER, OWNER, OWNER);
+
+    let instruction = UpdateRecordAuthorityDelegate {
+        authority,
+        record,
+        delegate
+    }
+    .instruction(UpdateRecordAuthorityDelegateInstructionArgs { 
+        update_authority: OWNER, 
+        freeze_authority: OWNER, 
+        transfer_authority: OWNER, 
+        burn_authority: OWNER,
+        authority_program: OWNER
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data), 
+            (record, record_data),
+            (delegate, delegate_data)
+        ],
+        &[
+            Check::success(),
+            Check::account(&delegate)
+                .data(&delegate_updated_data.data)
+                .build(),
+        ],
+    );
+}
+
+#[test]
+fn delete_record_authority_delegate() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    // Delegate
+    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+
+    let instruction = DeleteRecordAuthorityDelegate {
+        authority,
+        record,
+        delegate
+    }
+    .instruction();
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data), 
+            (record, record_data),
+            (delegate, delegate_data)
+        ],
+        &[
+            Check::success(),
+            Check::account(&delegate)
+                .data(&[])
+                .build(),
+        ],
+    );
+}

@@ -139,6 +139,7 @@ impl RecordAuthorityDelegate {
     /// # Safety
     ///
     /// This function uses static offsets to set the first byte of this account to the CLOSE_ACCOUNT_DISCRIMINATOR.
+    #[inline(always)]
     pub unsafe fn delete_record_delegate_unchecked(
         record_delegate: &AccountInfo,
         authority: &AccountInfo,
@@ -170,6 +171,9 @@ impl RecordAuthorityDelegate {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // TODO: Try to get rid of this drop
+        drop(data);
+
         unsafe { Self::delete_record_delegate_unchecked(record_delegate, authority)? };
 
         Ok(())
@@ -181,6 +185,7 @@ impl RecordAuthorityDelegate {
         freeze_authority: Pubkey,
         transfer_authority: Pubkey,
         burn_authority: Pubkey,
+        authority_program: Pubkey
     ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { record_delegate.owner().ne(&crate::ID) } {
@@ -206,6 +211,9 @@ impl RecordAuthorityDelegate {
 
         // Update the burn authority
         ByteWriter::write_with_offset(&mut data, BURN_AUTHORITY_OFFSET, burn_authority)?;
+
+        // Update the burn authority
+        ByteWriter::write_with_offset(&mut data, AUTHORITY_PROGRAM_OFFSET, authority_program)?;
 
         Ok(())
     }
