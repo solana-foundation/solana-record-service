@@ -41,7 +41,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAuthorityDelegateAccou
         }
 
         // Check record authority
-        Record::check_authority_or_delegate(record, owner, Some(delegate), Record::UPDATE_AUTHORITY_DELEGATION_TYPE)?;
+        Record::check_authority_or_delegate(
+            record,
+            owner,
+            Some(delegate),
+            Record::UPDATE_AUTHORITY_DELEGATION_TYPE,
+        )?;
 
         Ok(Self { delegate })
     }
@@ -94,7 +99,8 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordAuthorityDelegate<'info> {
         let burn_authority: Pubkey = ByteReader::read_with_offset(ctx.data, BURN_AUTHORITY_OFFSET)?;
 
         // Deserialize `burn_authority`
-        let authority_program: Pubkey = ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
+        let authority_program: Pubkey =
+            ByteReader::read_with_offset(ctx.data, AUTHORITY_PROGRAM_OFFSET)?;
 
         Ok(Self {
             accounts,
@@ -102,7 +108,7 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordAuthorityDelegate<'info> {
             freeze_authority,
             transfer_authority,
             burn_authority,
-            authority_program
+            authority_program,
         })
     }
 }

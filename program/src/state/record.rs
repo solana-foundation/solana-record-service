@@ -287,16 +287,14 @@ impl<'info> Record<'info> {
     /// This function is unsafe because it does not check the program id or discriminator
     /// but it's safe for the program to call it because it's used after performing checks
     /// from the `check_authority` and `check_authority_or_delegate` functions    
-    pub unsafe fn get_name_and_data_unchecked(data: &'info Ref<'info, [u8]>) -> Result<(&'info str, &'info str), ProgramError> {        
+    pub unsafe fn get_name_and_data_unchecked(
+        data: &'info Ref<'info, [u8]>,
+    ) -> Result<(&'info str, &'info str), ProgramError> {
         let record_data_offset = NAME_LEN_OFFSET + data[NAME_LEN_OFFSET] as usize;
         // Get metadata length
-        let record_name = str::from_utf8_unchecked(
-            &data[NAME_LEN_OFFSET..record_data_offset]
-        );
+        let record_name = str::from_utf8_unchecked(&data[NAME_LEN_OFFSET..record_data_offset]);
 
-        let record_data = str::from_utf8_unchecked(
-            &data[record_data_offset..]
-        );
+        let record_data = str::from_utf8_unchecked(&data[record_data_offset..]);
 
         Ok((record_name, record_data))
     }

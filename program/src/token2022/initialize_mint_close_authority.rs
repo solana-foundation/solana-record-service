@@ -1,10 +1,17 @@
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, pubkey::Pubkey, ProgramResult
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    pubkey::Pubkey,
+    ProgramResult,
 };
 
-use crate::{constants::{TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX, TOKEN_2022_PROGRAM_ID}, utils::{write_bytes, UNINIT_BYTE}};
+use crate::{
+    constants::{TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX, TOKEN_2022_PROGRAM_ID},
+    utils::{write_bytes, UNINIT_BYTE},
+};
 
 /// Initializes a Mint Close Authority.
 ///
@@ -24,9 +31,7 @@ impl InitializeMintCloseAuthority<'_> {
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
-        let account_metas: [AccountMeta; 1] = [
-            AccountMeta::writable(self.mint.key()),
-        ];
+        let account_metas: [AccountMeta; 1] = [AccountMeta::writable(self.mint.key())];
 
         // instruction data
         // -  [0]: instruction discriminator (1 byte, u8)
@@ -34,7 +39,10 @@ impl InitializeMintCloseAuthority<'_> {
         let mut instruction_data = [UNINIT_BYTE; 33];
 
         // Set discriminator as u8 at offset [0]
-        write_bytes(&mut instruction_data, &[TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX]);
+        write_bytes(
+            &mut instruction_data,
+            &[TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX],
+        );
         // Set owner as [u8; 32] at offset [1..33]
         write_bytes(&mut instruction_data[1..], self.close_authority);
 

@@ -3,9 +3,22 @@ use pinocchio::log::sol_log;
 use pinocchio_token::instructions::{InitializeAccount3, InitializeMint2, MintToChecked};
 
 use crate::{
-    constants::{SRS_TICKER, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN}, state::Record, token2022::{InitializeMetadata, InitializeMetadataPointer, InitializeMintCloseAuthority, InitializePermanentDelegate}, utils::Context
+    constants::{SRS_TICKER, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN},
+    state::Record,
+    token2022::{
+        InitializeMetadata, InitializeMetadataPointer, InitializeMintCloseAuthority,
+        InitializePermanentDelegate,
+    },
+    utils::Context,
 };
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 use pinocchio_system::instructions::CreateAccount;
 
 /// MintRecordToken instruction.
@@ -41,7 +54,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, _associated_token_program, _token_2022_program, _system_program] = accounts else {
+        let [authority, record, mint, token_account, _associated_token_program, _token_2022_program, _system_program] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -52,12 +67,17 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
         // Check if authority is the record owner
         Record::check_authority(record, authority.key())?;
 
-        Ok(Self { authority, record, mint, token_account })
+        Ok(Self {
+            authority,
+            record,
+            mint,
+            token_account,
+        })
     }
 }
 
 pub struct MintRecordToken<'info> {
-    accounts: MintRecordTokenAccounts<'info>
+    accounts: MintRecordTokenAccounts<'info>,
 }
 
 impl<'info> TryFrom<Context<'info>> for MintRecordToken<'info> {
@@ -83,9 +103,7 @@ impl<'info> MintRecordToken<'info> {
         let bump = self.derive_mint_address_bump()?;
         // Get record name and data
         let data = self.accounts.record.try_borrow_data()?;
-        let (name, uri) = unsafe {
-            Record::get_name_and_data_unchecked(&data)?
-        };
+        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
         // Create mint account
         self.create_mint_account(&bump)?;
         // Initialize permanent delegate extension
@@ -104,25 +122,19 @@ impl<'info> MintRecordToken<'info> {
         self.mint_to_token_account(&bump)?;
 
         // TODO: Update state to reflect it being tokenized
-        unsafe {
-            Record::update_is_frozen_unchecked(self.accounts.record, true)
-        }
+        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, true) }
     }
 
-    fn derive_mint_address_bump(&self) -> Result<[u8;1], ProgramError> {
-        let seeds = [
-            b"mint",
-            self.accounts.record.key().as_ref()
-        ];
+    fn derive_mint_address_bump(&self) -> Result<[u8; 1], ProgramError> {
+        let seeds = [b"mint", self.accounts.record.key().as_ref()];
 
         Ok([try_find_program_address(&seeds, &crate::ID)
-                    .ok_or(ProgramError::InvalidArgument)?
-                    .1])
+            .ok_or(ProgramError::InvalidArgument)?
+            .1])
     }
 
-    fn create_mint_account(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
-        let space = TOKEN_2022_PERMANENT_DELEGATE_LEN + 
-        TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
+    fn create_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
+        let space = TOKEN_2022_PERMANENT_DELEGATE_LEN + TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
 
         let lamports = Rent::get()?.minimum_balance(space);
 
@@ -148,15 +160,17 @@ impl<'info> MintRecordToken<'info> {
     fn initialize_permanent_delegate(&self) -> Result<(), ProgramError> {
         InitializePermanentDelegate {
             mint: self.accounts.mint,
-            delegate: self.accounts.mint.key()
-        }.invoke()
+            delegate: self.accounts.mint.key(),
+        }
+        .invoke()
     }
 
     fn initialize_mint_close_authority(&self) -> Result<(), ProgramError> {
         InitializeMintCloseAuthority {
             mint: self.accounts.mint,
-            close_authority: self.accounts.mint.key()
-        }.invoke()
+            close_authority: self.accounts.mint.key(),
+        }
+        .invoke()
     }
 
     fn initialize_metadata_pointer(&self) -> Result<(), ProgramError> {
@@ -164,7 +178,8 @@ impl<'info> MintRecordToken<'info> {
             mint: self.accounts.mint,
             authority: self.accounts.mint.key(),
             metadata_address: self.accounts.mint.key(),
-        }.invoke()
+        }
+        .invoke()
     }
 
     fn initialize_mint(&self) -> Result<(), ProgramError> {
@@ -173,10 +188,16 @@ impl<'info> MintRecordToken<'info> {
             decimals: 0,
             mint_authority: self.accounts.mint.key(),
             freeze_authority: None,
-        }.invoke()
+        }
+        .invoke()
     }
 
-    fn initialize_metadata(&self, name: &'info str, symbol: &'info str, uri: &'info str) -> Result<(), ProgramError> {
+    fn initialize_metadata(
+        &self,
+        name: &'info str,
+        symbol: &'info str,
+        uri: &'info str,
+    ) -> Result<(), ProgramError> {
         InitializeMetadata {
             metadata: self.accounts.mint,
             update_authority: self.accounts.mint,
@@ -185,7 +206,8 @@ impl<'info> MintRecordToken<'info> {
             name,
             symbol,
             uri,
-        }.invoke()
+        }
+        .invoke()
     }
 
     fn initialize_token_account(&self) -> Result<(), ProgramError> {
@@ -193,10 +215,11 @@ impl<'info> MintRecordToken<'info> {
             account: self.accounts.token_account,
             mint: self.accounts.mint,
             owner: self.accounts.authority.key(),
-        }.invoke()
+        }
+        .invoke()
     }
 
-    fn mint_to_token_account(&self, bump: &[u8;1]) -> Result<(), ProgramError> {
+    fn mint_to_token_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -210,7 +233,8 @@ impl<'info> MintRecordToken<'info> {
             account: self.accounts.token_account,
             mint_authority: self.accounts.mint,
             amount: 1,
-            decimals: 0
-        }.invoke_signed(&signers)
+            decimals: 0,
+        }
+        .invoke_signed(&signers)
     }
 }

@@ -12,9 +12,9 @@ use pinocchio::nostd_panic_handler;
 pub mod constants;
 pub mod instructions;
 pub mod state;
-pub mod token2022;
 #[cfg(test)]
 pub mod tests;
+pub mod token2022;
 pub mod utils;
 
 program_entrypoint!(process_instruction);
@@ -22,7 +22,6 @@ default_allocator!();
 
 #[cfg(not(test))]
 nostd_panic_handler!();
-
 
 // srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa
 pub const ID: Pubkey = [

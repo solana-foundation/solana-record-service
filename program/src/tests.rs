@@ -9,11 +9,7 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
-use solana_record_service_sdk::{
-    accounts::*,
-    instructions::*,
-    programs::SOLANA_RECORD_SERVICE_ID,
-};
+use solana_record_service_sdk::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -122,10 +118,8 @@ fn keyed_account_for_delegate(
     burn_authority: Pubkey,
     authority_program: Pubkey,
 ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(
-        &[b"authority", &record.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let (address, _bump) =
+        Pubkey::find_program_address(&[b"authority", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
     let record_account_data = RecordDelegate {
         discriminator: 3,
         record,
@@ -413,7 +407,10 @@ fn delete_record() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[(authority, authority_data), (record, record_data)],
-        &[Check::success(), Check::account(&record).data(&[0xff]).build()],
+        &[
+            Check::success(),
+            Check::account(&record).data(&[0xff]).build(),
+        ],
     );
 }
 
@@ -459,9 +456,12 @@ fn create_record_authority_delegate() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    let (record, record_data) =
+        keyed_account_for_record(class, authority, false, 0, "test", "test");
     // Delegate
-    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+    let (delegate, delegate_data) = keyed_account_for_delegate(
+        record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER,
+    );
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -469,14 +469,14 @@ fn create_record_authority_delegate() {
         authority,
         record,
         delegate,
-        system_program
+        system_program,
     }
-    .instruction(CreateRecordAuthorityDelegateInstructionArgs { 
-        update_authority: NEW_OWNER, 
-        freeze_authority: NEW_OWNER, 
-        transfer_authority: NEW_OWNER, 
+    .instruction(CreateRecordAuthorityDelegateInstructionArgs {
+        update_authority: NEW_OWNER,
+        freeze_authority: NEW_OWNER,
+        transfer_authority: NEW_OWNER,
         burn_authority: NEW_OWNER,
-        authority_program: NEW_OWNER
+        authority_program: NEW_OWNER,
     });
 
     let mollusk = Mollusk::new(
@@ -487,16 +487,14 @@ fn create_record_authority_delegate() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (authority, authority_data), 
+            (authority, authority_data),
             (record, record_data),
             (delegate, Account::default()),
-            (system_program, system_program_data)
+            (system_program, system_program_data),
         ],
         &[
             Check::success(),
-            Check::account(&delegate)
-                .data(&delegate_data.data)
-                .build(),
+            Check::account(&delegate).data(&delegate_data.data).build(),
         ],
     );
 }
@@ -508,23 +506,27 @@ fn update_record_authority_delegate() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    let (record, record_data) =
+        keyed_account_for_record(class, authority, false, 0, "test", "test");
     // Delegate
-    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+    let (delegate, delegate_data) = keyed_account_for_delegate(
+        record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER,
+    );
     // Delegate
-    let (_, delegate_updated_data) = keyed_account_for_delegate(record, OWNER, OWNER, OWNER, OWNER, OWNER);
+    let (_, delegate_updated_data) =
+        keyed_account_for_delegate(record, OWNER, OWNER, OWNER, OWNER, OWNER);
 
     let instruction = UpdateRecordAuthorityDelegate {
         authority,
         record,
-        delegate
+        delegate,
     }
-    .instruction(UpdateRecordAuthorityDelegateInstructionArgs { 
-        update_authority: OWNER, 
-        freeze_authority: OWNER, 
-        transfer_authority: OWNER, 
+    .instruction(UpdateRecordAuthorityDelegateInstructionArgs {
+        update_authority: OWNER,
+        freeze_authority: OWNER,
+        transfer_authority: OWNER,
         burn_authority: OWNER,
-        authority_program: OWNER
+        authority_program: OWNER,
     });
 
     let mollusk = Mollusk::new(
@@ -535,9 +537,9 @@ fn update_record_authority_delegate() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (authority, authority_data), 
+            (authority, authority_data),
             (record, record_data),
-            (delegate, delegate_data)
+            (delegate, delegate_data),
         ],
         &[
             Check::success(),
@@ -555,14 +557,17 @@ fn delete_record_authority_delegate() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, authority, false, 0, "test", "test");
+    let (record, record_data) =
+        keyed_account_for_record(class, authority, false, 0, "test", "test");
     // Delegate
-    let (delegate, delegate_data) = keyed_account_for_delegate(record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER);
+    let (delegate, delegate_data) = keyed_account_for_delegate(
+        record, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER, NEW_OWNER,
+    );
 
     let instruction = DeleteRecordAuthorityDelegate {
         authority,
         record,
-        delegate
+        delegate,
     }
     .instruction();
 
@@ -574,15 +579,13 @@ fn delete_record_authority_delegate() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (authority, authority_data), 
+            (authority, authority_data),
             (record, record_data),
-            (delegate, delegate_data)
+            (delegate, delegate_data),
         ],
         &[
             Check::success(),
-            Check::account(&delegate)
-                .data(&[])
-                .build(),
+            Check::account(&delegate).data(&[]).build(),
         ],
     );
 }

@@ -1,11 +1,20 @@
-use core::slice::from_raw_parts;
 use core::mem::size_of;
+use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, ProgramResult
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    ProgramResult,
 };
 
-use crate::{constants::{MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER, TOKEN_2022_METADATA_POINTER_EXTENSION_IX, TOKEN_2022_PROGRAM_ID}, utils::{write_bytes, UNINIT_BYTE}};
+use crate::{
+    constants::{
+        MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER, TOKEN_2022_METADATA_POINTER_EXTENSION_IX,
+        TOKEN_2022_PROGRAM_ID,
+    },
+    utils::{write_bytes, UNINIT_BYTE},
+};
 
 /// Initializes a Mint Close Authority.
 ///
@@ -51,12 +60,23 @@ impl InitializeMetadata<'_> {
         // - [..]: symbol bytes
         // - [..]: uri length (u32)
         // - [..]: uri bytes
-        let mut instruction_data = [UNINIT_BYTE; size_of::<u8>() + size_of::<u32>() * 3 + MAX_NAME_LEN + SRS_TICKER.len() + MAX_METADATA_LEN];
+        let mut instruction_data = [UNINIT_BYTE;
+            size_of::<u8>()
+                + size_of::<u32>() * 3
+                + MAX_NAME_LEN
+                + SRS_TICKER.len()
+                + MAX_METADATA_LEN];
 
         // Write discriminator as u8 at offset [0]
-        write_bytes(&mut instruction_data, &[TOKEN_2022_METADATA_POINTER_EXTENSION_IX]);
+        write_bytes(
+            &mut instruction_data,
+            &[TOKEN_2022_METADATA_POINTER_EXTENSION_IX],
+        );
         // Write name length at offset [1]
-        write_bytes(&mut instruction_data[1..1+size_of::<u32>()], &(self.name.len() as u32).to_le_bytes());
+        write_bytes(
+            &mut instruction_data[1..1 + size_of::<u32>()],
+            &(self.name.len() as u32).to_le_bytes(),
+        );
 
         // Switch to dynamic offsets
         let mut offset = size_of::<u8>() + size_of::<u32>() + self.name.len();
@@ -66,21 +86,33 @@ impl InitializeMetadata<'_> {
         offset += self.name.len();
 
         // Write symbol length
-        write_bytes(&mut instruction_data[offset..offset+size_of::<u32>()], &(self.symbol.len() as u32).to_le_bytes());
+        write_bytes(
+            &mut instruction_data[offset..offset + size_of::<u32>()],
+            &(self.symbol.len() as u32).to_le_bytes(),
+        );
         offset += size_of::<u32>();
 
         // Write symbol
-        write_bytes(&mut instruction_data[offset..offset+self.symbol.len()], &self.symbol.as_bytes());
+        write_bytes(
+            &mut instruction_data[offset..offset + self.symbol.len()],
+            self.symbol.as_bytes(),
+        );
         offset += self.symbol.len();
 
         // Write URI length
-        write_bytes(&mut instruction_data[offset..offset+size_of::<u32>()], &(self.uri.len() as u32).to_le_bytes());
+        write_bytes(
+            &mut instruction_data[offset..offset + size_of::<u32>()],
+            &(self.uri.len() as u32).to_le_bytes(),
+        );
         offset += size_of::<u32>();
 
         // Write URI
-        write_bytes(&mut instruction_data[offset..offset+self.uri.len()], &self.uri.as_bytes());
+        write_bytes(
+            &mut instruction_data[offset..offset + self.uri.len()],
+            self.uri.as_bytes(),
+        );
         offset += self.uri.len();
-        
+
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,

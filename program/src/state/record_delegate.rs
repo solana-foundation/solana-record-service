@@ -1,4 +1,7 @@
-use crate::{constants::CLOSE_ACCOUNT_DISCRIMINATOR, utils::{resize_account, ByteReader, ByteWriter}};
+use crate::{
+    constants::CLOSE_ACCOUNT_DISCRIMINATOR,
+    utils::{resize_account, ByteReader, ByteWriter},
+};
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -149,7 +152,7 @@ impl RecordAuthorityDelegate {
             let mut data_ref = record_delegate.try_borrow_mut_data()?;
             data_ref[DISCRIMINATOR_OFFSET] = CLOSE_ACCOUNT_DISCRIMINATOR;
         }
-        
+
         // Resize the account to 1 byte
         resize_account(record_delegate, authority, 0, true)
     }
@@ -185,7 +188,7 @@ impl RecordAuthorityDelegate {
         freeze_authority: Pubkey,
         transfer_authority: Pubkey,
         burn_authority: Pubkey,
-        authority_program: Pubkey
+        authority_program: Pubkey,
     ) -> Result<(), ProgramError> {
         // Check program id
         if unsafe { record_delegate.owner().ne(&crate::ID) } {
