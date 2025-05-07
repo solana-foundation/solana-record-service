@@ -479,11 +479,70 @@ const root = rootNode(
                         docs: ["Delegate for record account"]
                     })
                 ]
+            }),
+            instructionNode({
+                name: "mintRecordToken",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(11)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(11),
+                        defaultValueStrategy: 'omitted',
+                    })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Authority used to create a delegate"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to create delegate for"]
+                    }),
+                    instructionAccountNode({
+                        name: "mint",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Mint account for record token"]
+                    }),
+                    instructionAccountNode({
+                        name: "tokenAccount",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Token Account for record token"]
+                    }),
+                    instructionAccountNode({
+                        name: "associatedTokenProgram",
+                        defaultValue: publicKeyValueNode('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL', 'associatedTokenProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Associated Token Program used to create our token"]
+                    }),
+                    instructionAccountNode({
+                        name: "token2022",
+                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token2022 Program used to create our token"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to create our token"]
+                    }),
+                ]
             })
         ]
     })
-    // 11 => MintRecordToken::process(Context { accounts, data }),
-
 )
 
 const codama = createFromRoot(root)

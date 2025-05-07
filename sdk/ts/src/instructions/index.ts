@@ -13,6 +13,7 @@ export * from './deleteRecord';
 export * from './deleteRecordAuthorityDelegate';
 export * from './freezeClass';
 export * from './freezeRecord';
+export * from './mintRecordToken';
 export * from './transferRecord';
 export * from './updateClassMetadata';
 export * from './updateRecord';

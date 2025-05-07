@@ -34,7 +34,7 @@ impl DeleteRecordAuthorityDelegate {
             self.authority,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.record,
             false,
         ));
@@ -76,7 +76,7 @@ impl Default for DeleteRecordAuthorityDelegateInstructionData {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
+///   1. `[]` record
 ///   2. `[writable]` delegate
 #[derive(Clone, Debug, Default)]
 pub struct DeleteRecordAuthorityDelegateBuilder {
@@ -211,7 +211,7 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.record.key,
             false,
         ));
@@ -255,7 +255,7 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
+///   1. `[]` record
 ///   2. `[writable]` delegate
 #[derive(Clone, Debug)]
 pub struct DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {

@@ -1,23 +1,17 @@
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use pinocchio_token::instructions::{InitializeAccount3, InitializeMint2, MintToChecked};
+use pinocchio_token::instructions::{InitializeAccount3, MintToChecked};
 
 use crate::{
-    constants::{SRS_TICKER, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN},
+    constants::{SRS_TICKER, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID},
     state::Record,
     token2022::{
-        InitializeMetadata, InitializeMetadataPointer, InitializeMintCloseAuthority,
-        InitializePermanentDelegate,
+        self, InitializeMetadata, InitializeMetadataPointer, InitializeMintCloseAuthority, InitializePermanentDelegate, InitializeMint2
     },
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -35,8 +29,8 @@ use pinocchio_system::instructions::CreateAccount;
 /// 2. `record` - The record for which the token will be minted
 /// 3. `mint` - The mint account of the record token
 /// 4. `tokenAccount` - The token account where we mint the record token to
-/// 4. `token2022` - The Token2022 program
-/// 3. `system_program` - Required for initializing our accounts
+/// 5. `token2022` - The Token2022 program
+/// 6. `system_program` - Required for initializing our accounts
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
@@ -114,6 +108,7 @@ impl<'info> MintRecordToken<'info> {
         self.initialize_metadata_pointer()?;
         // Initialize mint
         self.initialize_mint()?;
+        sol_log("GG3");
         // Initialize metadata
         self.initialize_metadata(name, SRS_TICKER, uri)?;
         // Initialize token account for user
@@ -134,7 +129,7 @@ impl<'info> MintRecordToken<'info> {
     }
 
     fn create_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
-        let space = TOKEN_2022_PERMANENT_DELEGATE_LEN + TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
+        let space = 1000; // todo: add metadata length
 
         let lamports = Rent::get()?.minimum_balance(space);
 
@@ -152,7 +147,7 @@ impl<'info> MintRecordToken<'info> {
             to: self.accounts.mint,
             lamports,
             space: space as u64,
-            owner: &crate::ID,
+            owner: &TOKEN_2022_PROGRAM_ID,
         }
         .invoke_signed(&signers)
     }

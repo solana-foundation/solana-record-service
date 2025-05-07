@@ -83,7 +83,7 @@ export function deleteRecordAuthorityDelegate(
     },
     record: {
       index: 1,
-      isWritable: true as boolean,
+      isWritable: false as boolean,
       value: input.record ?? null,
     },
     delegate: {

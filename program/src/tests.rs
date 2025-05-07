@@ -143,6 +143,20 @@ fn keyed_account_for_delegate(
     (address, record_account)
 }
 
+fn keyed_account_for_record_mint(
+    record: Pubkey
+) -> (Pubkey, Account) {
+    let (address, _bump) =
+    Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+
+    let record_mint_account = Account::new(
+        100_000_000u64,
+        0,
+        &Pubkey::from(crate::ID),
+    );
+    (address, record_mint_account)
+}
+
 /* Tests */
 
 #[test]
@@ -586,6 +600,63 @@ fn delete_record_authority_delegate() {
         &[
             Check::success(),
             Check::account(&delegate).data(&[]).build(),
+        ],
+    );
+}
+
+#[test]
+fn mint_record_token() {
+    // Owner
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) =
+        keyed_account_for_record(class, authority, false, 0, "test", "test");
+    // Mint
+    let (mint, mint_data) =
+        keyed_account_for_record_mint(record);
+    // ATA
+    let (token_account, _) = Pubkey::find_program_address(&[authority.as_ref(), mollusk_svm_programs_token::token2022::ID.as_ref(), mint.as_ref()] ,&mollusk_svm_programs_token::associated_token::ID);
+
+    let (associated_token_program, associated_token_program_data) = mollusk_svm_programs_token::associated_token::keyed_account();
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = MintRecordToken {
+        authority,
+        record,
+        mint,
+        token_account,
+        associated_token_program,
+        token2022,
+        system_program
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (mint, Account::default()),
+            (token_account, Account::default()),
+            (associated_token_program, associated_token_program_data),
+            (token2022, token2022_data),
+            (system_program, system_program_data),
+        ],
+        &[
+            Check::success(),
+            // Check::account(&delegate).data(&[]).build(),
         ],
     );
 }

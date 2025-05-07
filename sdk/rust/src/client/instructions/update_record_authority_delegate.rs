@@ -39,7 +39,7 @@ impl UpdateRecordAuthorityDelegate {
             self.authority,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.record,
             false,
         ));
@@ -93,7 +93,7 @@ pub struct UpdateRecordAuthorityDelegateInstructionArgs {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
+///   1. `[]` record
 ///   2. `[writable]` delegate
 #[derive(Clone, Debug, Default)]
 pub struct UpdateRecordAuthorityDelegateBuilder {
@@ -284,7 +284,7 @@ impl<'a, 'b> UpdateRecordAuthorityDelegateCpi<'a, 'b> {
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.record.key,
             false,
         ));
@@ -330,7 +330,7 @@ impl<'a, 'b> UpdateRecordAuthorityDelegateCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
+///   1. `[]` record
 ///   2. `[writable]` delegate
 #[derive(Clone, Debug)]
 pub struct UpdateRecordAuthorityDelegateCpiBuilder<'a, 'b> {
