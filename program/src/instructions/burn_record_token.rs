@@ -9,9 +9,10 @@ use crate::{
         TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
         TOKEN_2022_PROGRAM_ID,
     },
-    state::{record, Record, NAME_OFFSET},
+    state::Record,
     token2022::{
-        InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked
+        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, MintToChecked,
     },
     utils::Context,
 };
@@ -40,12 +41,11 @@ use pinocchio_system::instructions::CreateAccount;
 /// 1. The authority must be:
 ///    a. The record's owner, or
 ///    b. An authorized delegate with update permissions
-pub struct MintRecordTokenAccounts<'info> {
+pub struct BurnRecordTokenAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
-    // associated_token_program: &'info AccountInfo,
     token_2022_program: &'info AccountInfo,
     system_program: &'info AccountInfo,
 }
@@ -103,8 +103,11 @@ impl<'info> MintRecordToken<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Get Mint length
         let bump = self.derive_mint_address_bump()?;
+        // Get record name and data
+        let data = self.accounts.record.try_borrow_data()?;
+        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
         // Create mint account
-        self.create_mint_account(&bump)?;
+        self.create_mint_account(&bump, name, uri)?;
         // Initialize permanent delegate extension
         self.initialize_permanent_delegate()?;
         // Initialize mint close authority extension
@@ -114,11 +117,13 @@ impl<'info> MintRecordToken<'info> {
         // Initialize mint
         self.initialize_mint()?;
         // Initialize metadata
-        self.initialize_metadata(&bump)?;
+        self.initialize_metadata(&bump, name, SRS_TICKER, uri)?;
         // Initialize token account for user
         self.initialize_token_account()?;
         // Mint record token
         self.mint_to_token_account(&bump)?;
+        // TODO: Update state to reflect it being tokenized
+        drop(data);
         unsafe { Record::update_is_frozen_unchecked(self.accounts.record, true) }
     }
 
@@ -132,23 +137,22 @@ impl<'info> MintRecordToken<'info> {
 
     fn create_mint_account(
         &self,
-        bump: &[u8; 1]
+        bump: &[u8; 1],
+        name: &str,
+        uri: &str,
     ) -> Result<(), ProgramError> {
-        // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN
             + TOKEN_2022_MINT_BASE_LEN
             + TOKEN_2022_PERMANENT_DELEGATE_LEN
             + TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN
-            + TOKEN_2022_METADATA_POINTER_LEN;
+            + TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
 
-        // To avoid resizing the ming, we calculate the correct lamports for our token AOT with:
-        // 1. `space` - The sum of the above static extension lengths
-        // 2. `record.data_len()` - The full length of the record account
-        // 3. `-NAME_OFFSET` - Remove fixed data in record account that isn't used for metadata
-        let lamports = Rent::get()?.minimum_balance(space +
-            self.accounts.record.data_len() +
-            Metadata::FIXED_HEADER_LEN +
-            NAME_OFFSET // Deduct static data at start of record account that isn't used in metadata
+        let lamports = Rent::get()?.minimum_balance(space + // Static extensions
+            2 * size_of::<u16>() + // extension ID + extention length
+            3 * size_of::<u32>() + // 3 x length counters
+            name.len() + 
+            SRS_TICKER.len() + 
+            uri.len()
         );
 
         let seeds = [
@@ -208,11 +212,10 @@ impl<'info> MintRecordToken<'info> {
     fn initialize_metadata(
         &self,
         bump: &[u8; 1],
+        name: &'info str,
+        symbol: &'info str,
+        uri: &'info str,
     ) -> Result<(), ProgramError> {
-        let data = self.accounts.record.try_borrow_data()?;
-
-        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
-
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -227,7 +230,7 @@ impl<'info> MintRecordToken<'info> {
             mint: self.accounts.mint,
             mint_authority: self.accounts.mint,
             name,
-            symbol: SRS_TICKER,
+            symbol,
             uri,
         }
         .invoke_signed(&signers)

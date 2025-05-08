@@ -17,6 +17,7 @@ const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
 const HAS_AUTHORITY_DELEGATE_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 const EXPIRY_OFFSET: usize = HAS_AUTHORITY_DELEGATE_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
+pub const NAME_OFFSET: usize = EXPIRY_OFFSET + size_of::<u8>();
 
 #[repr(C)]
 pub struct Record<'info> {
