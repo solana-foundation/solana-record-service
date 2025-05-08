@@ -8,7 +8,10 @@ use pinocchio::{
     ProgramResult,
 };
 
-use crate::{constants::TOKEN_2022_PROGRAM_ID, utils::{write_bytes, UNINIT_BYTE}};
+use crate::{
+    constants::TOKEN_2022_PROGRAM_ID,
+    utils::{write_bytes, UNINIT_BYTE},
+};
 
 /// Initialize a new mint.
 ///

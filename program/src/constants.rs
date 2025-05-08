@@ -7,8 +7,11 @@ pub const SRS_TICKER: &str = "SRS";
 pub const CLOSE_ACCOUNT_DISCRIMINATOR: u8 = 0xff;
 
 // Token2022 Constants
-pub const TOKEN_2022_PERMANENT_DELEGATE_LEN: usize = 0x20;
-pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x20;
+pub const TOKEN_2022_MINT_LEN: usize = 0x52;
+pub const TOKEN_2022_MINT_BASE_LEN: usize = 0x54;
+pub const TOKEN_2022_PERMANENT_DELEGATE_LEN: usize = 0x24;
+pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN: usize = 0x24;
+pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x44;
 
 // CloseAccount - 9
 pub const TOKEN_2022_CLOSE_ACCOUNT_IX: u8 = 0x09;

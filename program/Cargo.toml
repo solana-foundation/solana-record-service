@@ -13,7 +13,7 @@ perf = []
 [dependencies]
 pinocchio = "0.8.3"
 pinocchio-system = "0.2.3"
-pinocchio-token = "0.3.0"
+pinocchio-associated-token-account = "0.1.1"
 
 [dev-dependencies]
 solana-record-service-sdk = { workspace = true }

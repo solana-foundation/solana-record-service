@@ -4,15 +4,13 @@ use core::slice::from_raw_parts;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction, Signer},
+    log::sol_log_data,
     program::invoke_signed,
     ProgramResult,
 };
 
 use crate::{
-    constants::{
-        MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER, TOKEN_2022_METADATA_POINTER_EXTENSION_IX,
-        TOKEN_2022_PROGRAM_ID,
-    },
+    constants::{MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER, TOKEN_2022_PROGRAM_ID},
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -38,6 +36,8 @@ pub struct InitializeMetadata<'a> {
 }
 
 impl InitializeMetadata<'_> {
+    pub const DISCRIMINATOR: [u8; 8] = [0xd2, 0xe1, 0x1e, 0xa2, 0x58, 0xb8, 0x4d, 0x8d];
+
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
@@ -53,37 +53,37 @@ impl InitializeMetadata<'_> {
         ];
 
         // instruction data
-        // - [0]: instruction discriminator (1 byte, u8)
-        // - [1..5]: name length (u32)
-        // - [5..5+name.len()]: name bytes
+        // - [0]: instruction discriminator (8 bytes, [u8;8])
+        // - [8..12]: name length (u32)
+        // - [12..12+name.len()]: name bytes
         // - [..]: symbol length (u32)
         // - [..]: symbol bytes
         // - [..]: uri length (u32)
         // - [..]: uri bytes
         let mut instruction_data = [UNINIT_BYTE;
-            size_of::<u8>()
+            Self::DISCRIMINATOR.len()
                 + size_of::<u32>() * 3
                 + MAX_NAME_LEN
                 + SRS_TICKER.len()
                 + MAX_METADATA_LEN];
 
         // Write discriminator as u8 at offset [0]
-        write_bytes(
-            &mut instruction_data,
-            &[TOKEN_2022_METADATA_POINTER_EXTENSION_IX],
-        );
+        write_bytes(&mut instruction_data[..8], &Self::DISCRIMINATOR);
         // Write name length at offset [1]
         write_bytes(
-            &mut instruction_data[1..1 + size_of::<u32>()],
+            &mut instruction_data
+                [Self::DISCRIMINATOR.len()..Self::DISCRIMINATOR.len() + size_of::<u32>()],
             &(self.name.len() as u32).to_le_bytes(),
         );
 
         // Switch to dynamic offsets
-        let mut offset = size_of::<u8>() + size_of::<u32>() + self.name.len();
+        let mut offset = Self::DISCRIMINATOR.len() + size_of::<u32>() + self.name.len();
 
-        // Write name at offset [5]
-        write_bytes(&mut instruction_data[5..offset], self.name.as_bytes());
-        offset += self.name.len();
+        // Write name at offset [12]
+        write_bytes(
+            &mut instruction_data[Self::DISCRIMINATOR.len() + size_of::<u32>()..offset],
+            self.name.as_bytes(),
+        );
 
         // Write symbol length
         write_bytes(
@@ -118,6 +118,8 @@ impl InitializeMetadata<'_> {
             accounts: &account_metas,
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, offset) },
         };
+
+        sol_log_data(&[instruction.data]);
 
         invoke_signed(&instruction, &[self.mint], signers)
     }

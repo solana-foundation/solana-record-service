@@ -290,9 +290,10 @@ impl<'info> Record<'info> {
     pub unsafe fn get_name_and_data_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<(&'info str, &'info str), ProgramError> {
-        let record_data_offset = NAME_LEN_OFFSET + data[NAME_LEN_OFFSET] as usize;
+        let record_data_offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
         // Get metadata length
-        let record_name = str::from_utf8_unchecked(&data[NAME_LEN_OFFSET..record_data_offset]);
+        let record_name =
+            str::from_utf8_unchecked(&data[NAME_LEN_OFFSET + size_of::<u8>()..record_data_offset]);
 
         let record_data = str::from_utf8_unchecked(&data[record_data_offset..]);
 

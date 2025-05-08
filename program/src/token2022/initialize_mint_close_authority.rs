@@ -41,7 +41,7 @@ impl InitializeMintCloseAuthority<'_> {
         // Set discriminator as u8 at offset [0]
         write_bytes(
             &mut instruction_data[0..2],
-            &[TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX,1],
+            &[TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX, 1],
         );
         // Set owner as [u8; 32] at offset [1..33]
         write_bytes(&mut instruction_data[2..34], self.close_authority);
