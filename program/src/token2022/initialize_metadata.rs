@@ -39,22 +39,24 @@ pub struct Metadata<'a> {
     pub name: &'a str,
     pub symbol: &'a str,
     pub uri: &'a str,
-    pub additional_metadata: &'a [&'a [u8]]
+    pub additional_metadata: &'a [&'a [u8]],
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl<'a> Metadata<'a> {
     pub const FIXED_HEADER_LEN: usize = size_of::<u16>() * 2 + // instruction_id_len + data_len
-        size_of::<u32>() * 4;  // name_len_size, symbol_len_size, uri_len_size, additional_metadata_len_size
+        size_of::<u32>() * 4; // name_len_size, symbol_len_size, uri_len_size, additional_metadata_len_size
 
     pub fn len(&self) -> u64 {
-        Self::FIXED_HEADER_LEN as u64 +
-        self.name.len() as u64 +
-        self.symbol.len() as u64 +
-        self.uri.len() as u64 +
-        self.additional_metadata
-            .iter()
-            .map(|entry| size_of::<u32>() as u64 + entry.len() as u64)
-            .sum::<u64>()
+        Self::FIXED_HEADER_LEN as u64
+            + self.name.len() as u64
+            + self.symbol.len() as u64
+            + self.uri.len() as u64
+            + self
+                .additional_metadata
+                .iter()
+                .map(|entry| size_of::<u32>() as u64 + entry.len() as u64)
+                .sum::<u64>()
     }
 }
 

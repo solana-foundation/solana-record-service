@@ -1,6 +1,5 @@
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use core::mem::size_of;
 use pinocchio_associated_token_account::instructions::Create;
 
 use crate::{
@@ -9,14 +8,20 @@ use crate::{
         TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
         TOKEN_2022_PROGRAM_ID,
     },
-    state::{record, Record, NAME_OFFSET},
+    state::{Record, NAME_OFFSET},
     token2022::{
-        InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked
+        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked,
     },
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -130,10 +135,7 @@ impl<'info> MintRecordToken<'info> {
             .1])
     }
 
-    fn create_mint_account(
-        &self,
-        bump: &[u8; 1]
-    ) -> Result<(), ProgramError> {
+    fn create_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN
             + TOKEN_2022_MINT_BASE_LEN
@@ -145,10 +147,8 @@ impl<'info> MintRecordToken<'info> {
         // 1. `space` - The sum of the above static extension lengths
         // 2. `record.data_len()` - The full length of the record account
         // 3. `-NAME_OFFSET` - Remove fixed data in record account that isn't used for metadata
-        let lamports = Rent::get()?.minimum_balance(space +
-            self.accounts.record.data_len() +
-            Metadata::FIXED_HEADER_LEN +
-            NAME_OFFSET // Deduct static data at start of record account that isn't used in metadata
+        let lamports = Rent::get()?.minimum_balance(
+            space + self.accounts.record.data_len() + Metadata::FIXED_HEADER_LEN + NAME_OFFSET, // Deduct static data at start of record account that isn't used in metadata
         );
 
         let seeds = [
@@ -205,10 +205,7 @@ impl<'info> MintRecordToken<'info> {
         .invoke()
     }
 
-    fn initialize_metadata(
-        &self,
-        bump: &[u8; 1],
-    ) -> Result<(), ProgramError> {
+    fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         let data = self.accounts.record.try_borrow_data()?;
 
         let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
