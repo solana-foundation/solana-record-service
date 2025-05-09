@@ -10,8 +10,14 @@ pub use initialize_metadata_pointer::*;
 pub mod initialize_metadata;
 pub use initialize_metadata::*;
 
+pub mod update_metadata;
+pub use update_metadata::*;
+
 pub mod initialize_mint_2;
 pub use initialize_mint_2::*;
 
 pub mod mint_to_checked;
 pub use mint_to_checked::*;
+
+pub mod state;
+pub use state::*;

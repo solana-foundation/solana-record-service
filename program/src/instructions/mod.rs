@@ -33,3 +33,16 @@ pub use delete_record_authority_delegate::DeleteRecordAuthorityDelegate;
 
 pub mod mint_record_token;
 pub use mint_record_token::*;
+
+pub mod update_tokenized_record;
+pub use update_tokenized_record::*;
+
+pub mod transfer_tokenized_record;
+pub use transfer_tokenized_record::*;
+
+pub mod freeze_tokenized_record;
+pub use freeze_tokenized_record::*;
+
+
+
+

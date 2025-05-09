@@ -129,17 +129,123 @@ impl<'info> Record<'info> {
 
         match delegation_type {
             Self::UPDATE_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_update_authority(record, authority.key())?
+                RecordAuthorityDelegate::check_update_authority(delegate, authority.key())?
             }
             Self::FREEZE_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_freeze_authority(record, authority.key())?
+                RecordAuthorityDelegate::check_freeze_authority(delegate, authority.key())?
             }
             Self::TRANSFER_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_transfer_authority(record, authority.key())?
+                RecordAuthorityDelegate::check_transfer_authority(delegate, authority.key())?
             }
             Self::BURN_AUTHORITY_DELEGATION_TYPE => {
                 RecordAuthorityDelegate::check_burn_authority_and_close_delegate(
-                    record, authority,
+                    delegate, authority,
+                )?;
+            }
+            _ => return Err(ProgramError::InvalidArgument),
+        }
+
+        Ok(())
+    }
+
+    const MINT_SIZE: usize = size_of::<u32>() * 2 + size_of::<Pubkey>() * 2 + size_of::<u64>() + size_of::<u8>() * 2;
+    const MINT_OFFSET: usize = 0;
+    const OWNER_OFFSET: usize = Self::MINT_OFFSET + size_of::<Pubkey>();
+
+    const TOKEN_PROGRAM_ID: Pubkey = [
+        0x06, 0xdd, 0xf6, 0xe1, 0xd7, 0x65, 0xa1, 0x93, 
+        0xd9, 0xcb, 0xe1, 0x46, 0xce, 0xeb, 0x79, 0xac, 
+        0x1c, 0xb4, 0x85, 0xed, 0x5f, 0x5b, 0x37, 0x91, 
+        0x3a, 0x8c, 0xf5, 0x85, 0x7e, 0xff, 0x00, 0xa9
+    ];
+
+    pub fn check_authority_or_delegate_tokenized(
+        record: &AccountInfo,
+        authority: &AccountInfo,
+        mint: &AccountInfo,
+        delegate_or_token_account: &AccountInfo,
+        delegation_type: u8,
+    ) -> Result<(), ProgramError> {
+        // Check Record Program Id
+        if unsafe { record.owner().ne(&crate::ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Check Mint Program Id
+        if unsafe { mint.owner().ne(&Self::TOKEN_PROGRAM_ID) } {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
+        // Check Mint Size
+        if mint.data_len() != Self::MINT_SIZE {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Get the account data
+        let data = record.try_borrow_data()?;
+
+        // Check discriminator
+        if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if mint is the owner of the record
+        if mint.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if the authority is the owner of the mint
+        if unsafe { delegate_or_token_account.owner().eq(&Self::TOKEN_PROGRAM_ID) } {
+            let token_data = delegate_or_token_account.try_borrow_data()?;
+
+            // Check if the token_account mint is the same as the mint
+            if token_data[Self::MINT_OFFSET..Self::MINT_OFFSET + size_of::<Pubkey>()].ne(mint.key()) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            // Check if the token_account owner is the authority
+            if token_data[Self::OWNER_OFFSET..Self::OWNER_OFFSET + size_of::<Pubkey>()].ne(authority.key()) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            // If the authority is the owner, but the account has an authority delegate, and we're burning the record,
+            // we need to supply the delegate so we can close it as well
+            if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
+                && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
+            {
+                RecordAuthorityDelegate::delete_record_delegate(delegate_or_token_account, authority)?;
+                todo!() // TODO: Burn the mint, close the mint and token account
+            }
+
+            return Ok(());
+        }
+
+        // If not owner, check delegate
+        if data[HAS_AUTHORITY_DELEGATE_OFFSET].ne(&1u8) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let seeds = [b"authority", record.key().as_ref()];
+        let (derived_delegate, _) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
+
+        if derived_delegate != *delegate_or_token_account.key() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        match delegation_type {
+            Self::UPDATE_AUTHORITY_DELEGATION_TYPE => {
+                RecordAuthorityDelegate::check_update_authority(delegate_or_token_account, authority.key())?
+            }
+            Self::FREEZE_AUTHORITY_DELEGATION_TYPE => {
+                RecordAuthorityDelegate::check_freeze_authority(delegate_or_token_account, authority.key())?
+            }
+            Self::TRANSFER_AUTHORITY_DELEGATION_TYPE => {
+                RecordAuthorityDelegate::check_transfer_authority(delegate_or_token_account, authority.key())?
+            }
+            Self::BURN_AUTHORITY_DELEGATION_TYPE => {
+                RecordAuthorityDelegate::check_burn_authority_and_close_delegate(
+                    delegate_or_token_account, authority,
                 )?;
             }
             _ => return Err(ProgramError::InvalidArgument),
