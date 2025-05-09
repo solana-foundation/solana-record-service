@@ -1,9 +1,17 @@
 use crate::{
-    state::Record, token2022::UpdateMetadata, utils::{ByteReader, Context}
+    state::Record,
+    token2022::UpdateMetadata,
+    utils::{ByteReader, Context},
 };
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    ProgramResult,
+};
 
 /// UpdateRecord instruction.
 ///
@@ -15,11 +23,12 @@ use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_
 /// # Accounts
 /// 1. `authority` - The account that has permission to update the record (must be a signer)
 /// 2. `mint` - The mint account that that is linked to the record
-/// 3. `metadata` - The metadata account that is linked to the mint
-/// 4. `record` - The record account to be updated
-/// 5. `record_delegate` or `token_account` - todo()
+/// 3. `token_account` - The token account that is linked to the mint
+/// 4. `metadata` - The metadata account that is linked to the mint
+/// 5. `record` - The record account to be updated
 /// 6. `system_program` - Required for account resizing operations
-/// 
+/// 7. `record_delegate` - optional, if the record has a delegate
+///
 /// # Security
 /// 1. The authority must be:
 ///    a. The mint's owner, or
@@ -35,7 +44,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, mint, metadata, record, delegate_or_token_account, _system_program] = accounts else {
+        let [authority, mint, token_account, metadata, record, _system_program, rest @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -48,11 +59,17 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
             record,
             authority,
             mint,
-            delegate_or_token_account,
+            token_account,
+            rest.first(),
             Record::UPDATE_AUTHORITY_DELEGATION_TYPE,
         )?;
 
-        Ok(Self { authority, mint, metadata, record })
+        Ok(Self {
+            authority,
+            mint,
+            metadata,
+            record,
+        })
     }
 }
 
@@ -88,15 +105,25 @@ impl<'info> UpdateTokenizedRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
         unsafe {
-            Record::update_data_unchecked(self.accounts.record, self.accounts.authority, self.new_data)?
+            Record::update_data_unchecked(
+                self.accounts.record,
+                self.accounts.authority,
+                self.new_data,
+            )?
         }
 
         let record_data = self.accounts.record.try_borrow_data()?;
-        let (_, data) = unsafe { Record::get_name_and_data_unchecked(&record_data)?};
+        let (_, data) = unsafe { Record::get_name_and_data_unchecked(&record_data)? };
 
-        let bump = [try_find_program_address(&[b"mint", self.accounts.record.key().as_ref()], &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1];
+        let bump =
+            [
+                try_find_program_address(
+                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &crate::ID,
+                )
+                .ok_or(ProgramError::InvalidArgument)?
+                .1,
+            ];
 
         let seeds = [
             Seed::from(b"mint"),
@@ -106,12 +133,11 @@ impl<'info> UpdateTokenizedRecord<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        UpdateMetadata{
+        UpdateMetadata {
             metadata: self.accounts.metadata,
             update_authority: self.accounts.mint,
             new_uri: data,
         }
         .invoke_signed(&signers)
-
     }
 }

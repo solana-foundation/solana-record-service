@@ -42,7 +42,3 @@ pub use transfer_tokenized_record::*;
 
 pub mod freeze_tokenized_record;
 pub use freeze_tokenized_record::*;
-
-
-
-

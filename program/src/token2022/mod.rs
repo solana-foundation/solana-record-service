@@ -19,5 +19,5 @@ pub use initialize_mint_2::*;
 pub mod mint_to_checked;
 pub use mint_to_checked::*;
 
-pub mod state;
-pub use state::*;
+pub mod transfer_checked;
+pub use transfer_checked::*;
