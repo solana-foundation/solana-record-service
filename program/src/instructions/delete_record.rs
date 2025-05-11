@@ -74,6 +74,7 @@ impl<'info> DeleteRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        Record::delete_record(self.accounts.record, self.accounts.authority)
+        // Safety: The account has already been validated
+        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.authority) }
     }
 }

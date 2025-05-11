@@ -85,7 +85,7 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
 impl<'info> TransferRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
-        sol_log("Transfer Record");
+        sol_log("Transfer Tokenized Record");
         Self::try_from(ctx)?.execute()
     }
 
