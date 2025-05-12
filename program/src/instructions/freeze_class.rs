@@ -34,9 +34,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeClassAccounts<'info> {
         };
 
         // Account Checks
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        Class::check_authority(class, authority)?;
 
         Ok(Self { authority, class })
     }
@@ -82,6 +80,6 @@ impl<'info> FreezeClass<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        Class::update_is_frozen(self.accounts.class, self.accounts.authority, self.is_frozen)
+        unsafe { Class::update_is_frozen_unchecked(self.accounts.class, self.accounts.authority, self.is_frozen) }
     }
 }

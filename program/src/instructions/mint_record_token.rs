@@ -50,7 +50,6 @@ pub struct MintRecordTokenAccounts<'info> {
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
-    // associated_token_program: &'info AccountInfo,
     token_2022_program: &'info AccountInfo,
     system_program: &'info AccountInfo,
 }
@@ -59,18 +58,21 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program] =
+        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         // Check if authority is the record owner
-        Record::check_authority(record, authority.key())?;
+        Record::check_owner_or_delegate_tokenized(
+            record, 
+            authority,
+            mint,
+            token_account,
+            rest.first(),
+            Record::MINT_AUTHORITY_DELEGATION_TYPE,
+        )?;
 
         Ok(Self {
             authority,
@@ -124,7 +126,9 @@ impl<'info> MintRecordToken<'info> {
         self.initialize_token_account()?;
         // Mint record token
         self.mint_to_token_account(&bump)?;
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, true) }
+
+        // Update the record to be frozen, the check will be perfomed on the token account
+        unsafe { Record::update_is_frozen_unchecked(self.accounts.record.try_borrow_mut_data()?, true) }
     }
 
     fn derive_mint_address_bump(&self) -> Result<[u8; 1], ProgramError> {

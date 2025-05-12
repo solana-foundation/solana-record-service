@@ -169,6 +169,6 @@ impl<'info> CreateClass<'info> {
             metadata: self.metadata,
         };
 
-        class.initialize(self.accounts.class)
+        unsafe { class.initialize_unchecked(self.accounts.class) }
     }
 }

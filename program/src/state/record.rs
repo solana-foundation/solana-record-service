@@ -2,7 +2,7 @@ use super::RecordAuthorityDelegate;
 use crate::{constants::{TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_OWNER_OFFSET}, utils::{resize_account, ByteReader, ByteWriter}};
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref},
+    account_info::{AccountInfo, Ref, RefMut},
     program_error::ProgramError,
     pubkey::{try_find_program_address, Pubkey},
 };
@@ -10,9 +10,11 @@ use pinocchio::{
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 
+/// Offsets
 const DISCRIMINATOR_OFFSET: usize = 0;
 const CLASS_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
-const OWNER_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
+const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
+const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
 const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
 const HAS_AUTHORITY_DELEGATE_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 const EXPIRY_OFFSET: usize = HAS_AUTHORITY_DELEGATE_OFFSET + size_of::<bool>();
@@ -23,6 +25,8 @@ pub const NAME_OFFSET: usize = EXPIRY_OFFSET + size_of::<u8>();
 pub struct Record<'info> {
     /// The class this record belongs to
     pub class: Pubkey,
+    /// The owner_type enum
+    pub owner_type: OwnerType,
     /// The owner of this record
     pub owner: Pubkey,
     /// Whether the record is frozen
@@ -35,6 +39,15 @@ pub struct Record<'info> {
     pub name: &'info str,
     /// The record's data content
     pub data: &'info str,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub enum OwnerType {
+    /// The owner is a pubkey
+    Pubkey,
+    /// The owner is a token
+    Token,
 }
 
 impl<'info> Record<'info> {
@@ -50,15 +63,14 @@ impl<'info> Record<'info> {
 
     /// Check if the program id and discriminator are valid
     #[inline(always)]
-    fn check_program_id_and_discriminator(account_info: &AccountInfo) -> Result<(), ProgramError> {
+    pub fn check_program_id_and_discriminator(account_info: &AccountInfo) -> Result<(), ProgramError> {
         // Check Program ID
         if unsafe { account_info.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
         }
 
-        let data = account_info.try_borrow_data()?;
-
         // Check discriminator
+        let data = account_info.try_borrow_data()?;
         if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -66,18 +78,37 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    /// Check if the owner authority is valid
+    /// Check if the owner is valid
     #[inline(always)]
-    fn check_owner_authority(data: &[u8], authority: &Pubkey) -> Result<(), ProgramError> {
+    pub unsafe fn check_owner_unchecked(data: &[u8], owner: &AccountInfo) -> Result<(), ProgramError> {
+        if !owner.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         // Check if the authority is the owner
-        if authority.ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if owner.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         Ok(())
     }
 
+    #[inline(always)]
+    pub fn check_owner(
+        account_info: &AccountInfo,
+        owner: &AccountInfo,
+    ) -> Result<(), ProgramError> {
+        // Check the program id and the discriminator 
+        Self::check_program_id_and_discriminator(account_info)?;
+
+        let data = account_info.try_borrow_data()?;
+        
+        // Check the owner
+        unsafe { Self::check_owner_unchecked(&data, owner) }
+    }
+
     /// DELEGATE TYPES
+    pub const MINT_AUTHORITY_DELEGATION_TYPE: u8 = 0;
     pub const UPDATE_AUTHORITY_DELEGATION_TYPE: u8 = 1;
     pub const FREEZE_AUTHORITY_DELEGATION_TYPE: u8 = 2;
     pub const TRANSFER_AUTHORITY_DELEGATION_TYPE: u8 = 3;
@@ -100,6 +131,7 @@ impl<'info> Record<'info> {
         }
 
         match delegation_type {
+            Self::MINT_AUTHORITY_DELEGATION_TYPE => (),
             Self::UPDATE_AUTHORITY_DELEGATION_TYPE => {
                 RecordAuthorityDelegate::check_update_authority(delegate, authority.key())?
             }
@@ -121,23 +153,9 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub fn check_authority(
-        account_info: &AccountInfo,
-        authority: &Pubkey,
-    ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator 
-        Self::check_program_id_and_discriminator(account_info)?;
-
-        let data = account_info.try_borrow_data()?;
-        
-        // Check the authority
-        Self::check_owner_authority(&data, authority)
-    }
-
-    #[inline(always)]
-    pub fn check_authority_or_delegate(
+    pub fn check_owner_or_delegate(
         record: &AccountInfo,
-        authority: &AccountInfo,
+        owner: &AccountInfo,
         delegate: Option<&AccountInfo>,
         delegation_type: u8,
     ) -> Result<(), ProgramError> {
@@ -151,13 +169,23 @@ impl<'info> Record<'info> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if the authority is the owner
-        if authority.key().eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        // Check if the owner type is pubkey
+        if data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Pubkey as u8)) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if the owner is signer
+        if !owner.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Check if the owner is the owner
+        if owner.key().eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
                 && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
             {
                 let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-                RecordAuthorityDelegate::delete_record_delegate(delegate, authority)?;
+                unsafe { RecordAuthorityDelegate::delete_record_delegate_unchecked(delegate, owner)? }
             }
             return Ok(());
         }
@@ -169,18 +197,19 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(record, delegate, authority, delegation_type)
+        Self::validate_delegate(record, delegate, owner, delegation_type)
     }
 
     #[inline(always)]
-    pub fn check_authority_or_delegate_tokenized(
+    pub fn check_owner_or_delegate_tokenized(
         record: &AccountInfo,
-        authority: &AccountInfo,
+        owner: &AccountInfo,
         mint: &AccountInfo,
         token_account: &AccountInfo,
         delegate: Option<&AccountInfo>,
         delegation_type: u8,
     ) -> Result<(), ProgramError> {
+        // Check the program id and the discriminator 
         Self::check_program_id_and_discriminator(record)?;
 
         if unsafe { mint.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
@@ -191,66 +220,91 @@ impl<'info> Record<'info> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let data = record.try_borrow_data()?;
-        if mint.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        let record_data = record.try_borrow_data()?;
+
+        // Check if the owner type is token
+        if record_data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if the owner is signer
+        if !owner.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Check if the mint is the owner
+        if mint.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         let token_data = token_account.try_borrow_data()?;
-        if authority.key().eq(&token_data[TOKEN_ACCOUNT_OWNER_OFFSET..TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<Pubkey>()]) {
-            if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
+
+        // Check if the authority is the owner
+        if owner.key().eq(&token_data[TOKEN_ACCOUNT_OWNER_OFFSET..TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<Pubkey>()]) {
+            if record_data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
                 && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
             {
                 let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-                RecordAuthorityDelegate::delete_record_delegate(delegate, authority)?;
+                unsafe { RecordAuthorityDelegate::delete_record_delegate_unchecked(delegate, owner)? }
             }
             return Ok(());
         }
 
-        if data[HAS_AUTHORITY_DELEGATE_OFFSET].ne(&1u8) {
+        // Check if the record has an authority delegate
+        if record_data[HAS_AUTHORITY_DELEGATE_OFFSET].ne(&1u8) {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(record, delegate, authority, delegation_type)
+        Self::validate_delegate(record, delegate, owner, delegation_type)
     }
 
     #[inline(always)]
     pub unsafe fn update_is_frozen_unchecked(
-        record: &'info AccountInfo,
+        mut data: RefMut<'info, [u8]>,
         is_frozen: bool,
     ) -> Result<(), ProgramError> {
-        let mut data = record.try_borrow_mut_data()?;
+
+        // Check if the is_frozen is the same
         if data[IS_FROZEN_OFFSET].eq(&(is_frozen as u8)) {
             return Err(ProgramError::InvalidAccountData);
         }
+
+        // Update the is_frozen
         data[IS_FROZEN_OFFSET] = is_frozen as u8;
+
         Ok(())
     }
 
     #[inline(always)]
     pub unsafe fn update_has_authority_extension_unchecked(
-        record: &'info AccountInfo,
+        mut data: RefMut<'info, [u8]>,
         has_authority_delegate: bool,
     ) -> Result<(), ProgramError> {
-        let mut data = record.try_borrow_mut_data()?;
+        // Check if the has_authority_delegate is the same
         if data[HAS_AUTHORITY_DELEGATE_OFFSET].eq(&(has_authority_delegate as u8)) {
             return Err(ProgramError::InvalidAccountData);
         }
+
+        // Update the has_authority_delegate
         data[HAS_AUTHORITY_DELEGATE_OFFSET] = has_authority_delegate as u8;
+
         Ok(())
     }
 
     #[inline(always)]
     pub unsafe fn update_owner_unchecked(
-        record: &'info AccountInfo,
+        mut data: RefMut<'info, [u8]>,
         new_owner: Pubkey,
     ) -> Result<(), ProgramError> {
-        let mut data = record.try_borrow_mut_data()?;
+        // Check if the new_owner is the same
         if new_owner.eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::InvalidAccountData);
         }
+
+        // Update the owner
         data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(&new_owner);
+
         Ok(())
     }
 
@@ -312,37 +366,7 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub fn from_bytes(data: &'info [u8]) -> Result<Self, ProgramError> {
-        let discriminator: u8 = ByteReader::read_with_offset(data, DISCRIMINATOR_OFFSET)?;
-        if discriminator.ne(&Self::DISCRIMINATOR) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let class: Pubkey = ByteReader::read_with_offset(data, CLASS_OFFSET)?;
-        let owner: Pubkey = ByteReader::read_with_offset(data, OWNER_OFFSET)?;
-        let is_frozen: bool = ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?;
-        let has_authority_delegate: bool =
-            ByteReader::read_with_offset(data, HAS_AUTHORITY_DELEGATE_OFFSET)?;
-        let expiry: i64 = ByteReader::read_with_offset(data, EXPIRY_OFFSET)?;
-
-        let mut variable_data: ByteReader<'info> =
-            ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
-        let name: &'info str = variable_data.read_str_with_length()?;
-        let data_content: &'info str = variable_data.read_str(variable_data.remaining_bytes())?;
-
-        Ok(Self {
-            class,
-            owner,
-            is_frozen,
-            has_authority_delegate,
-            expiry,
-            name,
-            data: data_content,
-        })
-    }
-
-    #[inline(always)]
-    pub fn initialize(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+    pub unsafe fn initialize_unchecked(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
         if account_info.data_len() < required_space {
             return Err(ProgramError::InvalidAccountData);
@@ -355,6 +379,7 @@ impl<'info> Record<'info> {
 
         ByteWriter::write_with_offset(&mut data, DISCRIMINATOR_OFFSET, Self::DISCRIMINATOR)?;
         ByteWriter::write_with_offset(&mut data, CLASS_OFFSET, self.class)?;
+        ByteWriter::write_with_offset(&mut data, OWNER_TYPE_OFFSET, self.owner_type)?;
         ByteWriter::write_with_offset(&mut data, OWNER_OFFSET, self.owner)?;
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
         ByteWriter::write_with_offset(
@@ -369,5 +394,23 @@ impl<'info> Record<'info> {
         variable_data.write_str(self.data)?;
 
         Ok(())
+    }
+
+    #[inline(always)]
+    pub unsafe fn from_bytes_unchecked(
+        data: &'info [u8],
+    ) -> Result<Self, ProgramError> {
+        let mut variable = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
+
+        Ok(Self {
+            class: ByteReader::read_with_offset(data, CLASS_OFFSET)?,
+            owner_type: ByteReader::read_with_offset(data, OWNER_TYPE_OFFSET)?,
+            owner: ByteReader::read_with_offset(data, OWNER_OFFSET)?,
+            is_frozen: ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?,
+            has_authority_delegate: ByteReader::read_with_offset(data, HAS_AUTHORITY_DELEGATE_OFFSET)?,
+            expiry: ByteReader::read_with_offset(data, EXPIRY_OFFSET)?,
+            name: variable.read_str_with_length()?,
+            data: variable.read_str(variable.remaining_bytes())?,
+        })
     }
 }

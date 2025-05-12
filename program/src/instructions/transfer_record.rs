@@ -37,12 +37,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
         let [authority, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        Record::check_authority_or_delegate(
+        
+        Record::check_owner_or_delegate(
             record,
             authority,
             rest.first(),
@@ -95,6 +91,6 @@ impl<'info> TransferRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Update the record to be transferred [this is safe, check safety docs]
-        unsafe { Record::update_owner_unchecked(self.accounts.record, self.new_owner) }
+        unsafe { Record::update_owner_unchecked(self.accounts.record.try_borrow_mut_data()?, self.new_owner) }
     }
 }

@@ -55,7 +55,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate_tokenized(
+        Record::check_owner_or_delegate_tokenized(
             record,
             authority,
             mint,

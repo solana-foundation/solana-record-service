@@ -14,6 +14,8 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
+/// 2. `mint` - The mint account that that is linked to the record
+/// 3. `token_account` - The token account that is linked to the record
 /// 2. `record` - The record account to be frozen/unfrozen
 /// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
 ///
@@ -22,30 +24,31 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///    a. The record owner, or
 ///    b. A delegate with freeze authority
 pub struct FreezeRecordAccounts<'info> {
+    mint: &'info AccountInfo,
+    token_account: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, rest @ ..] = accounts else {
+        let [owner, mint, token_account, record, _system_program, rest @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Account Checks
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(
+        // Check if owner is the record owner or has a delegate
+        Record::check_owner_or_delegate_tokenized(
             record,
-            authority,
+            owner,
+            mint,
+            token_account,
             rest.first(),
-            Record::FREEZE_AUTHORITY_DELEGATION_TYPE,
+            Record::TRANSFER_AUTHORITY_DELEGATION_TYPE,
         )?;
 
-        Ok(Self { record })
+        Ok(Self { mint, token_account, record })
     }
 }
 
@@ -90,7 +93,6 @@ impl<'info> FreezeRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        // Update the record to be frozen [this is safe, check safety docs]
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, self.is_frozen) }
+        todo!("Cpi into the Lock or Thaw instruction based on the self.is_frozen value. No need to check if it's currently frozen or not since it will just fail")
     }
 }

@@ -34,13 +34,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAuthorityDelegateAccou
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check owner
-        if !owner.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         // Check record authority
-        Record::check_authority_or_delegate(
+        Record::check_owner_or_delegate(
             record,
             owner,
             Some(delegate),

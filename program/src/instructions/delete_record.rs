@@ -22,7 +22,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///    a. The record owner, or
 ///    b. A delegate with burn authority
 pub struct DeleteRecordAccounts<'info> {
-    authority: &'info AccountInfo,
+    owner: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
@@ -30,24 +30,19 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, rest @ ..] = accounts else {
+        let [owner, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Account Checks
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(
+        Record::check_owner_or_delegate(
             record,
-            authority,
+            owner,
             rest.first(),
             Record::BURN_AUTHORITY_DELEGATION_TYPE,
         )?;
 
-        Ok(Self { authority, record })
+        Ok(Self { owner, record })
     }
 }
 
@@ -75,6 +70,6 @@ impl<'info> DeleteRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Safety: The account has already been validated
-        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.authority) }
+        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.owner) }
     }
 }

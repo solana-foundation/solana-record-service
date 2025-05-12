@@ -28,19 +28,14 @@ pub struct FreezeRecordAccounts<'info> {
 impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, rest @ ..] = accounts else {
+        let [owner, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Account Checks
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         // Check if authority is the record owner or has a delegate
-        Record::check_authority_or_delegate(
+        Record::check_owner_or_delegate(
             record,
-            authority,
+            owner,
             rest.first(),
             Record::FREEZE_AUTHORITY_DELEGATION_TYPE,
         )?;
@@ -91,6 +86,6 @@ impl<'info> FreezeRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Update the record to be frozen [this is safe, check safety docs]
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, self.is_frozen) }
+        unsafe { Record::update_is_frozen_unchecked(self.accounts.record.try_borrow_mut_data()?, self.is_frozen) }
     }
 }

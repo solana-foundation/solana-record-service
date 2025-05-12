@@ -15,7 +15,7 @@ use pinocchio::{
 use pinocchio_system::instructions::CreateAccount;
 
 use crate::{
-    state::{Class, Record},
+    state::{Class, OwnerType, Record},
     utils::{ByteReader, Context},
 };
 
@@ -163,6 +163,7 @@ impl<'info> CreateRecord<'info> {
 
         let record = Record {
             class: *self.accounts.class.key(),
+            owner_type: OwnerType::Pubkey,
             owner: *self.accounts.owner.key(),
             is_frozen: false,
             has_authority_delegate: false,
@@ -171,6 +172,6 @@ impl<'info> CreateRecord<'info> {
             data: self.data,
         };
 
-        record.initialize(self.accounts.record)
+        unsafe { record.initialize_unchecked(self.accounts.record) }
     }
 }
