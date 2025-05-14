@@ -52,11 +52,6 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check owner is a signer
-        if !owner.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         // Check class permission
         Class::check_permission(class, rest.first())?;
 

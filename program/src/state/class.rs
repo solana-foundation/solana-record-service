@@ -1,10 +1,10 @@
-use crate::utils::{resize_account, ByteReader, ByteWriter};
+use crate::utils::{resize_account, ByteWriter};
 use core::{mem::size_of, str};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 const DISCRIMINATOR_OFFSET: usize = 0;
 const AUTHORITY_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
-const IS_PERMISSIONED_OFFSET: usize = AUTHORITY_OFFSET + size_of::<Pubkey>();
+pub const IS_PERMISSIONED_OFFSET: usize = AUTHORITY_OFFSET + size_of::<Pubkey>();
 const IS_FROZEN_OFFSET: usize = IS_PERMISSIONED_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 
@@ -29,14 +29,17 @@ impl<'info> Class<'info> {
 
     /// Check if the program id and discriminator are valid
     #[inline(always)]
-    pub fn check_program_id_and_discriminator(class: &AccountInfo) -> Result<(), ProgramError> {
+    pub fn check_program_id(class: &AccountInfo) -> Result<(), ProgramError> {
         // Check Program ID
         if unsafe { class.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
         }
 
-        // Check Discriminator
-        let data = class.try_borrow_data()?;
+        Ok(())
+    }
+
+    #[inline(always)]
+    pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
         if data[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -54,30 +57,34 @@ impl<'info> Class<'info> {
         if authority.key().ne(&data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::MissingRequiredSignature);
         }
+
         Ok(())
     }
 
-
     pub fn check_authority(class: &AccountInfo, authority: &AccountInfo) -> Result<(), ProgramError> {
-        Self::check_program_id_and_discriminator(class)?;
+        Self::check_program_id(class)?;
         
         let data = class.try_borrow_data()?;
         
-        unsafe { Self::check_authority_unchecked(&data, authority) }
+        unsafe { 
+            Self::check_discriminator_unchecked(&data)?; 
+            Self::check_authority_unchecked(&data, authority) 
+        }
     }
 
     pub fn check_permission(
         class: &AccountInfo,
         authority: Option<&AccountInfo>,
     ) -> Result<(), ProgramError> {
-        Self::check_program_id_and_discriminator(class)?;
+        Self::check_program_id(class)?;
+
         let data = class.try_borrow_data()?;
+
+        unsafe { Self::check_discriminator_unchecked(&data)? }
         
         if data[IS_PERMISSIONED_OFFSET] == 1 {
-            match authority {
-                Some(auth) => unsafe { Self::check_authority_unchecked(&data, auth) }?,
-                None => return Err(ProgramError::MissingRequiredSignature),
-            }
+            let authority = authority.ok_or(ProgramError::InvalidAccountData)?;
+            unsafe { Self::check_authority_unchecked(&data, authority) }?;
         }
 
         if data[IS_FROZEN_OFFSET] == 1 {
@@ -88,12 +95,10 @@ impl<'info> Class<'info> {
     }
 
     pub unsafe fn update_is_permissioned_unchecked(
-        class: &'info AccountInfo,
+        data: &'info mut [u8],
         authority: &'info AccountInfo,
         is_permissioned: bool,
-    ) -> Result<(), ProgramError> {
-        let mut data = class.try_borrow_mut_data()?;
-        
+    ) -> Result<(), ProgramError> {        
         unsafe { Self::check_authority_unchecked(&data, authority)?; }
 
         if data[IS_PERMISSIONED_OFFSET] == is_permissioned as u8 {
@@ -103,15 +108,6 @@ impl<'info> Class<'info> {
         data[IS_PERMISSIONED_OFFSET] = is_permissioned as u8;
 
         Ok(())
-    }
-
-    pub fn update_is_permissioned(
-        class: &'info AccountInfo,
-        authority: &'info AccountInfo,
-        is_permissioned: bool,
-    ) -> Result<(), ProgramError> {
-        Self::check_program_id_and_discriminator(class)?;
-        unsafe { Self::update_is_permissioned_unchecked(class, authority, is_permissioned) }
     }
 
     pub unsafe fn update_is_frozen_unchecked(
@@ -130,15 +126,6 @@ impl<'info> Class<'info> {
         data[IS_FROZEN_OFFSET] = is_frozen as u8;
 
         Ok(())
-    }
-
-    pub fn update_is_frozen(
-        class: &'info AccountInfo,
-        authority: &'info AccountInfo,
-        is_frozen: bool,
-    ) -> Result<(), ProgramError> {
-        Self::check_program_id_and_discriminator(class)?;
-        unsafe { Self::update_is_frozen_unchecked(class, authority, is_frozen) }
     }
 
     pub unsafe fn update_metadata_unchecked(
@@ -170,27 +157,6 @@ impl<'info> Class<'info> {
         }
 
         Ok(())
-    }
-
-    pub fn update_metadata(
-        class: &'info AccountInfo,
-        authority: &'info AccountInfo,
-        metadata: &'info str,
-    ) -> Result<(), ProgramError> {
-        Self::check_program_id_and_discriminator(class)?;
-        unsafe { Self::update_metadata_unchecked(class, authority, metadata) }
-    }
-
-    pub unsafe fn from_bytes_unchecked(data: &'info [u8]) -> Result<Self, ProgramError> {
-        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
-
-        Ok(Self {
-            authority: ByteReader::read_with_offset(data, AUTHORITY_OFFSET)?,
-            is_permissioned: ByteReader::read_with_offset(data, IS_PERMISSIONED_OFFSET)?,
-            is_frozen: ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?,
-            name: variable_data.read_str_with_length()?,
-            metadata: variable_data.read_str(variable_data.remaining_bytes())?,
-        })
     }
 
     pub unsafe fn initialize_unchecked(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {

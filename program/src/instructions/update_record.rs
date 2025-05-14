@@ -42,9 +42,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate(
             record,
-            authority,
             rest.first(),
-            Record::UPDATE_AUTHORITY_DELEGATION_TYPE,
+            authority,
         )?;
 
         Ok(Self { authority, record })

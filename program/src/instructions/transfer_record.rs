@@ -19,12 +19,12 @@ use pinocchio::{
 /// # Accounts
 /// 1. `authority` - The account that has permission to transfer the record (must be a signer)
 /// 2. `record` - The record account to be transferred
-/// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
+/// 3. `class` - [remaining accounts] Required if the authority is not the record owner
 ///
 /// # Security
 /// 1. The authority must be either:
 ///    a. The record owner, or
-///    b. A delegate with transfer authority
+///    b. if the class is permissioned, the authority must be the permissioned authority
 /// 2. The record must not be frozen
 pub struct TransferRecordAccounts<'info> {
     record: &'info AccountInfo,
@@ -37,12 +37,11 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
         let [authority, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-        
+
         Record::check_owner_or_delegate(
             record,
-            authority,
             rest.first(),
-            Record::TRANSFER_AUTHORITY_DELEGATION_TYPE,
+            authority,
         )?;
 
         Ok(Self { record })

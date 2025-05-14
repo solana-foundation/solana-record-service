@@ -65,14 +65,13 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
         };
 
         // Check if authority is the record owner
-        Record::check_owner_or_delegate_tokenized(
-            record, 
-            authority,
-            mint,
-            token_account,
+        Record::check_owner_or_delegate(
+            record,
             rest.first(),
-            Record::MINT_AUTHORITY_DELEGATION_TYPE,
+            authority,
         )?;
+
+        todo!("Check that the record_owner is the same as the token_account owner");
 
         Ok(Self {
             authority,
