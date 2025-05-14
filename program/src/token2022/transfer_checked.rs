@@ -8,7 +8,7 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::{TOKEN_2022_PROGRAM_ID, TOKEN_2022_TRANSFER_CHECKED_IX},
+    token2022::constants::{TOKEN_2022_PROGRAM_ID, TOKEN_2022_TRANSFER_CHECKED_IX},
     utils::{write_bytes, UNINIT_BYTE},
 };
 

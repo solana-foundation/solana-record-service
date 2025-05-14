@@ -46,11 +46,10 @@ fn process_instruction(
         5 => TransferRecord::process(Context { accounts, data }),
         6 => DeleteRecord::process(Context { accounts, data }),
         7 => FreezeRecord::process(Context { accounts, data }),
-        8 => CreateRecordAuthorityDelegate::process(Context { accounts, data }),
-        9 => UpdateRecordAuthorityDelegate::process(Context { accounts, data }),
-        10 => DeleteRecordAuthorityDelegate::process(Context { accounts, data }),
-        11 => MintRecordToken::process(Context { accounts, data }),
-        // 12 => BurnRecordToken::process(Context { accounts, data }),
+        8 => MintRecordToken::process(Context { accounts, data }),
+        9 => UpdateRecordToken::process(Context { accounts, data }),
+        10 => FreezeRecordToken::process(Context { accounts, data }),
+        11 => BurnRecordToken::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

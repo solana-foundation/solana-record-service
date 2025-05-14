@@ -1,4 +1,4 @@
-use crate::{constants::{TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_OWNER_OFFSET}, utils::{resize_account, ByteReader, ByteWriter}};
+use crate::{token2022::{Mint, Token}, utils::{resize_account, ByteReader, ByteWriter}};
 use core::{mem::size_of, str};
 use pinocchio::{
     account_info::{AccountInfo, Ref, RefMut},
@@ -15,7 +15,7 @@ pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 const DISCRIMINATOR_OFFSET: usize = 0;
 const CLASS_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
 const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
-const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
+pub const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
 const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
 const HAS_AUTHORITY_DELEGATE_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 const EXPIRY_OFFSET: usize = HAS_AUTHORITY_DELEGATE_OFFSET + size_of::<bool>();
@@ -162,7 +162,7 @@ impl<'info> Record<'info> {
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
         Record::validate_delegate(&class, authority)
     }
-
+     
     #[inline(always)]
     pub fn check_owner_or_delegate_tokenized(
         record: &AccountInfo,
@@ -180,14 +180,12 @@ impl<'info> Record<'info> {
         }
 
         // Check if the mint is owned by the token program
-        if unsafe { mint.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
-            return Err(ProgramError::IncorrectProgramId);
-        }
+        Mint::check_program_id(mint)?;
 
-        // Check if the mint is the correct length
-        if mint.data_len() != TOKEN_2022_MINT_LEN {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let mint_data = mint.try_borrow_data()?;
+
+        // Check if the mint is the correct discriminator
+        unsafe { Mint::check_discriminator_unchecked(&mint_data)?; }
 
         let record_data = record.try_borrow_data()?;
 
@@ -196,17 +194,16 @@ impl<'info> Record<'info> {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if the owner type is token
-        if record_data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        // Check if the token account is owned by the token program
+        Token::check_program_id(token_account)?;
 
         let token_data = token_account.try_borrow_data()?;
 
-        todo!("add checks for token account");
+        // Check if the token account is the correct discriminator
+        unsafe { Token::check_discriminator_unchecked(&token_data)?; }
 
         // Check if the authority is the owner
-        if authority.key().eq(&token_data[TOKEN_ACCOUNT_OWNER_OFFSET..TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if authority.key().eq(unsafe { &Token::get_owner_unchecked(&token_data)? }) {
             return Ok(());
         }
 
@@ -218,6 +215,8 @@ impl<'info> Record<'info> {
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
         Record::validate_delegate(&class, authority)
     }
+
+    
 
     #[inline(always)]
     pub unsafe fn update_is_frozen_unchecked(

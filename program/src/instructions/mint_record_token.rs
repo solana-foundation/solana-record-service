@@ -3,15 +3,16 @@ use pinocchio::log::sol_log;
 use pinocchio_associated_token_account::instructions::Create;
 
 use crate::{
-    constants::{
-        SRS_TICKER, TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
+    token2022::constants::{
+        TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
         TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
         TOKEN_2022_PROGRAM_ID,
     },
-    state::{Record, NAME_OFFSET},
+    constants::SRS_TICKER,
+    state::{Record, NAME_OFFSET, OWNER_OFFSET},
     token2022::{
         InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
-        InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked, Token,
     },
     utils::Context,
 };
@@ -19,7 +20,7 @@ use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::try_find_program_address,
+    pubkey::{try_find_program_address, Pubkey},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
@@ -35,12 +36,15 @@ use pinocchio_system::instructions::CreateAccount;
 /// 5. Mints a token to the token account
 ///
 /// # Accounts
-/// 1. `authority` - The owner of the record (must be a signer)
-/// 2. `record` - The record for which the token will be minted
-/// 3. `mint` - The mint account of the record token
-/// 4. `tokenAccount` - The token account where we mint the record token to
-/// 5. `token2022` - The Token2022 program
-/// 6. `system_program` - Required for initializing our accounts
+/// 1. `owner` - The owner of the record
+/// 2. `authority` - The authority of minting this record, could be the owner or a delegate
+/// 3. `record` - The record for which the token will be minted
+/// 4. `mint` - The mint account of the record token
+/// 5. `tokenAccount` - The token account where we mint the record token to
+/// 6. `token2022` - The Token2022 program
+/// 7. `system_program` - Required for initializing our accounts
+/// 8. `class` - [optional] The class of the record
+/// 
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
@@ -58,7 +62,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
+        let [owner, authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -71,7 +75,17 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
             authority,
         )?;
 
-        todo!("Check that the record_owner is the same as the token_account owner");
+        // Check if the owner of the record is the same as the owner of the token account
+        if owner.key().ne(unsafe { &Token::get_owner_unchecked(&token_account.try_borrow_data()?)? }) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check if the owner is the same as the owner of the Record
+        let token_data = token_account.try_borrow_data()?;
+
+        if owner.key().ne(&token_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         Ok(Self {
             authority,

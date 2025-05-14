@@ -9,7 +9,7 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::{TOKEN_2022_INITIALIZE_PERMANENT_DELEGATE_IX, TOKEN_2022_PROGRAM_ID},
+    token2022::constants::{TOKEN_2022_INITIALIZE_PERMANENT_DELEGATE_IX, TOKEN_2022_PROGRAM_ID},
     utils::{write_bytes, UNINIT_BYTE},
 };
 

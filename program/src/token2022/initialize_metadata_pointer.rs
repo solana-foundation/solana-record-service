@@ -9,7 +9,7 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::{
+    token2022::constants::{
         TOKEN_2022_METADATA_POINTER_EXTENSION_IX, TOKEN_2022_METADATA_POINTER_INITIALIZE_IX,
         TOKEN_2022_PROGRAM_ID,
     },
