@@ -16,6 +16,9 @@ pub use update_metadata::*;
 pub mod initialize_mint_2;
 pub use initialize_mint_2::*;
 
+pub mod close_account;
+pub use close_account::*;
+
 pub mod mint_to_checked;
 pub use mint_to_checked::*;
 

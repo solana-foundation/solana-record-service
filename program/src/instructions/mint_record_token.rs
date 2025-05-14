@@ -48,7 +48,7 @@ use pinocchio_system::instructions::CreateAccount;
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
-///    b. An authorized delegate with update permissions
+///    b. if the class is permissioned, the authority must be the permissioned authority
 pub struct MintRecordTokenAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,

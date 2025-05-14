@@ -8,11 +8,8 @@ pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN: usize = 0x24;
 pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x44;
 pub const TOKEN_IS_FROZEN_FLAG: u8 = 2;
 
-
 // CloseAccount - 9
 pub const TOKEN_2022_CLOSE_ACCOUNT_IX: u8 = 0x09;
-
-pub const TOKEN_2022_METADATA_POINTER_UPDATE_IX: u8 = 0x01;
 
 // Close Mint Authority - xx
 pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_IX: u8 = 0xff;

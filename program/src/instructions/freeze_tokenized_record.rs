@@ -41,11 +41,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         // Check if owner is the record owner or has a delegate
         Record::check_owner_or_delegate_tokenized(
             record,
+            rest.first(),
             owner,
             mint,
             token_account,
-            rest.first(),
-            Record::TRANSFER_AUTHORITY_DELEGATION_TYPE,
         )?;
 
         Ok(Self { mint, token_account, record })
@@ -88,7 +87,7 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
 impl<'info> FreezeRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
-        sol_log("Freeze Record");
+        sol_log("Freeze Tokenized Record");
         Self::try_from(ctx)?.execute()
     }
 

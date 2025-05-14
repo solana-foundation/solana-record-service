@@ -27,12 +27,12 @@ use pinocchio::{
 /// 4. `metadata` - The metadata account that is linked to the mint
 /// 5. `record` - The record account to be updated
 /// 6. `system_program` - Required for account resizing operations
-/// 7. `record_delegate` - optional, if the record has a delegate
+/// 7. `class` - [optional] The class of the token account
 ///
 /// # Security
 /// 1. The authority must be:
 ///    a. The mint's owner, or
-///    b. An authorized delegate with update permissions
+///    b. if the class is permissioned, the authority must be the permissioned authority
 pub struct UpdateTokenizedRecordAccounts<'info> {
     authority: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -57,11 +57,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_tokenized(
             record,
+            rest.first(),
             authority,
             mint,
             token_account,
-            rest.first(),
-            Record::UPDATE_AUTHORITY_DELEGATION_TYPE,
         )?;
 
         Ok(Self {
