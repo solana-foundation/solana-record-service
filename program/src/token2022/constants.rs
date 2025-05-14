@@ -6,26 +6,16 @@ pub const TOKEN_2022_MINT_BASE_LEN: usize = 0x54;
 pub const TOKEN_2022_PERMANENT_DELEGATE_LEN: usize = 0x24;
 pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN: usize = 0x24;
 pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x44;
+pub const TOKEN_IS_FROZEN_FLAG: u8 = 2;
+
 
 // CloseAccount - 9
 pub const TOKEN_2022_CLOSE_ACCOUNT_IX: u8 = 0x09;
 
-// TransferChecked - 12
-pub const TOKEN_2022_TRANSFER_CHECKED_IX: u8 = 0x0c;
-
-// BurnChecked - 15
-pub const TOKEN_2022_BURN_CHECKED_IX: u8 = 0x0f;
-
-// InitializeMintCloseAuthority - 25
-pub const TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX: u8 = 0x19;
-
-// InitializePermanentDelegate - 35
-pub const TOKEN_2022_INITIALIZE_PERMANENT_DELEGATE_IX: u8 = 0x23;
-
-// MetadataPointerExtension - 39
-pub const TOKEN_2022_METADATA_POINTER_EXTENSION_IX: u8 = 0x27;
-pub const TOKEN_2022_METADATA_POINTER_INITIALIZE_IX: u8 = 0x00;
 pub const TOKEN_2022_METADATA_POINTER_UPDATE_IX: u8 = 0x01;
+
+// Close Mint Authority - xx
+pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_IX: u8 = 0xff;
 
 // TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = [

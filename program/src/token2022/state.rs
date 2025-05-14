@@ -1,10 +1,9 @@
-use crate::token2022::constants::{TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID};
+use crate::token2022::constants::{TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_IS_FROZEN_FLAG};
 use pinocchio::{
     account_info::AccountInfo,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
-
 
 #[repr(C)]
 pub struct Mint<'info> {
@@ -32,7 +31,6 @@ impl<'info> Mint<'info> {
 const TOKEN_MINT_OFFSET: usize = 0;
 const TOKEN_OWNER_OFFSET: usize = TOKEN_MINT_OFFSET + size_of::<Pubkey>();
 const TOKEN_IS_FROZEN_OFFSET: usize = TOKEN_OWNER_OFFSET + size_of::<u64>() + size_of::<u32>() + size_of::<Pubkey>();
-pub const TOKEN_IS_FROZEN_FLAG: u8 = 2;
 
 #[repr(C)]
 pub struct Token<'info> {

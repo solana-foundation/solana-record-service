@@ -8,7 +8,7 @@ use pinocchio::{
 };
 
 use crate::{
-    token2022::constants::{TOKEN_2022_PROGRAM_ID, TOKEN_2022_TRANSFER_CHECKED_IX},
+    token2022::constants::TOKEN_2022_PROGRAM_ID,
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -38,6 +38,7 @@ const AMOUNT_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
 const DECIMALS_OFFSET: usize = AMOUNT_OFFSET + size_of::<u64>();
 
 impl TransferChecked<'_> {
+    const DISCRIMINATOR: u8 = 0x0c;
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
@@ -58,22 +59,19 @@ impl TransferChecked<'_> {
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
-        // Set discriminator as u8 at offset [0]
         write_bytes(
             &mut instruction_data,
-            &[TOKEN_2022_TRANSFER_CHECKED_IX],
+            &[Self::DISCRIMINATOR],
         );
 
-        // Set amount as u64 at offset [1..9]
-        write_bytes(&mut instruction_data[AMOUNT_OFFSET..AMOUNT_OFFSET + size_of::<u64>()], &self.amount.to_le_bytes());
+        write_bytes(&mut instruction_data[AMOUNT_OFFSET..], &self.amount.to_le_bytes());
 
-        // Set decimals as u8 at offset [9..10]
-        write_bytes(&mut instruction_data[DECIMALS_OFFSET..DECIMALS_OFFSET + size_of::<u8>()], &[self.decimals]);
+        write_bytes(&mut instruction_data[DECIMALS_OFFSET..], &[self.decimals]);
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
-            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, 10) },
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
         invoke_signed(&instruction, &[self.authority], signers)

@@ -33,10 +33,16 @@ pub struct MintToChecked<'a> {
 }
 
 impl MintToChecked<'_> {
+    const DISCRIMINATOR: u8 = 0x0e;
+
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
     }
+
+    const DISCRIMINATOR_OFFSET: usize = 0;
+    const AMOUNT_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const DECIMALS_OFFSET: usize = Self::AMOUNT_OFFSET + size_of::<u64>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // account metadata
@@ -52,17 +58,16 @@ impl MintToChecked<'_> {
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
-        // Set discriminator as u8 at offset [0]
-        write_bytes(&mut instruction_data, &[14]);
-        // Set amount as u64 at offset [1..9]
-        write_bytes(&mut instruction_data[1..9], &self.amount.to_le_bytes());
-        // Set decimals as u8 at offset [9]
-        write_bytes(&mut instruction_data[9..], &[self.decimals]);
+        write_bytes(&mut instruction_data[Self::DISCRIMINATOR_OFFSET..], &[Self::DISCRIMINATOR]);
+        
+        write_bytes(&mut instruction_data[Self::AMOUNT_OFFSET..], &self.amount.to_le_bytes());
+        
+        write_bytes(&mut instruction_data[Self::DECIMALS_OFFSET..], &[self.decimals]);
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
-            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, 10) },
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
         invoke_signed(

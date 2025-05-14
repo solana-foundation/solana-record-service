@@ -11,7 +11,7 @@ use pinocchio::{
 
 use crate::{
     constants::MAX_METADATA_LEN,
-    token2022::constants::TOKEN_2022_PROGRAM_ID,
+    token2022::constants::{TOKEN_2022_PROGRAM_ID, TOKEN_IS_FROZEN_FLAG},
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -66,27 +66,26 @@ impl UpdateMetadata<'_> {
         let mut instruction_data =
             [UNINIT_BYTE; Self::DISCRIMINATOR.len() + size_of::<u32>() + MAX_METADATA_LEN];
 
-        // Write discriminator as u8 at offset [0..8]
         write_bytes(
-            &mut instruction_data[DISCRIMINATOR_OFFSET..DISCRIMINATOR_OFFSET + size_of::<u64>()],
+            &mut instruction_data[DISCRIMINATOR_OFFSET..],
             &Self::DISCRIMINATOR,
         );
 
         // Write field at offset [8]
         write_bytes(
-            &mut instruction_data[FIELD_OFFSET..FIELD_OFFSET + size_of::<u8>()],
-            &[2u8],
+            &mut instruction_data[FIELD_OFFSET..],
+            &[TOKEN_IS_FROZEN_FLAG],
         );
 
         // Write new_uri length at offset [9..13]
         write_bytes(
-            &mut instruction_data[NEW_URI_LENGTH_OFFSET..NEW_URI_LENGTH_OFFSET + size_of::<u32>()],
+            &mut instruction_data[NEW_URI_LENGTH_OFFSET..],
             &(self.new_uri.len() as u32).to_le_bytes(),
         );
 
         // Write new_uri at offset [13]
         write_bytes(
-            &mut instruction_data[NEW_URI_OFFSET..NEW_URI_OFFSET + self.new_uri.len()],
+            &mut instruction_data[NEW_URI_OFFSET..],
             self.new_uri.as_bytes(),
         );
 
