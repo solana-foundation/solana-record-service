@@ -16,7 +16,7 @@ use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_
 /// 2. `mint` - The mint account that that is linked to the record
 /// 3. `token_account` - The token account that is linked to the record
 /// 2. `record` - The record account to be frozen/unfrozen
-/// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
+/// 3. `class` - [remaining accounts] Required if the authority is not the record owner
 ///
 /// # Security
 /// 1. The authority must be either:

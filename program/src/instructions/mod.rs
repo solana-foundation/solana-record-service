@@ -22,8 +22,8 @@ pub use freeze_record::FreezeRecord;
 pub mod delete_record;
 pub use delete_record::DeleteRecord;
 
-pub mod mint_record_token;
-pub use mint_record_token::*;
+pub mod mint_tokenized_record;
+pub use mint_tokenized_record::*;
 
 pub mod update_tokenized_record;
 pub use update_tokenized_record::*;
@@ -33,3 +33,6 @@ pub use transfer_tokenized_record::*;
 
 pub mod freeze_tokenized_record;
 pub use freeze_tokenized_record::*;
+
+pub mod burn_tokenized_record;
+pub use burn_tokenized_record::*;

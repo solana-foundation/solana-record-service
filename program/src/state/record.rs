@@ -216,11 +216,26 @@ impl<'info> Record<'info> {
         Record::validate_delegate(&class, authority)
     }
 
-    
+    #[inline(always)]
+    pub unsafe fn update_owner_type_unchecked(
+        data: &mut RefMut<'info, [u8]>,
+        owner_type: OwnerType,
+    ) -> Result<(), ProgramError> {
+
+        // Check if the owner_type is the same
+        if data[OWNER_TYPE_OFFSET].eq(&(owner_type as u8)) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update the owner_type
+        data[OWNER_TYPE_OFFSET] = owner_type as u8;
+
+        Ok(())
+    }
 
     #[inline(always)]
     pub unsafe fn update_is_frozen_unchecked(
-        mut data: RefMut<'info, [u8]>,
+        data: &mut RefMut<'info, [u8]>,
         is_frozen: bool,
     ) -> Result<(), ProgramError> {
 
@@ -237,7 +252,7 @@ impl<'info> Record<'info> {
 
     #[inline(always)]
     pub unsafe fn update_has_authority_extension_unchecked(
-        mut data: RefMut<'info, [u8]>,
+        data: &mut RefMut<'info, [u8]>,
         has_authority_delegate: bool,
     ) -> Result<(), ProgramError> {
         // Check if the has_authority_delegate is the same
@@ -253,8 +268,8 @@ impl<'info> Record<'info> {
 
     #[inline(always)]
     pub unsafe fn update_owner_unchecked(
-        mut data: RefMut<'info, [u8]>,
-        new_owner: Pubkey,
+        data: &mut RefMut<'info, [u8]>,
+        new_owner: &Pubkey,
     ) -> Result<(), ProgramError> {
         // Check if the record is frozen
         if data[IS_FROZEN_OFFSET].eq(&1u8) {
@@ -267,7 +282,7 @@ impl<'info> Record<'info> {
         }
 
         // Update the owner
-        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(&new_owner);
+        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(new_owner);
 
         Ok(())
     }
@@ -304,6 +319,7 @@ impl<'info> Record<'info> {
 
         Ok(())
     }
+
 
     #[inline(always)]
     pub unsafe fn delete_record_unchecked(

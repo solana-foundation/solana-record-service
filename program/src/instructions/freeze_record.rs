@@ -85,6 +85,6 @@ impl<'info> FreezeRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Update the record to be frozen [this is safe, check safety docs]
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record.try_borrow_mut_data()?, self.is_frozen) }
+        unsafe { Record::update_is_frozen_unchecked(&mut self.accounts.record.try_borrow_mut_data()?, self.is_frozen) }
     }
 }

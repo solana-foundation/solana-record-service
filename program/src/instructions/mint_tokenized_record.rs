@@ -1,23 +1,21 @@
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use core::mem::size_of;
 use pinocchio_associated_token_account::instructions::Create;
 
 use crate::{
-    constants::{
-        SRS_TICKER, TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
+    constants::SRS_TICKER, state::{OwnerType, Record, NAME_OFFSET, OWNER_OFFSET}, token2022::{constants::{
+        TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
         TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
         TOKEN_2022_PROGRAM_ID,
-    },
-    state::Record,
-    token2022::{
-        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
-        InitializeMintCloseAuthority, InitializePermanentDelegate, MintToChecked,
-    },
-    utils::Context,
+    }, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked, Token}, utils::Context
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -31,17 +29,20 @@ use pinocchio_system::instructions::CreateAccount;
 /// 5. Mints a token to the token account
 ///
 /// # Accounts
-/// 1. `authority` - The owner of the record (must be a signer)
-/// 2. `record` - The record for which the token will be minted
-/// 3. `mint` - The mint account of the record token
-/// 4. `tokenAccount` - The token account where we mint the record token to
-/// 5. `token2022` - The Token2022 program
-/// 6. `system_program` - Required for initializing our accounts
+/// 1. `owner` - The owner of the record
+/// 2. `authority` - The authority of minting this record, could be the owner or a delegate
+/// 3. `record` - The record for which the token will be minted
+/// 4. `mint` - The mint account of the record token
+/// 5. `tokenAccount` - The token account where we mint the record token to
+/// 6. `token2022` - The Token2022 program
+/// 7. `system_program` - Required for initializing our accounts
+/// 8. `class` - [optional] The class of the record
+/// 
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
-///    b. An authorized delegate with update permissions
-pub struct BurnRecordTokenAccounts<'info> {
+///    b. if the class is permissioned, the authority must be the permissioned authority
+pub struct MintRecordTokenAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -54,18 +55,30 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program] =
+        let [owner, authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
+        // Check if authority is the record owner
+        Record::check_owner_or_delegate(
+            record,
+            rest.first(),
+            authority,
+        )?;
+
+        // Check if the owner of the record is the same as the owner of the token account
+        if owner.key().ne(unsafe { &Token::get_owner_unchecked(&token_account.try_borrow_data()?)? }) {
+            return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if authority is the record owner
-        Record::check_authority(record, authority.key())?;
+        // Check if the owner is the same as the owner of the Record
+        let token_data = token_account.try_borrow_data()?;
+
+        if owner.key().ne(&token_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         Ok(Self {
             authority,
@@ -103,11 +116,8 @@ impl<'info> MintRecordToken<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Get Mint length
         let bump = self.derive_mint_address_bump()?;
-        // Get record name and data
-        let data = self.accounts.record.try_borrow_data()?;
-        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
         // Create mint account
-        self.create_mint_account(&bump, name, uri)?;
+        self.create_mint_account(&bump)?;
         // Initialize permanent delegate extension
         self.initialize_permanent_delegate()?;
         // Initialize mint close authority extension
@@ -117,14 +127,20 @@ impl<'info> MintRecordToken<'info> {
         // Initialize mint
         self.initialize_mint()?;
         // Initialize metadata
-        self.initialize_metadata(&bump, name, SRS_TICKER, uri)?;
+        self.initialize_metadata(&bump)?;
         // Initialize token account for user
         self.initialize_token_account()?;
         // Mint record token
         self.mint_to_token_account(&bump)?;
-        // TODO: Update state to reflect it being tokenized
-        drop(data);
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record, true) }
+
+        let mut record_data = self.accounts.record.try_borrow_mut_data()?;
+
+        // 1. Update the record to be frozen since the check will be perfomed on the token account
+        // 2. Update the record_owner to be the mint
+        // 3. Update the record_type to be tokenized
+        unsafe { Record::update_is_frozen_unchecked(&mut record_data, true)? }
+        unsafe { Record::update_owner_unchecked(&mut record_data, &self.accounts.mint.key())? }
+        unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }
     }
 
     fn derive_mint_address_bump(&self) -> Result<[u8; 1], ProgramError> {
@@ -135,24 +151,20 @@ impl<'info> MintRecordToken<'info> {
             .1])
     }
 
-    fn create_mint_account(
-        &self,
-        bump: &[u8; 1],
-        name: &str,
-        uri: &str,
-    ) -> Result<(), ProgramError> {
+    fn create_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
+        // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN
             + TOKEN_2022_MINT_BASE_LEN
             + TOKEN_2022_PERMANENT_DELEGATE_LEN
             + TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN
-            + TOKEN_2022_METADATA_POINTER_LEN; // todo: add metadata length
+            + TOKEN_2022_METADATA_POINTER_LEN;
 
-        let lamports = Rent::get()?.minimum_balance(space + // Static extensions
-            2 * size_of::<u16>() + // extension ID + extention length
-            3 * size_of::<u32>() + // 3 x length counters
-            name.len() + 
-            SRS_TICKER.len() + 
-            uri.len()
+        // To avoid resizing the ming, we calculate the correct lamports for our token AOT with:
+        // 1. `space` - The sum of the above static extension lengths
+        // 2. `record.data_len()` - The full length of the record account
+        // 3. `-NAME_OFFSET` - Remove fixed data in record account that isn't used for metadata
+        let lamports = Rent::get()?.minimum_balance(
+            space + self.accounts.record.data_len() + Metadata::FIXED_HEADER_LEN + NAME_OFFSET, // Deduct static data at start of record account that isn't used in metadata
         );
 
         let seeds = [
@@ -209,13 +221,11 @@ impl<'info> MintRecordToken<'info> {
         .invoke()
     }
 
-    fn initialize_metadata(
-        &self,
-        bump: &[u8; 1],
-        name: &'info str,
-        symbol: &'info str,
-        uri: &'info str,
-    ) -> Result<(), ProgramError> {
+    fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
+        let data = self.accounts.record.try_borrow_data()?;
+
+        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
+
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -230,7 +240,7 @@ impl<'info> MintRecordToken<'info> {
             mint: self.accounts.mint,
             mint_authority: self.accounts.mint,
             name,
-            symbol,
+            symbol: SRS_TICKER,
             uri,
         }
         .invoke_signed(&signers)
