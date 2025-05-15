@@ -1,3 +1,4 @@
+use core::mem::size_of;
 use core::slice::from_raw_parts;
 
 use pinocchio::{
@@ -19,7 +20,7 @@ use crate::{
 ///  1. `[]` The token mint.
 ///  2. `[writable]` The destination account.
 ///  3. `[signer]` The source account's owner/delegate.
-/// 
+///
 /// ### Data:
 ///  0. amount (u64)
 ///  1. decimals (u8)
@@ -59,16 +60,19 @@ impl TransferChecked<'_> {
         let mut instruction_data = [UNINIT_BYTE; 10];
 
         // Set discriminator as u8 at offset [0]
-        write_bytes(
-            &mut instruction_data,
-            &[TOKEN_2022_TRANSFER_CHECKED_IX],
-        );
+        write_bytes(&mut instruction_data, &[TOKEN_2022_TRANSFER_CHECKED_IX]);
 
         // Set amount as u64 at offset [1..9]
-        write_bytes(&mut instruction_data[AMOUNT_OFFSET..AMOUNT_OFFSET + size_of::<u64>()], &self.amount.to_le_bytes());
+        write_bytes(
+            &mut instruction_data[AMOUNT_OFFSET..AMOUNT_OFFSET + size_of::<u64>()],
+            &self.amount.to_le_bytes(),
+        );
 
         // Set decimals as u8 at offset [9..10]
-        write_bytes(&mut instruction_data[DECIMALS_OFFSET..DECIMALS_OFFSET + size_of::<u8>()], &[self.decimals]);
+        write_bytes(
+            &mut instruction_data[DECIMALS_OFFSET..DECIMALS_OFFSET + size_of::<u8>()],
+            &[self.decimals],
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
