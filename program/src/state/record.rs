@@ -59,6 +59,7 @@ impl<'info> Record<'info> {
         + size_of::<Pubkey>() * 2
         + size_of::<bool>() * 2
         + size_of::<i64>()
+        + size_of::<u8>()
         + size_of::<u8>();
 
     /// Check if the program id and discriminator are valid
