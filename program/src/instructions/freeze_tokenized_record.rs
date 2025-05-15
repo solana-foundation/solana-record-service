@@ -1,9 +1,8 @@
 use crate::{
-    state::Record,
-    utils::{ByteReader, Context},
+    state::Record, token2022::{FreezeAccount, ThawAccount, Token}, utils::{ByteReader, Context}
 };
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult};
 
 /// FreezeRecord instruction.
 ///
@@ -92,6 +91,45 @@ impl<'info> FreezeRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        todo!("Cpi into the Lock or Thaw instruction based on the self.is_frozen value. No need to check if it's currently frozen or not since it will just fail")
+        let is_frozen = unsafe { Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
+
+
+        if is_frozen == self.is_frozen {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let bump =
+        [
+            try_find_program_address(
+                &[b"mint", self.accounts.record.key().as_ref()],
+                &crate::ID,
+            )
+            .ok_or(ProgramError::InvalidArgument)?
+            .1,
+        ];
+
+        let seeds = [
+            Seed::from(b"mint"),
+            Seed::from(self.accounts.record.key()),
+            Seed::from(&bump),
+        ];
+
+        let signers = [Signer::from(&seeds)];
+        
+        if self.is_frozen {
+            FreezeAccount {
+                mint: self.accounts.mint,
+                account: self.accounts.token_account,
+                freeze_authority: self.accounts.mint,
+            }.invoke_signed(&signers)?;
+        } else {
+            ThawAccount {
+                mint: self.accounts.mint,
+                account: self.accounts.token_account,
+                freeze_authority: self.accounts.mint,
+            }.invoke_signed(&signers)?;
+        }
+
+        Ok(())
     }
 }

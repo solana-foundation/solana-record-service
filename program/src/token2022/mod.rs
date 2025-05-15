@@ -25,6 +25,12 @@ pub use mint_to_checked::*;
 pub mod transfer_checked;
 pub use transfer_checked::*;
 
+pub mod freeze_account;
+pub use freeze_account::*;
+
+pub mod thaw_account;
+pub use thaw_account::*;
+
 pub mod burn;
 pub use burn::*;
 
