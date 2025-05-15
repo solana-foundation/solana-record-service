@@ -29,6 +29,7 @@ const root = rootNode(
                 data: structTypeNode([
                     structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(2), defaultValueStrategy: 'omitted' }),
                     structFieldTypeNode({ name: 'class', type: publicKeyTypeNode() }),
+                    structFieldTypeNode({ name: 'ownerType', type: numberTypeNode("i8") }),
                     structFieldTypeNode({ name: 'owner', type: publicKeyTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'hasAuthorityExtension', type: booleanTypeNode() }),

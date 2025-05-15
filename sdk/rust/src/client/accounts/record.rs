@@ -20,6 +20,7 @@ pub struct Record {
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
     pub class: Pubkey,
+    pub owner_type: i8,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
