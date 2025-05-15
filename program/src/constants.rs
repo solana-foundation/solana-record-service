@@ -1,3 +1,4 @@
+use core::mem::size_of;
 use pinocchio::pubkey::Pubkey;
 
 /// Variable data length constraints
@@ -16,7 +17,8 @@ pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x44;
 // Token2022 Offset Constants
 pub const TOKEN_ACCOUNT_MINT_OFFSET: usize = 0;
 pub const TOKEN_ACCOUNT_OWNER_OFFSET: usize = TOKEN_ACCOUNT_MINT_OFFSET + size_of::<Pubkey>();
-pub const TOKEN_ACCOUNT_IS_FROZEN_OFFSET: usize = TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<u64>() + size_of::<u32>() + size_of::<Pubkey>();
+pub const TOKEN_ACCOUNT_IS_FROZEN_OFFSET: usize =
+    TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<u64>() + size_of::<u32>() + size_of::<Pubkey>();
 pub const TOKEN_ACCOUNT_IS_FROZEN_FLAG: u8 = 2;
 
 // CloseAccount - 9
