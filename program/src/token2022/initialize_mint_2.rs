@@ -37,7 +37,8 @@ impl InitializeMint2<'_> {
     const DISCRIMINATOR_OFFSET: usize = 0;
     const DECIMALS_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
     const MINT_AUTHORITY_OFFSET: usize = Self::DECIMALS_OFFSET + size_of::<u8>();
-    const FREEZE_AUTHORITY_OFFSET: usize = Self::MINT_AUTHORITY_OFFSET + size_of::<Pubkey>();
+    const HAS_FREEZE_AUTHORITY_OFFSET: usize = Self::MINT_AUTHORITY_OFFSET + size_of::<Pubkey>();
+    const FREEZE_AUTHORITY_OFFSET: usize = Self::HAS_FREEZE_AUTHORITY_OFFSET + size_of::<u8>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         const DISCRIMINATOR: u8 = 0x14;
@@ -61,10 +62,10 @@ impl InitializeMint2<'_> {
         
         // Set COption & freeze_authority at offset [34..67]
         if let Some(freeze_auth) = self.freeze_authority {
-            write_bytes(&mut instruction_data[34..35], &[1]);
-            write_bytes(&mut instruction_data[35..], freeze_auth);
+            write_bytes(&mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..], &[1]);
+            write_bytes(&mut instruction_data[Self::FREEZE_AUTHORITY_OFFSET..], freeze_auth);
         } else {
-            write_bytes(&mut instruction_data[34..35], &[0]);
+            write_bytes(&mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..], &[0]);
         }
 
         let instruction = Instruction {

@@ -42,7 +42,7 @@ use pinocchio_system::instructions::CreateAccount;
 /// 1. The authority must be:
 ///    a. The record's owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
-pub struct MintRecordTokenAccounts<'info> {
+pub struct MintTokenizedRecordAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -51,7 +51,7 @@ pub struct MintRecordTokenAccounts<'info> {
     system_program: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
+impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
@@ -74,9 +74,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
         }
 
         // Check if the owner is the same as the owner of the Record
-        let token_data = token_account.try_borrow_data()?;
+        let record_data = record.try_borrow_data()?;
 
-        if owner.key().ne(&token_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if owner.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -91,25 +91,25 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintRecordTokenAccounts<'info> {
     }
 }
 
-pub struct MintRecordToken<'info> {
-    accounts: MintRecordTokenAccounts<'info>,
+pub struct MintTokenizedRecord<'info> {
+    accounts: MintTokenizedRecordAccounts<'info>,
 }
 
-impl<'info> TryFrom<Context<'info>> for MintRecordToken<'info> {
+impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
-        let accounts = MintRecordTokenAccounts::try_from(ctx.accounts)?;
+        let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })
     }
 }
 
-impl<'info> MintRecordToken<'info> {
+impl<'info> MintTokenizedRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
-        sol_log("Mint Record Token");
+        sol_log("Mint Tokenized Record");
         Self::try_from(ctx)?.execute()
     }
 
@@ -133,11 +133,11 @@ impl<'info> MintRecordToken<'info> {
         // Mint record token
         self.mint_to_token_account(&bump)?;
 
-        let mut record_data = self.accounts.record.try_borrow_mut_data()?;
-
         // 1. Update the record to be frozen since the check will be perfomed on the token account
         // 2. Update the record_owner to be the mint
         // 3. Update the record_type to be tokenized
+        let mut record_data = self.accounts.record.try_borrow_mut_data()?;
+        
         unsafe { Record::update_is_frozen_unchecked(&mut record_data, true)? }
         unsafe { Record::update_owner_unchecked(&mut record_data, &self.accounts.mint.key())? }
         unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }

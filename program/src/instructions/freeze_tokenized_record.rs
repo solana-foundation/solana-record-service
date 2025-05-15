@@ -22,13 +22,13 @@ use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_
 /// 1. The authority must be either:
 ///    a. The record owner, or
 ///    b. A delegate with freeze authority
-pub struct FreezeRecordAccounts<'info> {
+pub struct FreezeTokenizedRecordAccounts<'info> {
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
+impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
         let [owner, mint, token_account, record, _system_program, rest @ ..] =
@@ -52,20 +52,20 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
 
 const IS_FROZEN_OFFSET: usize = 0;
 
-pub struct FreezeRecord<'info> {
-    accounts: FreezeRecordAccounts<'info>,
+pub struct FreezeTokenizedRecord<'info> {
+    accounts: FreezeTokenizedRecordAccounts<'info>,
     is_frozen: bool,
 }
 
 /// Minimum length of instruction data required for FreezeRecord
 pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
-        let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
+        let accounts = FreezeTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         // Check minimum instruction data length
         #[cfg(not(feature = "perf"))]
@@ -83,7 +83,7 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
     }
 }
 
-impl<'info> FreezeRecord<'info> {
+impl<'info> FreezeTokenizedRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
         sol_log("Freeze Tokenized Record");

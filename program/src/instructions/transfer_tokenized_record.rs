@@ -26,15 +26,14 @@ use pinocchio::{
 ///    a. The mint's owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
 /// 2. The record must not be frozen
-pub struct TransferRecordAccounts<'info> {
-    authority: &'info AccountInfo,
+pub struct TransferTokenizedRecordAccounts<'info> {
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
     new_token_account: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
+impl<'info> TryFrom<&'info [AccountInfo]> for TransferTokenizedRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
@@ -57,20 +56,20 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
             token_account,
         )?;
 
-        Ok(Self { authority, mint, token_account, new_token_account, record })
+        Ok(Self { mint, token_account, new_token_account, record })
     }
 }
 
-pub struct TransferRecord<'info> {
-    accounts: TransferRecordAccounts<'info>,
+pub struct TransferTokenizedRecord<'info> {
+    accounts: TransferTokenizedRecordAccounts<'info>,
 }
 
-impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
-        let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
+        let accounts = TransferTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self {
             accounts,
@@ -78,7 +77,7 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
     }
 }
 
-impl<'info> TransferRecord<'info> {
+impl<'info> TransferTokenizedRecord<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
         #[cfg(not(feature = "perf"))]
         sol_log("Transfer Tokenized Record");
