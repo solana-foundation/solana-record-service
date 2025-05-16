@@ -16,6 +16,7 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
+  bool,
   mapSerializer,
   struct,
   u8,
@@ -27,53 +28,61 @@ import {
 } from '../shared';
 
 // Accounts.
-export type MintRecordTokenInstructionAccounts = {
+export type FreezeTokenizedRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
-  /** Record account associated with the tokenized record */
-  record: PublicKey | Pda;
   /** Mint account for the tokenized record */
   mint: PublicKey | Pda;
   /** Token Account for the tokenized record */
   tokenAccount: PublicKey | Pda;
-  /** Associated Token Program used to create our token */
-  associatedTokenProgram?: PublicKey | Pda;
-  /** Token2022 Program used to create our token */
+  /** Record account associated with the tokenized record */
+  record: PublicKey | Pda;
+  /** Token2022 Program used to freeze/unfreeze the tokenized record */
   token2022?: PublicKey | Pda;
-  /** System Program used to create our token */
-  systemProgram?: PublicKey | Pda;
   /** Class account of the record */
   class?: PublicKey | Pda;
 };
 
 // Data.
-export type MintRecordTokenInstructionData = { discriminator: number };
+export type FreezeTokenizedRecordInstructionData = {
+  discriminator: number;
+  isFrozen: boolean;
+};
 
-export type MintRecordTokenInstructionDataArgs = {};
+export type FreezeTokenizedRecordInstructionDataArgs = { isFrozen: boolean };
 
-export function getMintRecordTokenInstructionDataSerializer(): Serializer<
-  MintRecordTokenInstructionDataArgs,
-  MintRecordTokenInstructionData
+export function getFreezeTokenizedRecordInstructionDataSerializer(): Serializer<
+  FreezeTokenizedRecordInstructionDataArgs,
+  FreezeTokenizedRecordInstructionData
 > {
   return mapSerializer<
-    MintRecordTokenInstructionDataArgs,
+    FreezeTokenizedRecordInstructionDataArgs,
     any,
-    MintRecordTokenInstructionData
+    FreezeTokenizedRecordInstructionData
   >(
-    struct<MintRecordTokenInstructionData>([['discriminator', u8()]], {
-      description: 'MintRecordTokenInstructionData',
-    }),
-    (value) => ({ ...value, discriminator: 8 })
+    struct<FreezeTokenizedRecordInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['isFrozen', bool()],
+      ],
+      { description: 'FreezeTokenizedRecordInstructionData' }
+    ),
+    (value) => ({ ...value, discriminator: 10 })
   ) as Serializer<
-    MintRecordTokenInstructionDataArgs,
-    MintRecordTokenInstructionData
+    FreezeTokenizedRecordInstructionDataArgs,
+    FreezeTokenizedRecordInstructionData
   >;
 }
 
+// Args.
+export type FreezeTokenizedRecordInstructionArgs =
+  FreezeTokenizedRecordInstructionDataArgs;
+
 // Instruction.
-export function mintRecordToken(
+export function freezeTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: MintRecordTokenInstructionAccounts
+  input: FreezeTokenizedRecordInstructionAccounts &
+    FreezeTokenizedRecordInstructionArgs
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -85,64 +94,42 @@ export function mintRecordToken(
   const resolvedAccounts = {
     authority: {
       index: 0,
-      isWritable: true as boolean,
+      isWritable: false as boolean,
       value: input.authority ?? null,
     },
+    mint: { index: 1, isWritable: false as boolean, value: input.mint ?? null },
+    tokenAccount: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.tokenAccount ?? null,
+    },
     record: {
-      index: 1,
+      index: 3,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    mint: { index: 2, isWritable: true as boolean, value: input.mint ?? null },
-    tokenAccount: {
-      index: 3,
-      isWritable: true as boolean,
-      value: input.tokenAccount ?? null,
-    },
-    associatedTokenProgram: {
-      index: 4,
-      isWritable: false as boolean,
-      value: input.associatedTokenProgram ?? null,
-    },
     token2022: {
-      index: 5,
+      index: 4,
       isWritable: false as boolean,
       value: input.token2022 ?? null,
     },
-    systemProgram: {
-      index: 6,
-      isWritable: false as boolean,
-      value: input.systemProgram ?? null,
-    },
     class: {
-      index: 7,
+      index: 5,
       isWritable: false as boolean,
       value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 
+  // Arguments.
+  const resolvedArgs: FreezeTokenizedRecordInstructionArgs = { ...input };
+
   // Default values.
-  if (!resolvedAccounts.associatedTokenProgram.value) {
-    resolvedAccounts.associatedTokenProgram.value =
-      context.programs.getPublicKey(
-        'associatedTokenProgram',
-        'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'
-      );
-    resolvedAccounts.associatedTokenProgram.isWritable = false;
-  }
   if (!resolvedAccounts.token2022.value) {
     resolvedAccounts.token2022.value = context.programs.getPublicKey(
       'token2022',
       'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
     );
     resolvedAccounts.token2022.isWritable = false;
-  }
-  if (!resolvedAccounts.systemProgram.value) {
-    resolvedAccounts.systemProgram.value = context.programs.getPublicKey(
-      'systemProgram',
-      '11111111111111111111111111111111'
-    );
-    resolvedAccounts.systemProgram.isWritable = false;
   }
 
   // Accounts in order.
@@ -158,7 +145,9 @@ export function mintRecordToken(
   );
 
   // Data.
-  const data = getMintRecordTokenInstructionDataSerializer().serialize({});
+  const data = getFreezeTokenizedRecordInstructionDataSerializer().serialize(
+    resolvedArgs as FreezeTokenizedRecordInstructionDataArgs
+  );
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

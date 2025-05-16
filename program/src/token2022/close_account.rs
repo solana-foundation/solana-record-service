@@ -1,5 +1,8 @@
 use pinocchio::{
-    account_info::AccountInfo, cpi::invoke_signed, instruction::{AccountMeta, Instruction, Signer}, ProgramResult
+    account_info::AccountInfo,
+    cpi::invoke_signed,
+    instruction::{AccountMeta, Instruction, Signer},
+    ProgramResult,
 };
 
 use crate::token2022::constants::TOKEN_2022_PROGRAM_ID;

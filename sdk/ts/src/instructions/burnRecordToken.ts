@@ -16,7 +16,6 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  bool,
   mapSerializer,
   struct,
   u8,
@@ -28,50 +27,49 @@ import {
 } from '../shared';
 
 // Accounts.
-export type FreezeRecordInstructionAccounts = {
+export type BurnRecordTokenInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
-  /** Record account to be updated */
+  /** Mint account for the tokenized record */
+  mint: PublicKey | Pda;
+  /** Token Account for the tokenized record */
+  tokenAccount: PublicKey | Pda;
+  /** Record account associated with the tokenized record */
   record: PublicKey | Pda;
+  /** Token2022 Program used to burn the tokenized record */
+  token2022?: PublicKey | Pda;
   /** Class account of the record */
   class?: PublicKey | Pda;
 };
 
 // Data.
-export type FreezeRecordInstructionData = {
-  discriminator: number;
-  isFrozen: boolean;
-};
+export type BurnRecordTokenInstructionData = { discriminator: number };
 
-export type FreezeRecordInstructionDataArgs = { isFrozen: boolean };
+export type BurnRecordTokenInstructionDataArgs = {};
 
-export function getFreezeRecordInstructionDataSerializer(): Serializer<
-  FreezeRecordInstructionDataArgs,
-  FreezeRecordInstructionData
+export function getBurnRecordTokenInstructionDataSerializer(): Serializer<
+  BurnRecordTokenInstructionDataArgs,
+  BurnRecordTokenInstructionData
 > {
   return mapSerializer<
-    FreezeRecordInstructionDataArgs,
+    BurnRecordTokenInstructionDataArgs,
     any,
-    FreezeRecordInstructionData
+    BurnRecordTokenInstructionData
   >(
-    struct<FreezeRecordInstructionData>(
-      [
-        ['discriminator', u8()],
-        ['isFrozen', bool()],
-      ],
-      { description: 'FreezeRecordInstructionData' }
-    ),
-    (value) => ({ ...value, discriminator: 7 })
-  ) as Serializer<FreezeRecordInstructionDataArgs, FreezeRecordInstructionData>;
+    struct<BurnRecordTokenInstructionData>([['discriminator', u8()]], {
+      description: 'BurnRecordTokenInstructionData',
+    }),
+    (value) => ({ ...value, discriminator: 12 })
+  ) as Serializer<
+    BurnRecordTokenInstructionDataArgs,
+    BurnRecordTokenInstructionData
+  >;
 }
 
-// Args.
-export type FreezeRecordInstructionArgs = FreezeRecordInstructionDataArgs;
-
 // Instruction.
-export function freezeRecord(
+export function burnRecordToken(
   context: Pick<Context, 'programs'>,
-  input: FreezeRecordInstructionAccounts & FreezeRecordInstructionArgs
+  input: BurnRecordTokenInstructionAccounts
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -86,20 +84,37 @@ export function freezeRecord(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
+    mint: { index: 1, isWritable: true as boolean, value: input.mint ?? null },
+    tokenAccount: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.tokenAccount ?? null,
+    },
     record: {
-      index: 1,
+      index: 3,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
+    token2022: {
+      index: 4,
+      isWritable: false as boolean,
+      value: input.token2022 ?? null,
+    },
     class: {
-      index: 2,
+      index: 5,
       isWritable: false as boolean,
       value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 
-  // Arguments.
-  const resolvedArgs: FreezeRecordInstructionArgs = { ...input };
+  // Default values.
+  if (!resolvedAccounts.token2022.value) {
+    resolvedAccounts.token2022.value = context.programs.getPublicKey(
+      'token2022',
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
+    );
+    resolvedAccounts.token2022.isWritable = false;
+  }
 
   // Accounts in order.
   const orderedAccounts: ResolvedAccount[] = Object.values(
@@ -114,9 +129,7 @@ export function freezeRecord(
   );
 
   // Data.
-  const data = getFreezeRecordInstructionDataSerializer().serialize(
-    resolvedArgs as FreezeRecordInstructionDataArgs
-  );
+  const data = getBurnRecordTokenInstructionDataSerializer().serialize({});
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

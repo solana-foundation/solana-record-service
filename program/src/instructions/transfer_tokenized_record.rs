@@ -2,7 +2,11 @@ use crate::{state::Record, token2022::TransferChecked, utils::Context};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    ProgramResult,
 };
 
 /// TransferRecord instruction.
@@ -56,7 +60,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferTokenizedRecordAccounts<'i
             token_account,
         )?;
 
-        Ok(Self { mint, token_account, new_token_account, record })
+        Ok(Self {
+            mint,
+            token_account,
+            new_token_account,
+            record,
+        })
     }
 }
 
@@ -71,9 +80,7 @@ impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord<'info> {
         // Deserialize our accounts array
         let accounts = TransferTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
-        Ok(Self {
-            accounts,
-        })
+        Ok(Self { accounts })
     }
 }
 
@@ -86,14 +93,14 @@ impl<'info> TransferTokenizedRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         let bump =
-        [
-            try_find_program_address(
-                &[b"mint", self.accounts.record.key().as_ref()],
-                &crate::ID,
-            )
-            .ok_or(ProgramError::InvalidArgument)?
-            .1,
-        ];
+            [
+                try_find_program_address(
+                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &crate::ID,
+                )
+                .ok_or(ProgramError::InvalidArgument)?
+                .1,
+            ];
 
         let seeds = [
             Seed::from(b"mint"),
@@ -110,6 +117,7 @@ impl<'info> TransferTokenizedRecord<'info> {
             authority: self.accounts.mint,
             amount: 1,
             decimals: 0,
-        }.invoke_signed(&signers)
+        }
+        .invoke_signed(&signers)
     }
 }

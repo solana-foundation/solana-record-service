@@ -44,7 +44,7 @@ pub struct Metadata<'a> {
 }
 
 #[allow(clippy::len_without_is_empty)]
-impl<'a> Metadata<'a> {
+impl Metadata<'_> {
     pub const FIXED_HEADER_LEN: usize = size_of::<u16>() * 2 + // instruction_id_len + data_len
         size_of::<u32>() * 4; // name_len_size, symbol_len_size, uri_len_size, additional_metadata_len_size
 
@@ -97,8 +97,10 @@ impl InitializeMetadata<'_> {
                 + SRS_TICKER.len()
                 + MAX_METADATA_LEN];
 
-
-        write_bytes(&mut instruction_data[Self::DISCRIMINATOR_OFFSET..], &Self::DISCRIMINATOR);
+        write_bytes(
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &Self::DISCRIMINATOR,
+        );
 
         write_bytes(
             &mut instruction_data[Self::NAME_LENGTH_OFFSET..],
@@ -121,10 +123,7 @@ impl InitializeMetadata<'_> {
         offset += size_of::<u32>();
 
         // Write symbol
-        write_bytes(
-            &mut instruction_data[offset..],
-            self.symbol.as_bytes(),
-        );
+        write_bytes(&mut instruction_data[offset..], self.symbol.as_bytes());
         offset += self.symbol.len();
 
         // Write URI length
@@ -135,10 +134,7 @@ impl InitializeMetadata<'_> {
         offset += size_of::<u32>();
 
         // Write URI
-        write_bytes(
-            &mut instruction_data[offset..],
-            self.uri.as_bytes(),
-        );
+        write_bytes(&mut instruction_data[offset..], self.uri.as_bytes());
 
         offset += self.uri.len();
 

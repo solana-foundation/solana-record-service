@@ -1,8 +1,16 @@
 use crate::{
-    state::Record, token2022::{FreezeAccount, ThawAccount, Token}, utils::{ByteReader, Context}
+    state::Record,
+    token2022::{FreezeAccount, ThawAccount, Token},
+    utils::{ByteReader, Context},
 };
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    ProgramResult,
+};
 
 /// FreezeRecord instruction.
 ///
@@ -15,8 +23,9 @@ use pinocchio::{account_info::AccountInfo, instruction::{Seed, Signer}, program_
 /// 1. `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
 /// 2. `mint` - The mint account that that is linked to the record
 /// 3. `token_account` - The token account that is linked to the record
-/// 2. `record` - The record account to be frozen/unfrozen
-/// 3. `class` - [remaining accounts] Required if the authority is not the record owner
+/// 4. `record` - The record account to be frozen/unfrozen
+/// 5. `token_2022_program` - Required for freezing/unfreezing the token account
+/// 6. `class` - [remaining accounts] Required if the authority is not the record owner
 ///
 /// # Security
 /// 1. The authority must be either:
@@ -31,9 +40,7 @@ pub struct FreezeTokenizedRecordAccounts<'info> {
 impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, mint, token_account, record, _system_program, rest @ ..] =
-            accounts
-        else {
+        let [owner, mint, token_account, record, _token_2022_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -46,7 +53,11 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'inf
             token_account,
         )?;
 
-        Ok(Self { mint, token_account, record })
+        Ok(Self {
+            mint,
+            token_account,
+            record,
+        })
     }
 }
 
@@ -91,22 +102,23 @@ impl<'info> FreezeTokenizedRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let is_frozen = unsafe { Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
-
+        let is_frozen = unsafe {
+            Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)?
+        };
 
         if is_frozen == self.is_frozen {
             return Err(ProgramError::InvalidArgument);
         }
 
         let bump =
-        [
-            try_find_program_address(
-                &[b"mint", self.accounts.record.key().as_ref()],
-                &crate::ID,
-            )
-            .ok_or(ProgramError::InvalidArgument)?
-            .1,
-        ];
+            [
+                try_find_program_address(
+                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &crate::ID,
+                )
+                .ok_or(ProgramError::InvalidArgument)?
+                .1,
+            ];
 
         let seeds = [
             Seed::from(b"mint"),
@@ -115,19 +127,21 @@ impl<'info> FreezeTokenizedRecord<'info> {
         ];
 
         let signers = [Signer::from(&seeds)];
-        
+
         if self.is_frozen {
             FreezeAccount {
                 mint: self.accounts.mint,
                 account: self.accounts.token_account,
                 freeze_authority: self.accounts.mint,
-            }.invoke_signed(&signers)?;
+            }
+            .invoke_signed(&signers)?;
         } else {
             ThawAccount {
                 mint: self.accounts.mint,
                 account: self.accounts.token_account,
                 freeze_authority: self.accounts.mint,
-            }.invoke_signed(&signers)?;
+            }
+            .invoke_signed(&signers)?;
         }
 
         Ok(())

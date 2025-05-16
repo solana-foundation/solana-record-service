@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -54,18 +54,36 @@ impl InitializeMint2<'_> {
         // -  [35..67]: freeze_authority (optional, 32 bytes, Pubkey)
         let mut instruction_data = [UNINIT_BYTE; 67];
 
-        write_bytes(&mut instruction_data[Self::DISCRIMINATOR_OFFSET..], &[DISCRIMINATOR]);
-        
-        write_bytes(&mut instruction_data[Self::DECIMALS_OFFSET..], &[self.decimals]);
-        
-        write_bytes(&mut instruction_data[Self::MINT_AUTHORITY_OFFSET..], self.mint_authority);
-        
+        write_bytes(
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &[DISCRIMINATOR],
+        );
+
+        write_bytes(
+            &mut instruction_data[Self::DECIMALS_OFFSET..],
+            &[self.decimals],
+        );
+
+        write_bytes(
+            &mut instruction_data[Self::MINT_AUTHORITY_OFFSET..],
+            self.mint_authority,
+        );
+
         // Set COption & freeze_authority at offset [34..67]
         if let Some(freeze_auth) = self.freeze_authority {
-            write_bytes(&mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..], &[1]);
-            write_bytes(&mut instruction_data[Self::FREEZE_AUTHORITY_OFFSET..], freeze_auth);
+            write_bytes(
+                &mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..],
+                &[1],
+            );
+            write_bytes(
+                &mut instruction_data[Self::FREEZE_AUTHORITY_OFFSET..],
+                freeze_auth,
+            );
         } else {
-            write_bytes(&mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..], &[0]);
+            write_bytes(
+                &mut instruction_data[Self::HAS_FREEZE_AUTHORITY_OFFSET..],
+                &[0],
+            );
         }
 
         let instruction = Instruction {

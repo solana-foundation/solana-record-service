@@ -49,7 +49,8 @@ fn process_instruction(
         8 => MintTokenizedRecord::process(Context { accounts, data }),
         9 => UpdateTokenizedRecord::process(Context { accounts, data }),
         10 => FreezeTokenizedRecord::process(Context { accounts, data }),
-        11 => BurnTokenizedRecord::process(Context { accounts, data }),
+        11 => TransferTokenizedRecord::process(Context { accounts, data }),
+        12 => BurnTokenizedRecord::process(Context { accounts, data }),
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -57,11 +57,20 @@ impl BurnChecked<'_> {
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
-        write_bytes(&mut instruction_data[Self::DISCRIMINATOR_OFFSET..], &[Self::DISCRIMINATOR]);
+        write_bytes(
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &[Self::DISCRIMINATOR],
+        );
 
-        write_bytes(&mut instruction_data[Self::AMOUNT_OFFSET..], &self.amount.to_le_bytes());
-        
-        write_bytes(&mut instruction_data[Self::DECIMALS_OFFSET..], &[self.decimals]);
+        write_bytes(
+            &mut instruction_data[Self::AMOUNT_OFFSET..],
+            &self.amount.to_le_bytes(),
+        );
+
+        write_bytes(
+            &mut instruction_data[Self::DECIMALS_OFFSET..],
+            &[self.decimals],
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,

@@ -19,12 +19,12 @@ use pinocchio::{
 /// # Accounts
 /// 1. `authority` - The account that has permission to transfer the record (must be a signer)
 /// 2. `record` - The record account to be transferred
-/// 3. `class` - [remaining accounts] Required if the authority is not the record owner
+/// 3. `class` - [optional] The class of the record to be transferred
 ///
 /// # Security
 /// 1. The authority must be either:
 ///    a. The record owner, or
-///    b. if the class is permissioned, the authority must be the permissioned authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 /// 2. The record must not be frozen
 pub struct TransferRecordAccounts<'info> {
     record: &'info AccountInfo,
@@ -38,11 +38,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        Record::check_owner_or_delegate(
-            record,
-            rest.first(),
-            authority,
-        )?;
+        Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
         Ok(Self { record })
     }
@@ -90,6 +86,11 @@ impl<'info> TransferRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Update the record to be transferred [this is safe, check safety docs]
-        unsafe { Record::update_owner_unchecked(&mut self.accounts.record.try_borrow_mut_data()?, &self.new_owner) }
+        unsafe {
+            Record::update_owner_unchecked(
+                &mut self.accounts.record.try_borrow_mut_data()?,
+                &self.new_owner,
+            )
+        }
     }
 }

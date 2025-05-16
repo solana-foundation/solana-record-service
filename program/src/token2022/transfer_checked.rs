@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -19,7 +19,7 @@ use crate::{
 ///  1. `[]` The token mint.
 ///  2. `[writable]` The destination account.
 ///  3. `[signer]` The source account's owner/delegate.
-/// 
+///
 /// ### Data:
 ///  0. amount (u64)
 ///  1. decimals (u8)
@@ -59,12 +59,12 @@ impl TransferChecked<'_> {
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
-        write_bytes(
-            &mut instruction_data,
-            &[Self::DISCRIMINATOR],
-        );
+        write_bytes(&mut instruction_data, &[Self::DISCRIMINATOR]);
 
-        write_bytes(&mut instruction_data[AMOUNT_OFFSET..], &self.amount.to_le_bytes());
+        write_bytes(
+            &mut instruction_data[AMOUNT_OFFSET..],
+            &self.amount.to_le_bytes(),
+        );
 
         write_bytes(&mut instruction_data[DECIMALS_OFFSET..], &[self.decimals]);
 

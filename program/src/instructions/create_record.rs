@@ -160,7 +160,6 @@ impl<'info> CreateRecord<'info> {
             owner_type: OwnerType::Pubkey,
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_delegate: false,
             expiry: self.expiry,
             name: self.name,
             data: self.data,

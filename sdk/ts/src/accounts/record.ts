@@ -35,9 +35,9 @@ export type Record = Account<RecordAccountData>;
 export type RecordAccountData = {
   discriminator: number;
   class: PublicKey;
+  ownerType: number;
   owner: PublicKey;
   isFrozen: boolean;
-  hasAuthorityExtension: boolean;
   expiry: bigint;
   name: string;
   data: string;
@@ -47,7 +47,6 @@ export type RecordAccountDataArgs = {
   class: PublicKey;
   owner: PublicKey;
   isFrozen: boolean;
-  hasAuthorityExtension: boolean;
   expiry: number | bigint;
   name: string;
   data: string;
@@ -62,16 +61,16 @@ export function getRecordAccountDataSerializer(): Serializer<
       [
         ['discriminator', u8()],
         ['class', publicKeySerializer()],
+        ['ownerType', u8()],
         ['owner', publicKeySerializer()],
         ['isFrozen', bool()],
-        ['hasAuthorityExtension', bool()],
         ['expiry', i64()],
         ['name', string({ size: u8() })],
         ['data', string({ size: 'variable' })],
       ],
       { description: 'RecordAccountData' }
     ),
-    (value) => ({ ...value, discriminator: 2 })
+    (value) => ({ ...value, discriminator: 2, ownerType: 0 })
   ) as Serializer<RecordAccountDataArgs, RecordAccountData>;
 }
 
@@ -144,18 +143,18 @@ export function getRecordGpaBuilder(
     .registerFields<{
       discriminator: number;
       class: PublicKey;
+      ownerType: number;
       owner: PublicKey;
       isFrozen: boolean;
-      hasAuthorityExtension: boolean;
       expiry: number | bigint;
       name: string;
       data: string;
     }>({
       discriminator: [0, u8()],
       class: [1, publicKeySerializer()],
-      owner: [33, publicKeySerializer()],
-      isFrozen: [65, bool()],
-      hasAuthorityExtension: [66, bool()],
+      ownerType: [33, u8()],
+      owner: [34, publicKeySerializer()],
+      isFrozen: [66, bool()],
       expiry: [67, i64()],
       name: [75, string({ size: u8() })],
       data: [null, string({ size: 'variable' })],

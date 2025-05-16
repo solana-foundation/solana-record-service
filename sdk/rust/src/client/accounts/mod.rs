@@ -7,8 +7,6 @@
 
 pub(crate) mod r#class;
 pub(crate) mod r#record;
-pub(crate) mod r#record_delegate;
 
 pub use self::r#class::*;
 pub use self::r#record::*;
-pub use self::r#record_delegate::*;

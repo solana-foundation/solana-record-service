@@ -24,19 +24,17 @@ use pinocchio::{
 /// 1. `authority` - The account that has permission to update the record (must be a signer)
 /// 2. `mint` - The mint account that that is linked to the record
 /// 3. `token_account` - The token account that is linked to the mint
-/// 4. `metadata` - The metadata account that is linked to the mint
 /// 5. `record` - The record account to be updated
-/// 6. `system_program` - Required for account resizing operations
+/// 6. `token_2022_program` - Required for updating the metadata
 /// 7. `class` - [optional] The class of the token account
 ///
 /// # Security
 /// 1. The authority must be:
 ///    a. The mint's owner, or
-///    b. if the class is permissioned, the authority must be the permissioned authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct UpdateTokenizedRecordAccounts<'info> {
     authority: &'info AccountInfo,
     mint: &'info AccountInfo,
-    metadata: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
@@ -44,7 +42,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, mint, token_account, metadata, record, _system_program, rest @ ..] =
+        let [authority, mint, token_account, record, _token_2022_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -66,7 +64,6 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateTokenizedRecordAccounts<'inf
         Ok(Self {
             authority,
             mint,
-            metadata,
             record,
         })
     }
@@ -133,7 +130,7 @@ impl<'info> UpdateTokenizedRecord<'info> {
         let signers = [Signer::from(&seeds)];
 
         UpdateMetadata {
-            metadata: self.accounts.metadata,
+            metadata: self.accounts.mint,
             update_authority: self.accounts.mint,
             new_uri: data,
         }

@@ -1,21 +1,25 @@
+use core::mem::size_of;
+
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio_associated_token_account::instructions::Create;
 
 use crate::{
-    constants::SRS_TICKER, state::{OwnerType, Record, NAME_OFFSET, OWNER_OFFSET}, token2022::{constants::{
-        TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
-        TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
-        TOKEN_2022_PROGRAM_ID,
-    }, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked, Token}, utils::Context
+    constants::SRS_TICKER,
+    state::{OwnerType, Record, NAME_OFFSET, OWNER_OFFSET},
+    token2022::{
+        constants::{
+            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_METADATA_POINTER_LEN,
+            TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN,
+            TOKEN_2022_PROGRAM_ID,
+        },
+        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, MintToChecked,
+    },
+    utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::{try_find_program_address, Pubkey},
-    sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -37,11 +41,11 @@ use pinocchio_system::instructions::CreateAccount;
 /// 6. `token2022` - The Token2022 program
 /// 7. `system_program` - Required for initializing our accounts
 /// 8. `class` - [optional] The class of the record
-/// 
+///
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
-///    b. if the class is permissioned, the authority must be the permissioned authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct MintTokenizedRecordAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
@@ -55,29 +59,29 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
+        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Check if authority is the record owner
-        Record::check_owner_or_delegate(
-            record,
-            rest.first(),
-            authority,
-        )?;
+        Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        // Check if the owner of the record is the same as the owner of the token account
-        if owner.key().ne(unsafe { &Token::get_owner_unchecked(&token_account.try_borrow_data()?)? }) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if the owner is the same as the owner of the Record
         let record_data = record.try_borrow_data()?;
 
-        if owner.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
-            return Err(ProgramError::MissingRequiredSignature);
+        // Check if the owner of the record is the same as the owner of the token account
+        let owner = &record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()];
+
+        let seeds = [
+            owner,
+            &TOKEN_2022_PROGRAM_ID,
+            mint.key(),
+        ];
+        let (token_account_address, _) = find_program_address(&seeds, &pinocchio_associated_token_account::ID);
+
+        if token_account_address.ne(token_account.key()) {
+            return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(Self {
@@ -98,7 +102,7 @@ pub struct MintTokenizedRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
         // Deserialize our accounts array
         let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
@@ -116,6 +120,7 @@ impl<'info> MintTokenizedRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Get Mint length
         let bump = self.derive_mint_address_bump()?;
+
         // Create mint account
         self.create_mint_account(&bump)?;
         // Initialize permanent delegate extension
@@ -133,13 +138,15 @@ impl<'info> MintTokenizedRecord<'info> {
         // Mint record token
         self.mint_to_token_account(&bump)?;
 
-        // 1. Update the record to be frozen since the check will be perfomed on the token account
-        // 2. Update the record_owner to be the mint
-        // 3. Update the record_type to be tokenized
         let mut record_data = self.accounts.record.try_borrow_mut_data()?;
-        
+
+        // 1. Update the record to be frozen since the check will be perfomed on the token account
         unsafe { Record::update_is_frozen_unchecked(&mut record_data, true)? }
-        unsafe { Record::update_owner_unchecked(&mut record_data, &self.accounts.mint.key())? }
+
+        // 2. Update the record_owner to be the mint
+        record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(self.accounts.mint.key());
+        
+        // 3. Update the record_type to be tokenized
         unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }
     }
 

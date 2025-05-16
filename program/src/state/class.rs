@@ -49,26 +49,35 @@ impl<'info> Class<'info> {
 
     /// Check if the authority is valid
     #[inline(always)]
-    pub unsafe fn check_authority_unchecked(data: &[u8], authority: &AccountInfo) -> Result<(), ProgramError> {
+    pub unsafe fn check_authority_unchecked(
+        data: &[u8],
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {        
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if authority.key().ne(&data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()]) {
+        if authority
+            .key()
+            .ne(&data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         Ok(())
     }
 
-    pub fn check_authority(class: &AccountInfo, authority: &AccountInfo) -> Result<(), ProgramError> {
+    pub fn check_authority(
+        class: &AccountInfo,
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {
         Self::check_program_id(class)?;
-        
+
         let data = class.try_borrow_data()?;
-        
-        unsafe { 
-            Self::check_discriminator_unchecked(&data)?; 
-            Self::check_authority_unchecked(&data, authority) 
+
+        unsafe {
+            Self::check_discriminator_unchecked(&data)?;
+            Self::check_authority_unchecked(&data, authority)
         }
     }
 
@@ -81,7 +90,7 @@ impl<'info> Class<'info> {
         let data = class.try_borrow_data()?;
 
         unsafe { Self::check_discriminator_unchecked(&data)? }
-        
+
         if data[IS_PERMISSIONED_OFFSET] == 1 {
             let authority = authority.ok_or(ProgramError::InvalidAccountData)?;
             unsafe { Self::check_authority_unchecked(&data, authority) }?;
@@ -98,11 +107,13 @@ impl<'info> Class<'info> {
         data: &'info mut [u8],
         authority: &'info AccountInfo,
         is_permissioned: bool,
-    ) -> Result<(), ProgramError> {        
-        unsafe { Self::check_authority_unchecked(&data, authority)?; }
+    ) -> Result<(), ProgramError> {
+        unsafe {
+            Self::check_authority_unchecked(&data, authority)?;
+        }
 
         if data[IS_PERMISSIONED_OFFSET] == is_permissioned as u8 {
-            return Err(ProgramError::InvalidAccountData);
+            return Ok(());
         }
 
         data[IS_PERMISSIONED_OFFSET] = is_permissioned as u8;
@@ -116,11 +127,13 @@ impl<'info> Class<'info> {
         is_frozen: bool,
     ) -> Result<(), ProgramError> {
         let mut data = class.try_borrow_mut_data()?;
-        
-        unsafe { Self::check_authority_unchecked(&data, authority)?; }
+
+        unsafe {
+            Self::check_authority_unchecked(&data, authority)?;
+        }
 
         if data[IS_FROZEN_OFFSET] == is_frozen as u8 {
-            return Err(ProgramError::InvalidAccountData);
+            return Ok(());
         }
 
         data[IS_FROZEN_OFFSET] = is_frozen as u8;
@@ -148,7 +161,9 @@ impl<'info> Class<'info> {
 
         {
             let mut data_ref = class.try_borrow_mut_data()?;
-            unsafe { Self::check_authority_unchecked(&data_ref, authority)?; }
+            unsafe {
+                Self::check_authority_unchecked(&data_ref, authority)?;
+            }
 
             let metadata_buffer = unsafe {
                 core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), metadata.len())
@@ -159,7 +174,10 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
-    pub unsafe fn initialize_unchecked(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+    pub unsafe fn initialize_unchecked(
+        &self,
+        account_info: &'info AccountInfo,
+    ) -> Result<(), ProgramError> {
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
 
         if required_space > account_info.data_len() {

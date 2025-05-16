@@ -29,14 +29,14 @@ import {
 
 // Accounts.
 export type UpdateRecordInstructionAccounts = {
-  /** Authority used to update a record */
+  /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Record account to be updated */
   record: PublicKey | Pda;
   /** System Program used to extend our record account */
   systemProgram?: PublicKey | Pda;
-  /** Delegate signer for record account */
-  delegate?: Signer;
+  /** Class account of the record */
+  class?: PublicKey | Pda;
 };
 
 // Data.
@@ -98,10 +98,10 @@ export function updateRecord(
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
-    delegate: {
+    class: {
       index: 3,
       isWritable: false as boolean,
-      value: input.delegate ?? null,
+      value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 

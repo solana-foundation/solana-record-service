@@ -12,12 +12,12 @@ use solana_program::pubkey::Pubkey;
 /// Accounts.
 #[derive(Debug)]
 pub struct TransferRecord {
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
     /// Record account to be updated
     pub record: solana_program::pubkey::Pubkey,
-    /// Delegate signer for record account
-    pub delegate: Option<solana_program::pubkey::Pubkey>,
+    /// Class account of the record
+    pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
 impl TransferRecord {
@@ -43,9 +43,9 @@ impl TransferRecord {
             self.record,
             false,
         ));
-        if let Some(delegate) = self.delegate {
+        if let Some(class) = self.class {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-                delegate, true,
+                class, false,
             ));
         } else {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -96,12 +96,12 @@ pub struct TransferRecordInstructionArgs {
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` record
-///   2. `[signer, optional]` delegate
+///   2. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct TransferRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     record: Option<solana_program::pubkey::Pubkey>,
-    delegate: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
     new_owner: Option<Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
@@ -110,7 +110,7 @@ impl TransferRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
@@ -123,10 +123,10 @@ impl TransferRecordBuilder {
         self
     }
     /// `[optional account]`
-    /// Delegate signer for record account
+    /// Class account of the record
     #[inline(always)]
-    pub fn delegate(&mut self, delegate: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
-        self.delegate = delegate;
+    pub fn class(&mut self, class: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+        self.class = class;
         self
     }
     #[inline(always)]
@@ -157,7 +157,7 @@ impl TransferRecordBuilder {
         let accounts = TransferRecord {
             authority: self.authority.expect("authority is not set"),
             record: self.record.expect("record is not set"),
-            delegate: self.delegate,
+            class: self.class,
         };
         let args = TransferRecordInstructionArgs {
             new_owner: self.new_owner.clone().expect("new_owner is not set"),
@@ -169,24 +169,24 @@ impl TransferRecordBuilder {
 
 /// `transfer_record` CPI accounts.
 pub struct TransferRecordCpiAccounts<'a, 'b> {
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate signer for record account
-    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
 /// `transfer_record` CPI instruction.
 pub struct TransferRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate signer for record account
-    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: TransferRecordInstructionArgs,
 }
@@ -201,7 +201,7 @@ impl<'a, 'b> TransferRecordCpi<'a, 'b> {
             __program: program,
             authority: accounts.authority,
             record: accounts.record,
-            delegate: accounts.delegate,
+            class: accounts.class,
             __args: args,
         }
     }
@@ -248,10 +248,9 @@ impl<'a, 'b> TransferRecordCpi<'a, 'b> {
             *self.record.key,
             false,
         ));
-        if let Some(delegate) = self.delegate {
+        if let Some(class) = self.class {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-                *delegate.key,
-                true,
+                *class.key, false,
             ));
         } else {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -279,8 +278,8 @@ impl<'a, 'b> TransferRecordCpi<'a, 'b> {
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.record.clone());
-        if let Some(delegate) = self.delegate {
-            account_infos.push(delegate.clone());
+        if let Some(class) = self.class {
+            account_infos.push(class.clone());
         }
         remaining_accounts
             .iter()
@@ -300,7 +299,7 @@ impl<'a, 'b> TransferRecordCpi<'a, 'b> {
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` record
-///   2. `[signer, optional]` delegate
+///   2. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct TransferRecordCpiBuilder<'a, 'b> {
     instruction: Box<TransferRecordCpiBuilderInstruction<'a, 'b>>,
@@ -312,13 +311,13 @@ impl<'a, 'b> TransferRecordCpiBuilder<'a, 'b> {
             __program: program,
             authority: None,
             record: None,
-            delegate: None,
+            class: None,
             new_owner: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -337,13 +336,13 @@ impl<'a, 'b> TransferRecordCpiBuilder<'a, 'b> {
         self
     }
     /// `[optional account]`
-    /// Delegate signer for record account
+    /// Class account of the record
     #[inline(always)]
-    pub fn delegate(
+    pub fn class(
         &mut self,
-        delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+        class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     ) -> &mut Self {
-        self.instruction.delegate = delegate;
+        self.instruction.class = class;
         self
     }
     #[inline(always)]
@@ -406,7 +405,7 @@ impl<'a, 'b> TransferRecordCpiBuilder<'a, 'b> {
 
             record: self.instruction.record.expect("record is not set"),
 
-            delegate: self.instruction.delegate,
+            class: self.instruction.class,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -421,7 +420,7 @@ struct TransferRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     new_owner: Option<Pubkey>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(

@@ -28,12 +28,12 @@ import {
 
 // Accounts.
 export type DeleteRecordInstructionAccounts = {
-  /** Authority used to update a record */
+  /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Record account to be updated */
   record: PublicKey | Pda;
-  /** Delegate signer for record account */
-  delegate?: Signer;
+  /** Class account of the record */
+  class?: PublicKey | Pda;
 };
 
 // Data.
@@ -80,10 +80,10 @@ export function deleteRecord(
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    delegate: {
+    class: {
       index: 2,
       isWritable: false as boolean,
-      value: input.delegate ?? null,
+      value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 

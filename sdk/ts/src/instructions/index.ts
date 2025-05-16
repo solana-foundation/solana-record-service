@@ -6,15 +6,16 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './burnRecordToken';
 export * from './createClass';
 export * from './createRecord';
-export * from './createRecordAuthorityDelegate';
 export * from './deleteRecord';
-export * from './deleteRecordAuthorityDelegate';
 export * from './freezeClass';
 export * from './freezeRecord';
+export * from './freezeTokenizedRecord';
 export * from './mintRecordToken';
 export * from './transferRecord';
+export * from './transferTokenizedRecord';
 export * from './updateClassMetadata';
 export * from './updateRecord';
-export * from './updateRecordAuthorityDelegate';
+export * from './updateRecordToken';

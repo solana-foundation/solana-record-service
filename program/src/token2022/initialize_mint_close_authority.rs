@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -32,7 +32,7 @@ impl InitializeMintCloseAuthority<'_> {
     }
 
     const DISCRIMINATOR_OFFSET: usize = 0;
-    const CLOSE_AUTHORITY_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const CLOSE_AUTHORITY_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u16>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
@@ -45,10 +45,13 @@ impl InitializeMintCloseAuthority<'_> {
 
         write_bytes(
             &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
-            &[Self::DISCRIMINATOR],
+            &[Self::DISCRIMINATOR, 1],
         );
 
-        write_bytes(&mut instruction_data[Self::CLOSE_AUTHORITY_OFFSET..], self.close_authority);
+        write_bytes(
+            &mut instruction_data[Self::CLOSE_AUTHORITY_OFFSET..],
+            self.close_authority,
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,

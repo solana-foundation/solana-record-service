@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -36,8 +36,10 @@ impl InitializeMetadataPointer<'_> {
     }
 
     const DISCRIMINATOR_OFFSET: usize = 0;
-    const METADATA_POINTER_DISCRIMINATOR_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
-    const METADATA_AUTHORITY_OFFSET: usize = Self::METADATA_POINTER_DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const METADATA_POINTER_DISCRIMINATOR_OFFSET: usize =
+        Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const METADATA_AUTHORITY_OFFSET: usize =
+        Self::METADATA_POINTER_DISCRIMINATOR_OFFSET + size_of::<u8>();
     const METADATA_ADDRESS_OFFSET: usize = Self::METADATA_AUTHORITY_OFFSET + size_of::<Pubkey>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
@@ -61,9 +63,15 @@ impl InitializeMetadataPointer<'_> {
             &[Self::METADATA_POINTER_INITIALIZE_DISCRIMINATOR],
         );
 
-        write_bytes(&mut instruction_data[Self::METADATA_AUTHORITY_OFFSET..], self.authority);
+        write_bytes(
+            &mut instruction_data[Self::METADATA_AUTHORITY_OFFSET..],
+            self.authority,
+        );
 
-        write_bytes(&mut instruction_data[Self::METADATA_ADDRESS_OFFSET..], self.metadata_address);
+        write_bytes(
+            &mut instruction_data[Self::METADATA_ADDRESS_OFFSET..],
+            self.metadata_address,
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,

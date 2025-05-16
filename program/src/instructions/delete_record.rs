@@ -15,12 +15,12 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
 /// 2. `record` - The record account to be deleted
-/// 3. `class` - [remaining accounts] Required if the authority is not the record owner but the permissioned authority
+/// 3. `class` - [optional] The class of the record to be deleted
 ///
 /// # Security
 /// 1. The authority must be either:
 ///    a. The record owner, or
-///    b. if the class is permissioned, the authority must be the permissioned authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct DeleteRecordAccounts<'info> {
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
@@ -35,11 +35,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
         };
 
         // Check if authority is the record owner or has a delegate
-        Record::check_owner_or_delegate(
-            record,
-            rest.first(),
-            authority,
-        )?;
+        Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
         Ok(Self { authority, record })
     }

@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -48,7 +48,10 @@ impl InitializePermanentDelegate<'_> {
             &[Self::DISCRIMINATOR],
         );
         // Set delegate as [u8; 32] at offset [1..33]
-        write_bytes(&mut instruction_data[Self::DELEGATE_OFFSET..33], self.delegate);
+        write_bytes(
+            &mut instruction_data[Self::DELEGATE_OFFSET..33],
+            self.delegate,
+        );
 
         let instruction: Instruction<'_, '_, '_, '_> = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,

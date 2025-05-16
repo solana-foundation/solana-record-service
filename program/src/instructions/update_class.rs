@@ -72,7 +72,11 @@ impl<'info> UpdateClassMetadata<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         unsafe {
-            Class::update_metadata_unchecked(self.accounts.class, self.accounts.authority, self.metadata)
+            Class::update_metadata_unchecked(
+                self.accounts.class,
+                self.accounts.authority,
+                self.metadata,
+            )
         }
     }
 }

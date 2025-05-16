@@ -10,16 +10,22 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct DeleteRecordAuthorityDelegate {
-    /// Authority used to create a delegate
+pub struct BurnRecordToken {
+    /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
-    /// Record account to create delegate for
+    /// Mint account for the tokenized record
+    pub mint: solana_program::pubkey::Pubkey,
+    /// Token Account for the tokenized record
+    pub token_account: solana_program::pubkey::Pubkey,
+    /// Record account associated with the tokenized record
     pub record: solana_program::pubkey::Pubkey,
-    /// Delegate for record account
-    pub delegate: solana_program::pubkey::Pubkey,
+    /// Token2022 Program used to burn the tokenized record
+    pub token2022: solana_program::pubkey::Pubkey,
+    /// Class account of the record
+    pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
-impl DeleteRecordAuthorityDelegate {
+impl BurnRecordToken {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
@@ -29,21 +35,38 @@ impl DeleteRecordAuthorityDelegate {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.mint, false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.record,
+            self.token_account,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.delegate,
+            self.record,
             false,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.token2022,
+            false,
+        ));
+        if let Some(class) = self.class {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                class, false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::SOLANA_RECORD_SERVICE_ID,
+                false,
+            ));
+        }
         accounts.extend_from_slice(remaining_accounts);
-        let data = borsh::to_vec(&DeleteRecordAuthorityDelegateInstructionData::new()).unwrap();
+        let data = borsh::to_vec(&BurnRecordTokenInstructionData::new()).unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
@@ -55,57 +78,83 @@ impl DeleteRecordAuthorityDelegate {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct DeleteRecordAuthorityDelegateInstructionData {
+pub struct BurnRecordTokenInstructionData {
     discriminator: u8,
 }
 
-impl DeleteRecordAuthorityDelegateInstructionData {
+impl BurnRecordTokenInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 10 }
+        Self { discriminator: 12 }
     }
 }
 
-impl Default for DeleteRecordAuthorityDelegateInstructionData {
+impl Default for BurnRecordTokenInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Instruction builder for `DeleteRecordAuthorityDelegate`.
+/// Instruction builder for `BurnRecordToken`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[]` record
-///   2. `[writable]` delegate
+///   1. `[writable]` mint
+///   2. `[]` token_account
+///   3. `[writable]` record
+///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
-pub struct DeleteRecordAuthorityDelegateBuilder {
+pub struct BurnRecordTokenBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
+    mint: Option<solana_program::pubkey::Pubkey>,
+    token_account: Option<solana_program::pubkey::Pubkey>,
     record: Option<solana_program::pubkey::Pubkey>,
-    delegate: Option<solana_program::pubkey::Pubkey>,
+    token2022: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl DeleteRecordAuthorityDelegateBuilder {
+impl BurnRecordTokenBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Authority used to create a delegate
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
         self
     }
-    /// Record account to create delegate for
+    /// Mint account for the tokenized record
+    #[inline(always)]
+    pub fn mint(&mut self, mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.mint = Some(mint);
+        self
+    }
+    /// Token Account for the tokenized record
+    #[inline(always)]
+    pub fn token_account(&mut self, token_account: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.token_account = Some(token_account);
+        self
+    }
+    /// Record account associated with the tokenized record
     #[inline(always)]
     pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
         self.record = Some(record);
         self
     }
-    /// Delegate for record account
+    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
+    /// Token2022 Program used to burn the tokenized record
     #[inline(always)]
-    pub fn delegate(&mut self, delegate: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.delegate = Some(delegate);
+    pub fn token2022(&mut self, token2022: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.token2022 = Some(token2022);
+        self
+    }
+    /// `[optional account]`
+    /// Class account of the record
+    #[inline(always)]
+    pub fn class(&mut self, class: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+        self.class = class;
         self
     }
     /// Add an additional account to the instruction.
@@ -128,48 +177,68 @@ impl DeleteRecordAuthorityDelegateBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = DeleteRecordAuthorityDelegate {
+        let accounts = BurnRecordToken {
             authority: self.authority.expect("authority is not set"),
+            mint: self.mint.expect("mint is not set"),
+            token_account: self.token_account.expect("token_account is not set"),
             record: self.record.expect("record is not set"),
-            delegate: self.delegate.expect("delegate is not set"),
+            token2022: self.token2022.unwrap_or(solana_program::pubkey!(
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+            )),
+            class: self.class,
         };
 
         accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
     }
 }
 
-/// `delete_record_authority_delegate` CPI accounts.
-pub struct DeleteRecordAuthorityDelegateCpiAccounts<'a, 'b> {
-    /// Authority used to create a delegate
+/// `burn_record_token` CPI accounts.
+pub struct BurnRecordTokenCpiAccounts<'a, 'b> {
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Record account to create delegate for
+    /// Mint account for the tokenized record
+    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token Account for the tokenized record
+    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Record account associated with the tokenized record
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate for record account
-    pub delegate: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token2022 Program used to burn the tokenized record
+    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-/// `delete_record_authority_delegate` CPI instruction.
-pub struct DeleteRecordAuthorityDelegateCpi<'a, 'b> {
+/// `burn_record_token` CPI instruction.
+pub struct BurnRecordTokenCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority used to create a delegate
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Record account to create delegate for
+    /// Mint account for the tokenized record
+    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token Account for the tokenized record
+    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Record account associated with the tokenized record
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate for record account
-    pub delegate: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token2022 Program used to burn the tokenized record
+    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
+impl<'a, 'b> BurnRecordTokenCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: DeleteRecordAuthorityDelegateCpiAccounts<'a, 'b>,
+        accounts: BurnRecordTokenCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
+            mint: accounts.mint,
+            token_account: accounts.token_account,
             record: accounts.record,
-            delegate: accounts.delegate,
+            token2022: accounts.token2022,
+            class: accounts.class,
         }
     }
     #[inline(always)]
@@ -206,19 +275,37 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.mint.key,
+            false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.record.key,
+            *self.token_account.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.delegate.key,
+            *self.record.key,
             false,
         ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.token2022.key,
+            false,
+        ));
+        if let Some(class) = self.class {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                *class.key, false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::SOLANA_RECORD_SERVICE_ID,
+                false,
+            ));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_program::instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -226,18 +313,23 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = borsh::to_vec(&DeleteRecordAuthorityDelegateInstructionData::new()).unwrap();
+        let data = borsh::to_vec(&BurnRecordTokenInstructionData::new()).unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.mint.clone());
+        account_infos.push(self.token_account.clone());
         account_infos.push(self.record.clone());
-        account_infos.push(self.delegate.clone());
+        account_infos.push(self.token2022.clone());
+        if let Some(class) = self.class {
+            account_infos.push(class.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -250,30 +342,36 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `DeleteRecordAuthorityDelegate` via CPI.
+/// Instruction builder for `BurnRecordToken` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[]` record
-///   2. `[writable]` delegate
+///   1. `[writable]` mint
+///   2. `[]` token_account
+///   3. `[writable]` record
+///   4. `[]` token2022
+///   5. `[optional]` class
 #[derive(Clone, Debug)]
-pub struct DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
-    instruction: Box<DeleteRecordAuthorityDelegateCpiBuilderInstruction<'a, 'b>>,
+pub struct BurnRecordTokenCpiBuilder<'a, 'b> {
+    instruction: Box<BurnRecordTokenCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
+impl<'a, 'b> BurnRecordTokenCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(DeleteRecordAuthorityDelegateCpiBuilderInstruction {
+        let instruction = Box::new(BurnRecordTokenCpiBuilderInstruction {
             __program: program,
             authority: None,
+            mint: None,
+            token_account: None,
             record: None,
-            delegate: None,
+            token2022: None,
+            class: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Authority used to create a delegate
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -282,7 +380,22 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
         self.instruction.authority = Some(authority);
         self
     }
-    /// Record account to create delegate for
+    /// Mint account for the tokenized record
+    #[inline(always)]
+    pub fn mint(&mut self, mint: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint = Some(mint);
+        self
+    }
+    /// Token Account for the tokenized record
+    #[inline(always)]
+    pub fn token_account(
+        &mut self,
+        token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_account = Some(token_account);
+        self
+    }
+    /// Record account associated with the tokenized record
     #[inline(always)]
     pub fn record(
         &mut self,
@@ -291,13 +404,23 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
         self.instruction.record = Some(record);
         self
     }
-    /// Delegate for record account
+    /// Token2022 Program used to burn the tokenized record
     #[inline(always)]
-    pub fn delegate(
+    pub fn token2022(
         &mut self,
-        delegate: &'b solana_program::account_info::AccountInfo<'a>,
+        token2022: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.delegate = Some(delegate);
+        self.instruction.token2022 = Some(token2022);
+        self
+    }
+    /// `[optional account]`
+    /// Class account of the record
+    #[inline(always)]
+    pub fn class(
+        &mut self,
+        class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.class = class;
         self
     }
     /// Add an additional account to the instruction.
@@ -341,14 +464,23 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let instruction = DeleteRecordAuthorityDelegateCpi {
+        let instruction = BurnRecordTokenCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            mint: self.instruction.mint.expect("mint is not set"),
+
+            token_account: self
+                .instruction
+                .token_account
+                .expect("token_account is not set"),
+
             record: self.instruction.record.expect("record is not set"),
 
-            delegate: self.instruction.delegate.expect("delegate is not set"),
+            token2022: self.instruction.token2022.expect("token2022 is not set"),
+
+            class: self.instruction.class,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -358,11 +490,14 @@ impl<'a, 'b> DeleteRecordAuthorityDelegateCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct DeleteRecordAuthorityDelegateCpiBuilderInstruction<'a, 'b> {
+struct BurnRecordTokenCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token2022: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

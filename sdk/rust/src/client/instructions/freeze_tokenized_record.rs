@@ -7,25 +7,28 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderStr;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateRecord {
+pub struct FreezeTokenizedRecord {
     /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
-    /// Record account to be updated
+    /// Mint account for the tokenized record
+    pub mint: solana_program::pubkey::Pubkey,
+    /// Token Account for the tokenized record
+    pub token_account: solana_program::pubkey::Pubkey,
+    /// Record account associated with the tokenized record
     pub record: solana_program::pubkey::Pubkey,
-    /// System Program used to extend our record account
-    pub system_program: solana_program::pubkey::Pubkey,
+    /// Token2022 Program used to freeze/unfreeze the tokenized record
+    pub token2022: solana_program::pubkey::Pubkey,
     /// Class account of the record
     pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
-impl UpdateRecord {
+impl FreezeTokenizedRecord {
     pub fn instruction(
         &self,
-        args: UpdateRecordInstructionArgs,
+        args: FreezeTokenizedRecordInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -33,20 +36,27 @@ impl UpdateRecord {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateRecordInstructionArgs,
+        args: FreezeTokenizedRecordInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.authority,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.mint, false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.token_account,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.record,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.system_program,
+            self.token2022,
             false,
         ));
         if let Some(class) = self.class {
@@ -60,7 +70,7 @@ impl UpdateRecord {
             ));
         }
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateRecordInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeTokenizedRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -74,17 +84,17 @@ impl UpdateRecord {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordInstructionData {
+pub struct FreezeTokenizedRecordInstructionData {
     discriminator: u8,
 }
 
-impl UpdateRecordInstructionData {
+impl FreezeTokenizedRecordInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 4 }
+        Self { discriminator: 10 }
     }
 }
 
-impl Default for UpdateRecordInstructionData {
+impl Default for FreezeTokenizedRecordInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -92,29 +102,33 @@ impl Default for UpdateRecordInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordInstructionArgs {
-    pub data: RemainderStr,
+pub struct FreezeTokenizedRecordInstructionArgs {
+    pub is_frozen: bool,
 }
 
-/// Instruction builder for `UpdateRecord`.
+/// Instruction builder for `FreezeTokenizedRecord`.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   3. `[optional]` class
+///   0. `[signer]` authority
+///   1. `[]` mint
+///   2. `[]` token_account
+///   3. `[writable]` record
+///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
-pub struct UpdateRecordBuilder {
+pub struct FreezeTokenizedRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
+    mint: Option<solana_program::pubkey::Pubkey>,
+    token_account: Option<solana_program::pubkey::Pubkey>,
     record: Option<solana_program::pubkey::Pubkey>,
-    system_program: Option<solana_program::pubkey::Pubkey>,
+    token2022: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
-    data: Option<RemainderStr>,
+    is_frozen: Option<bool>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl UpdateRecordBuilder {
+impl FreezeTokenizedRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -124,17 +138,29 @@ impl UpdateRecordBuilder {
         self.authority = Some(authority);
         self
     }
-    /// Record account to be updated
+    /// Mint account for the tokenized record
+    #[inline(always)]
+    pub fn mint(&mut self, mint: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.mint = Some(mint);
+        self
+    }
+    /// Token Account for the tokenized record
+    #[inline(always)]
+    pub fn token_account(&mut self, token_account: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.token_account = Some(token_account);
+        self
+    }
+    /// Record account associated with the tokenized record
     #[inline(always)]
     pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
         self.record = Some(record);
         self
     }
-    /// `[optional account, default to '11111111111111111111111111111111']`
-    /// System Program used to extend our record account
+    /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
+    /// Token2022 Program used to freeze/unfreeze the tokenized record
     #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.system_program = Some(system_program);
+    pub fn token2022(&mut self, token2022: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.token2022 = Some(token2022);
         self
     }
     /// `[optional account]`
@@ -145,8 +171,8 @@ impl UpdateRecordBuilder {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
-        self.data = Some(data);
+    pub fn is_frozen(&mut self, is_frozen: bool) -> &mut Self {
+        self.is_frozen = Some(is_frozen);
         self
     }
     /// Add an additional account to the instruction.
@@ -169,61 +195,73 @@ impl UpdateRecordBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = UpdateRecord {
+        let accounts = FreezeTokenizedRecord {
             authority: self.authority.expect("authority is not set"),
+            mint: self.mint.expect("mint is not set"),
+            token_account: self.token_account.expect("token_account is not set"),
             record: self.record.expect("record is not set"),
-            system_program: self
-                .system_program
-                .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
+            token2022: self.token2022.unwrap_or(solana_program::pubkey!(
+                "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+            )),
             class: self.class,
         };
-        let args = UpdateRecordInstructionArgs {
-            data: self.data.clone().expect("data is not set"),
+        let args = FreezeTokenizedRecordInstructionArgs {
+            is_frozen: self.is_frozen.clone().expect("is_frozen is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `update_record` CPI accounts.
-pub struct UpdateRecordCpiAccounts<'a, 'b> {
+/// `freeze_tokenized_record` CPI accounts.
+pub struct FreezeTokenizedRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Record account to be updated
+    /// Mint account for the tokenized record
+    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token Account for the tokenized record
+    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Record account associated with the tokenized record
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our record account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token2022 Program used to freeze/unfreeze the tokenized record
+    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
     /// Class account of the record
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-/// `update_record` CPI instruction.
-pub struct UpdateRecordCpi<'a, 'b> {
+/// `freeze_tokenized_record` CPI instruction.
+pub struct FreezeTokenizedRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Record account to be updated
+    /// Mint account for the tokenized record
+    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token Account for the tokenized record
+    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Record account associated with the tokenized record
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System Program used to extend our record account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Token2022 Program used to freeze/unfreeze the tokenized record
+    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
     /// Class account of the record
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
-    pub __args: UpdateRecordInstructionArgs,
+    pub __args: FreezeTokenizedRecordInstructionArgs,
 }
 
-impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
+impl<'a, 'b> FreezeTokenizedRecordCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: UpdateRecordCpiAccounts<'a, 'b>,
-        args: UpdateRecordInstructionArgs,
+        accounts: FreezeTokenizedRecordCpiAccounts<'a, 'b>,
+        args: FreezeTokenizedRecordInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
             authority: accounts.authority,
+            mint: accounts.mint,
+            token_account: accounts.token_account,
             record: accounts.record,
-            system_program: accounts.system_program,
+            token2022: accounts.token2022,
             class: accounts.class,
             __args: args,
         }
@@ -262,17 +300,25 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.authority.key,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.mint.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.token_account.key,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.record.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.system_program.key,
+            *self.token2022.key,
             false,
         ));
         if let Some(class) = self.class {
@@ -292,7 +338,7 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateRecordInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&FreezeTokenizedRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -301,11 +347,13 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.mint.clone());
+        account_infos.push(self.token_account.clone());
         account_infos.push(self.record.clone());
-        account_infos.push(self.system_program.clone());
+        account_infos.push(self.token2022.clone());
         if let Some(class) = self.class {
             account_infos.push(class.clone());
         }
@@ -321,28 +369,32 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateRecord` via CPI.
+/// Instruction builder for `FreezeTokenizedRecord` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[]` system_program
-///   3. `[optional]` class
+///   0. `[signer]` authority
+///   1. `[]` mint
+///   2. `[]` token_account
+///   3. `[writable]` record
+///   4. `[]` token2022
+///   5. `[optional]` class
 #[derive(Clone, Debug)]
-pub struct UpdateRecordCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateRecordCpiBuilderInstruction<'a, 'b>>,
+pub struct FreezeTokenizedRecordCpiBuilder<'a, 'b> {
+    instruction: Box<FreezeTokenizedRecordCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
+impl<'a, 'b> FreezeTokenizedRecordCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateRecordCpiBuilderInstruction {
+        let instruction = Box::new(FreezeTokenizedRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
+            mint: None,
+            token_account: None,
             record: None,
-            system_program: None,
+            token2022: None,
             class: None,
-            data: None,
+            is_frozen: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -356,7 +408,22 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         self.instruction.authority = Some(authority);
         self
     }
-    /// Record account to be updated
+    /// Mint account for the tokenized record
+    #[inline(always)]
+    pub fn mint(&mut self, mint: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.mint = Some(mint);
+        self
+    }
+    /// Token Account for the tokenized record
+    #[inline(always)]
+    pub fn token_account(
+        &mut self,
+        token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.token_account = Some(token_account);
+        self
+    }
+    /// Record account associated with the tokenized record
     #[inline(always)]
     pub fn record(
         &mut self,
@@ -365,13 +432,13 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         self.instruction.record = Some(record);
         self
     }
-    /// System Program used to extend our record account
+    /// Token2022 Program used to freeze/unfreeze the tokenized record
     #[inline(always)]
-    pub fn system_program(
+    pub fn token2022(
         &mut self,
-        system_program: &'b solana_program::account_info::AccountInfo<'a>,
+        token2022: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.system_program = Some(system_program);
+        self.instruction.token2022 = Some(token2022);
         self
     }
     /// `[optional account]`
@@ -385,8 +452,8 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
-        self.instruction.data = Some(data);
+    pub fn is_frozen(&mut self, is_frozen: bool) -> &mut Self {
+        self.instruction.is_frozen = Some(is_frozen);
         self
     }
     /// Add an additional account to the instruction.
@@ -430,20 +497,28 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = UpdateRecordInstructionArgs {
-            data: self.instruction.data.clone().expect("data is not set"),
+        let args = FreezeTokenizedRecordInstructionArgs {
+            is_frozen: self
+                .instruction
+                .is_frozen
+                .clone()
+                .expect("is_frozen is not set"),
         };
-        let instruction = UpdateRecordCpi {
+        let instruction = FreezeTokenizedRecordCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            mint: self.instruction.mint.expect("mint is not set"),
+
+            token_account: self
+                .instruction
+                .token_account
+                .expect("token_account is not set"),
+
             record: self.instruction.record.expect("record is not set"),
 
-            system_program: self
-                .instruction
-                .system_program
-                .expect("system_program is not set"),
+            token2022: self.instruction.token2022.expect("token2022 is not set"),
 
             class: self.instruction.class,
             __args: args,
@@ -456,13 +531,15 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateRecordCpiBuilderInstruction<'a, 'b> {
+struct FreezeTokenizedRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token2022: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    data: Option<RemainderStr>,
+    is_frozen: Option<bool>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,
