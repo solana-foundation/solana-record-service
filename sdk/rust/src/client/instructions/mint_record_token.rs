@@ -11,6 +11,8 @@ use borsh::BorshSerialize;
 /// Accounts.
 #[derive(Debug)]
 pub struct MintRecordToken {
+    /// Record owner
+    pub owner: solana_program::pubkey::Pubkey,
     /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
     /// Record account associated with the tokenized record
@@ -39,7 +41,10 @@ impl MintRecordToken {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.owner, false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
@@ -110,16 +115,18 @@ impl Default for MintRecordTokenInstructionData {
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[writable]` mint
-///   3. `[writable]` token_account
-///   4. `[optional]` associated_token_program (default to `ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL`)
-///   5. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   6. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   7. `[optional]` class
+///   0. `[]` owner
+///   1. `[writable, signer]` authority
+///   2. `[writable]` record
+///   3. `[writable]` mint
+///   4. `[writable]` token_account
+///   5. `[optional]` associated_token_program (default to `ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL`)
+///   6. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   7. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   8. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct MintRecordTokenBuilder {
+    owner: Option<solana_program::pubkey::Pubkey>,
     authority: Option<solana_program::pubkey::Pubkey>,
     record: Option<solana_program::pubkey::Pubkey>,
     mint: Option<solana_program::pubkey::Pubkey>,
@@ -134,6 +141,12 @@ pub struct MintRecordTokenBuilder {
 impl MintRecordTokenBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+    /// Record owner
+    #[inline(always)]
+    pub fn owner(&mut self, owner: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.owner = Some(owner);
+        self
     }
     /// Record owner or class authority for permissioned classes
     #[inline(always)]
@@ -211,6 +224,7 @@ impl MintRecordTokenBuilder {
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = MintRecordToken {
+            owner: self.owner.expect("owner is not set"),
             authority: self.authority.expect("authority is not set"),
             record: self.record.expect("record is not set"),
             mint: self.mint.expect("mint is not set"),
@@ -233,6 +247,8 @@ impl MintRecordTokenBuilder {
 
 /// `mint_record_token` CPI accounts.
 pub struct MintRecordTokenCpiAccounts<'a, 'b> {
+    /// Record owner
+    pub owner: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account associated with the tokenized record
@@ -255,6 +271,8 @@ pub struct MintRecordTokenCpiAccounts<'a, 'b> {
 pub struct MintRecordTokenCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Record owner
+    pub owner: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account associated with the tokenized record
@@ -280,6 +298,7 @@ impl<'a, 'b> MintRecordTokenCpi<'a, 'b> {
     ) -> Self {
         Self {
             __program: program,
+            owner: accounts.owner,
             authority: accounts.authority,
             record: accounts.record,
             mint: accounts.mint,
@@ -324,7 +343,11 @@ impl<'a, 'b> MintRecordTokenCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(8 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(9 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.owner.key,
+            false,
+        ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
@@ -377,8 +400,9 @@ impl<'a, 'b> MintRecordTokenCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(9 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(10 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
+        account_infos.push(self.owner.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.record.clone());
         account_infos.push(self.mint.clone());
@@ -405,14 +429,15 @@ impl<'a, 'b> MintRecordTokenCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[writable]` mint
-///   3. `[writable]` token_account
-///   4. `[]` associated_token_program
-///   5. `[]` token2022
-///   6. `[]` system_program
-///   7. `[optional]` class
+///   0. `[]` owner
+///   1. `[writable, signer]` authority
+///   2. `[writable]` record
+///   3. `[writable]` mint
+///   4. `[writable]` token_account
+///   5. `[]` associated_token_program
+///   6. `[]` token2022
+///   7. `[]` system_program
+///   8. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct MintRecordTokenCpiBuilder<'a, 'b> {
     instruction: Box<MintRecordTokenCpiBuilderInstruction<'a, 'b>>,
@@ -422,6 +447,7 @@ impl<'a, 'b> MintRecordTokenCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
         let instruction = Box::new(MintRecordTokenCpiBuilderInstruction {
             __program: program,
+            owner: None,
             authority: None,
             record: None,
             mint: None,
@@ -433,6 +459,12 @@ impl<'a, 'b> MintRecordTokenCpiBuilder<'a, 'b> {
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
+    }
+    /// Record owner
+    #[inline(always)]
+    pub fn owner(&mut self, owner: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.owner = Some(owner);
+        self
     }
     /// Record owner or class authority for permissioned classes
     #[inline(always)]
@@ -548,6 +580,8 @@ impl<'a, 'b> MintRecordTokenCpiBuilder<'a, 'b> {
         let instruction = MintRecordTokenCpi {
             __program: self.instruction.__program,
 
+            owner: self.instruction.owner.expect("owner is not set"),
+
             authority: self.instruction.authority.expect("authority is not set"),
 
             record: self.instruction.record.expect("record is not set"),
@@ -583,6 +617,7 @@ impl<'a, 'b> MintRecordTokenCpiBuilder<'a, 'b> {
 #[derive(Clone, Debug)]
 struct MintRecordTokenCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
+    owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,

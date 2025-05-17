@@ -361,6 +361,12 @@ const root = rootNode(
                 ],
                 accounts: [
                     instructionAccountNode({
+                        name: "owner",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Record owner"]
+                    }),
+                    instructionAccountNode({
                         name: "authority",
                         isSigner: true,
                         isWritable: true,

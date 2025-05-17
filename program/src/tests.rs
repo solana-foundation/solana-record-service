@@ -16,6 +16,12 @@ pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
 pub const NEW_OWNER: Pubkey = Pubkey::new_from_array([0xcc; 32]);
 pub const RANDOM_PUBKEY: Pubkey = Pubkey::new_from_array([0xdd; 32]);
 
+// TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+pub const TOKEN_2022_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
+    0x06, 0xdd, 0xf6, 0xe1, 0xee, 0x75, 0x8f, 0xde, 0x18, 0x42, 0x5d, 0xbc, 0xe4, 0x6c, 0xcd, 0xda,
+    0xb6, 0x1a, 0xfc, 0x4d, 0x83, 0xb9, 0x0d, 0x27, 0xfe, 0xbd, 0xf9, 0x28, 0xd8, 0xa1, 0x8b, 0xfc,
+]);
+
 /* Helpers */
 fn make_u8prefix_string(s: &str) -> U8PrefixString {
     U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat())
@@ -118,11 +124,133 @@ fn keyed_account_for_record(
     (address, record_account)
 }
 
-fn keyed_account_for_record_mint(record: Pubkey) -> (Pubkey, Account) {
+/// ..fixed_mint_data
+/// 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+/// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // padding
+/// 
+/// 1, // account_type
+/// 
+/// 3, 0, // extension_type_1 -- mint_close_authority_extension
+/// 32, 0, // extension_lenght_1
+/// 44, 183, 51, 50, 60, 76, 5, 80, 
+/// 101, 31, 190, 147, 58, 233, 60, 212, 
+/// 133, 19, 33, 142, 101, 42, 77, 206, 
+/// 214, 6, 73, 4, 96, 81, 27, 127, // extension_data_2
+/// 
+/// 12, 0, // extension_type_2 -- permanent_delegate_extension
+/// 32, 0, // extension_lenght_2
+/// 44, 183, 51, 50, 60, 76, 5, 80, 
+/// 101, 31, 190, 147, 58, 233, 60, 212, 
+/// 133, 19, 33, 142, 101, 42, 77, 206, 
+/// 214, 6, 73, 4, 96, 81, 27, 127, // extension_data_1
+/// 
+/// 18, 0, // extension_type_3 -- metadata_pointer_extension
+/// 64, 0, // extension_lenght_3
+/// 
+/// 44, 183, 51, 50, 60, 76, 5, 80, 
+/// 101, 31, 190, 147, 58, 233, 60, 212, 
+/// 133, 19, 33, 142, 101, 42, 77, 206, 
+/// 214, 6, 73, 4, 96, 81, 27, 127, // update_authority
+/// 
+/// 44, 183, 51, 50, 60, 76, 5, 80, 
+/// 101, 31, 190, 147, 58, 233, 60, 212, 
+/// 133, 19, 33, 142, 101, 42, 77, 206, 
+/// 214, 6, 73, 4, 96, 81, 27, 127, // mint
+/// 
+/// 4, 0, 0, 0, 116, 101, 115, 116, // name
+/// 3, 0, 0, 0, 83, 82, 83, // symbol
+/// 4, 0, 0, 0, 116, 101, 115, 116, // uri
+/// 0, 0, 0, 0 // additional_metadata
+fn keyed_account_for_mint(
+    record: Pubkey,
+    name: &str,
+    uri: &str,
+) -> (Pubkey, Account) {
     let (address, _bump) =
         Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
 
-    let record_mint_account = Account::new(100_000_000u64, 0, &Pubkey::from(crate::ID));
+    // Base data (82) + 84 (padding + account_type) + Extensions (36 + 36 + 68) + Metadata (83 + name.len() + uri.len())
+    let total_size = 82 + 84 + 36 + 36 + 68 + 87 + name.len() + uri.len();
+    let mut mint_account_data = vec![0u8; total_size];
+
+    // Mint authority
+    mint_account_data[0..4].copy_from_slice(&[1, 0, 0, 0]);
+    mint_account_data[4..36].copy_from_slice(&address.to_bytes());
+    // Supply
+    mint_account_data[36..44].copy_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0]);
+    // Decimals
+    mint_account_data[44] = 0;
+    // Is initialized
+    mint_account_data[45] = 1;
+    // Freeze authority
+    mint_account_data[46..82].fill(0);
+
+    // Padding
+    mint_account_data[82..165].fill(0);
+
+    // Account type
+    mint_account_data[165] = 1;
+
+    // Extension 1 - MintCloseAuthorityExtension
+    // Discriminator
+    mint_account_data[166..168].copy_from_slice(&[3, 0]);
+    // Size
+    mint_account_data[168..170].copy_from_slice(&[32, 0]);
+    // Mint close authority
+    mint_account_data[170..202].copy_from_slice(&address.to_bytes());
+
+    // Extension 2 - PermanentDelegateExtension
+    // Discriminator
+    mint_account_data[202..204].copy_from_slice(&[12, 0]);
+    // Size
+    mint_account_data[204..206].copy_from_slice(&[32, 0]);
+    // Permanent delegate Authority
+    mint_account_data[206..238].copy_from_slice(&address.to_bytes());
+
+    // Extension 3 - MetadataPointerExtension
+    // Discriminator
+    mint_account_data[238..240].copy_from_slice(&[18, 0]);
+    // Size
+    mint_account_data[240..242].copy_from_slice(&[64, 0]);
+    // Metadata pointer Authority
+    mint_account_data[242..274].copy_from_slice(&address.to_bytes());
+    // Metadata pointer Address
+    mint_account_data[274..306].copy_from_slice(&address.to_bytes());
+
+    // Extension 4 - Metadata
+    // Discriminator
+    mint_account_data[306..308].copy_from_slice(&[19, 0]);
+    // Size (32 + 32 + 4 + name.len() + 4 + 3 + 4 + uri.len() + 4)
+    mint_account_data[308..310].copy_from_slice(&((83 + name.len() + uri.len()) as u16).to_le_bytes());
+    // Update authority
+    mint_account_data[310..342].copy_from_slice(&address.to_bytes());
+    // Mint
+    mint_account_data[342..374].copy_from_slice(&address.to_bytes());
+    // Name length
+    mint_account_data[374..378].copy_from_slice(&(name.len() as u32).to_le_bytes());
+    // Name
+    mint_account_data[378..378 + name.len()].copy_from_slice(name.as_bytes());
+    // Symbol length
+    mint_account_data[378 + name.len()..378 + name.len() + 4].copy_from_slice(&[3, 0, 0, 0]);
+    // Symbol
+    mint_account_data[378 + name.len() + 4..378 + name.len() + 7].copy_from_slice(b"SRS");
+    // URI length
+    mint_account_data[378 + name.len() + 7..378 + name.len() + 11].copy_from_slice(&(uri.len() as u32).to_le_bytes());
+    // URI
+    mint_account_data[378 + name.len() + 11..378 + name.len() + 11 + uri.len()].copy_from_slice(uri.as_bytes());
+    // Additional metadata
+    mint_account_data[378 + name.len() + 11 + uri.len()..378 + name.len() + 11 + uri.len() + 4].fill(0);
+
+    // Create the mint account
+    let mut record_mint_account = Account::new(100_000_000u64, mint_account_data.len(), &TOKEN_2022_PROGRAM_ID);
+    record_mint_account.data_as_mut_slice().copy_from_slice(&mint_account_data);
+
     (address, record_mint_account)
 }
 
@@ -879,7 +1007,7 @@ fn mint_record_token() {
     let (record, record_data) =
         keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
     // Mint
-    let (mint, _mint_data) = keyed_account_for_record_mint(record);
+    let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
     // ATA
     let (token_account, _) = Pubkey::find_program_address(
         &[
@@ -896,6 +1024,7 @@ fn mint_record_token() {
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
     let instruction = MintRecordToken {
+        owner,
         authority: owner,
         record,
         mint,
@@ -928,7 +1057,76 @@ fn mint_record_token() {
         ],
         &[
             Check::success(),
-            // Check::account(&delegate).data(&[]).build(),
+            Check::account(&mint).data(&mint_data.data).build(),
+        ],
+    );
+}
+
+#[test]
+fn mint_record_token_with_delegate() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Class
+    let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
+    // Record
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+    // Mint
+    let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
+    // ATA
+    let (token_account, _) = Pubkey::find_program_address(
+        &[
+            owner.as_ref(),
+            mollusk_svm_programs_token::token2022::ID.as_ref(),
+            mint.as_ref(),
+        ],
+        &mollusk_svm_programs_token::associated_token::ID,
+    );
+
+    let (associated_token_program, associated_token_program_data) =
+        mollusk_svm_programs_token::associated_token::keyed_account();
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = MintRecordToken {
+        owner,
+        authority,
+        record,
+        mint,
+        token_account,
+        associated_token_program,
+        token2022,
+        system_program,
+        class: Some(class),
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (authority, authority_data),
+            (record, record_data),
+            (mint, Account::default()),
+            (token_account, Account::default()),
+            (associated_token_program, associated_token_program_data),
+            (token2022, token2022_data),
+            (system_program, system_program_data),
+            (class, class_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&mint).data(&mint_data.data).build(),
         ],
     );
 }

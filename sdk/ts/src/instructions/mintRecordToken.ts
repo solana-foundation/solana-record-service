@@ -28,6 +28,8 @@ import {
 
 // Accounts.
 export type MintRecordTokenInstructionAccounts = {
+  /** Record owner */
+  owner: PublicKey | Pda;
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Record account associated with the tokenized record */
@@ -83,39 +85,44 @@ export function mintRecordToken(
 
   // Accounts.
   const resolvedAccounts = {
-    authority: {
+    owner: {
       index: 0,
+      isWritable: false as boolean,
+      value: input.owner ?? null,
+    },
+    authority: {
+      index: 1,
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
     record: {
-      index: 1,
+      index: 2,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    mint: { index: 2, isWritable: true as boolean, value: input.mint ?? null },
+    mint: { index: 3, isWritable: true as boolean, value: input.mint ?? null },
     tokenAccount: {
-      index: 3,
+      index: 4,
       isWritable: true as boolean,
       value: input.tokenAccount ?? null,
     },
     associatedTokenProgram: {
-      index: 4,
+      index: 5,
       isWritable: false as boolean,
       value: input.associatedTokenProgram ?? null,
     },
     token2022: {
-      index: 5,
+      index: 6,
       isWritable: false as boolean,
       value: input.token2022 ?? null,
     },
     systemProgram: {
-      index: 6,
+      index: 7,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
     class: {
-      index: 7,
+      index: 8,
       isWritable: false as boolean,
       value: input.class ?? null,
     },

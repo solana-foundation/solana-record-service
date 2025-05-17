@@ -47,6 +47,7 @@ use pinocchio_system::instructions::CreateAccount;
 ///    a. The record's owner, or
 ///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct MintTokenizedRecordAccounts<'info> {
+    owner: &'info AccountInfo,
     authority: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -59,7 +60,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
+        let [owner,authority, record, mint, token_account, _associated_token_program, token_2022_program, system_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -71,11 +72,13 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
         let record_data = record.try_borrow_data()?;
 
         // Check if the owner of the record is the same as the owner of the token account
-        let owner = &record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()];
+        if record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].ne(owner.key()) {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         let seeds = [
-            owner,
-            &TOKEN_2022_PROGRAM_ID,
+            owner.key(),
+            TOKEN_2022_PROGRAM_ID.as_ref(),
             mint.key(),
         ];
         let (token_account_address, _) = find_program_address(&seeds, &pinocchio_associated_token_account::ID);
@@ -85,6 +88,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
         }
 
         Ok(Self {
+            owner,
             authority,
             record,
             mint,
@@ -123,10 +127,10 @@ impl<'info> MintTokenizedRecord<'info> {
 
         // Create mint account
         self.create_mint_account(&bump)?;
-        // Initialize permanent delegate extension
-        self.initialize_permanent_delegate()?;
         // Initialize mint close authority extension
         self.initialize_mint_close_authority()?;
+        // Initialize permanent delegate extension
+        self.initialize_permanent_delegate()?;
         // Initialize the metadata pointer extension
         self.initialize_metadata_pointer()?;
         // Initialize mint
@@ -257,7 +261,7 @@ impl<'info> MintTokenizedRecord<'info> {
         Create {
             funding_account: self.accounts.authority,
             account: self.accounts.token_account,
-            wallet: self.accounts.authority,
+            wallet: self.accounts.owner,
             mint: self.accounts.mint,
             system_program: self.accounts.system_program,
             token_program: self.accounts.token_2022_program,
@@ -284,34 +288,3 @@ impl<'info> MintTokenizedRecord<'info> {
         .invoke_signed(&signers)
     }
 }
-
-// {
-//     "extensionLength": 177,
-//     "updateAuthority": "PEPEYvBXiPzhAM66sTe9PjdBBeibLmngPkkovcHteHn",
-//     "mint": "PFireKhT5WG7axMSLBmMRpvYH7cgHx9CRWHU8F8HNbr",
-//     "name": "Pepe On Fire",
-//     "symbol": "PFIRE",
-//     "uri": "https://gateway.pinata.cloud/ipfs/QmeUqonNx6KD5bGb1J9TuhDrgQtbFPQm7PaTSLJ5bhbMVw",
-//     "additionalMetadata": {},
-//     "enumType": "tokenMetadata"
-// }
-
-// 64 + 4 + 12 + 4 + 5 + 4 + 80 = 173
-// 16 left over
-
-// 00000000
-// 05b1e90f3a17ad8be78b5824e6e1dfb98cdd2148410d69f5ff54e0c82f423d19 // PEPEYvBXiPzhAM66sTe9PjdBBeibLmngPkkovcHteHn
-// 963bcdfef667935a
-// 06
-// 01
-// 00
-// 0000000000000000000000000000000000000000000000000000000000000000
-
-// 0000000000000000000000000000000000000000000000000000000000000000
-// 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000101006c 00 0000000000000000000000000000000000000000000000000000000000000000 05b1e90f3a17ad8be78b5824e6e1dfb98cdd2148410d69f5ff54e0c82f423d19 0bedc968c4f10000 5b02000000000000 0000e8890423c78a f401 5b020000000000000000e8890423c78af40112004000 05b1e90f3a17ad8be78b5824e6e1dfb98cdd2148410d69f5ff54e0c82f423d19 05b36c72ccbfad097cda694fd19e374eb4e0b2d7306dc5eafe9358b46c73c9c9 1300b100 05b1e90f3a17ad8be78b5824e6e1dfb98cdd2148410d69f5ff54e0c82f423d19 05b36c72ccbfad097cda694fd19e374eb4e0b2d7306dc5eafe9358b46c73c9c9
-// 0c000000 // name length
-// 50657065204f6e2046697265 // name
-// 05000000 //
-// 5046495245
-// 50000000
-// 68747470733a2f2f676174657761792e70696e6174612e636c6f75642f697066732f516d6555716f6e4e78364b4435624762314a395475684472675174624650516d37506154534c4a356268624d5677 00000000
