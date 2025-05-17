@@ -60,7 +60,10 @@ impl TransferChecked<'_> {
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
-        write_bytes(&mut instruction_data, &[Self::DISCRIMINATOR]);
+        write_bytes(
+            &mut instruction_data[DISCRIMINATOR_OFFSET..],
+            &[Self::DISCRIMINATOR],
+        );
 
         write_bytes(
             &mut instruction_data[AMOUNT_OFFSET..],
@@ -75,6 +78,6 @@ impl TransferChecked<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
-        invoke_signed(&instruction, &[self.authority], signers)
+        invoke_signed(&instruction, &[self.source, self.mint, self.destination, self.authority], signers)
     }
 }
