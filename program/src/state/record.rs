@@ -1,11 +1,13 @@
-use super::RecordAuthorityDelegate;
-use crate::{constants::{TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_ACCOUNT_OWNER_OFFSET}, utils::{resize_account, ByteReader, ByteWriter}};
+use crate::{
+    token2022::{Mint, Token},
+    utils::{resize_account, ByteReader, ByteWriter},
+};
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut},
-    program_error::ProgramError,
-    pubkey::{try_find_program_address, Pubkey},
+    account_info::{AccountInfo, Ref, RefMut}, program_error::ProgramError, pubkey::Pubkey
 };
+
+use super::{Class, IS_PERMISSIONED_OFFSET};
 
 /// Maximum size allowed for a record account
 pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
@@ -14,10 +16,9 @@ pub const MAX_RECORD_SIZE: usize = 1024 * 1024; // 1MB
 const DISCRIMINATOR_OFFSET: usize = 0;
 const CLASS_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
 const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
-const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
+pub const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
 const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
-const HAS_AUTHORITY_DELEGATE_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
-const EXPIRY_OFFSET: usize = HAS_AUTHORITY_DELEGATE_OFFSET + size_of::<bool>();
+const EXPIRY_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
 pub const NAME_OFFSET: usize = NAME_LEN_OFFSET + size_of::<u8>();
 
@@ -31,8 +32,6 @@ pub struct Record<'info> {
     pub owner: Pubkey,
     /// Whether the record is frozen
     pub is_frozen: bool,
-    /// Flag indicating if authority delegate exists
-    pub has_authority_delegate: bool,
     /// Optional expiration timestamp, if not set, the expiry is [0; 8]
     pub expiry: i64,
     /// The record name/key
@@ -55,7 +54,7 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
 
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>()
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 2
         + size_of::<Pubkey>() * 2
         + size_of::<bool>() * 2
         + size_of::<i64>()
@@ -64,7 +63,9 @@ impl<'info> Record<'info> {
 
     /// Check if the program id and discriminator are valid
     #[inline(always)]
-    pub fn check_program_id_and_discriminator(account_info: &AccountInfo) -> Result<(), ProgramError> {
+    pub fn check_program_id_and_discriminator(
+        account_info: &AccountInfo,
+    ) -> Result<(), ProgramError> {
         // Check Program ID
         if unsafe { account_info.owner().ne(&crate::ID) } {
             return Err(ProgramError::IncorrectProgramId);
@@ -81,13 +82,19 @@ impl<'info> Record<'info> {
 
     /// Check if the owner is valid
     #[inline(always)]
-    pub unsafe fn check_owner_unchecked(data: &[u8], owner: &AccountInfo) -> Result<(), ProgramError> {
+    pub unsafe fn check_owner_unchecked(
+        data: &[u8],
+        owner: &AccountInfo,
+    ) -> Result<(), ProgramError> {
         if !owner.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         // Check if the authority is the owner
-        if owner.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if owner
+            .key()
+            .ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -99,176 +106,150 @@ impl<'info> Record<'info> {
         account_info: &AccountInfo,
         owner: &AccountInfo,
     ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator 
+        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(account_info)?;
 
         let data = account_info.try_borrow_data()?;
-        
+
         // Check the owner
         unsafe { Self::check_owner_unchecked(&data, owner) }
     }
 
-    /// DELEGATE TYPES
-    pub const MINT_AUTHORITY_DELEGATION_TYPE: u8 = 0;
-    pub const UPDATE_AUTHORITY_DELEGATION_TYPE: u8 = 1;
-    pub const FREEZE_AUTHORITY_DELEGATION_TYPE: u8 = 2;
-    pub const TRANSFER_AUTHORITY_DELEGATION_TYPE: u8 = 3;
-    pub const BURN_AUTHORITY_DELEGATION_TYPE: u8 = 4;
-
-    /// Validate the delegate
     #[inline(always)]
-    fn validate_delegate(
-        record: &AccountInfo,
-        delegate: &AccountInfo,
+    pub fn validate_delegate(
+        class: &AccountInfo,
         authority: &AccountInfo,
-        delegation_type: u8,
     ) -> Result<(), ProgramError> {
-        let seeds = [b"authority", record.key().as_ref()];
-        let (derived_delegate, _) =
-            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
+        Class::check_program_id(class)?;
 
-        if derived_delegate != *delegate.key() {
-            return Err(ProgramError::MissingRequiredSignature);
+        let class_data = class.try_borrow_data()?;
+
+        if class_data[IS_PERMISSIONED_OFFSET].ne(&1u8) {
+            return Err(ProgramError::InvalidAccountData);
         }
 
-        match delegation_type {
-            Self::MINT_AUTHORITY_DELEGATION_TYPE => (),
-            Self::UPDATE_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_update_authority(delegate, authority.key())?
-            }
-            Self::FREEZE_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_freeze_authority(delegate, authority.key())?
-            }
-            Self::TRANSFER_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_transfer_authority(delegate, authority.key())?
-            }
-            Self::BURN_AUTHORITY_DELEGATION_TYPE => {
-                RecordAuthorityDelegate::check_burn_authority_and_close_delegate(
-                    delegate, authority,
-                )?;
-            }
-            _ => return Err(ProgramError::InvalidArgument),
+        unsafe {
+            Class::check_discriminator_unchecked(&class_data)?;
+            Class::check_authority_unchecked(&class_data, authority)
         }
-
-        Ok(())
     }
 
     #[inline(always)]
     pub fn check_owner_or_delegate(
         record: &AccountInfo,
-        owner: &AccountInfo,
-        delegate: Option<&AccountInfo>,
-        delegation_type: u8,
-    ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator 
+        class: Option<&AccountInfo>,
+        authority: &AccountInfo,
+    ) -> Result<(), ProgramError> {        
+        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
+
+        // Check if the authority is signer
+        if !authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         let data = record.try_borrow_data()?;
 
-        // Check if the record is frozen and the delegation type is transfer
-        if data[IS_FROZEN_OFFSET].eq(&1u8) && delegation_type == Self::TRANSFER_AUTHORITY_DELEGATION_TYPE {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if the owner type is pubkey
-        if data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Pubkey as u8)) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if the owner is signer
-        if !owner.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Check if the owner is the owner
-        if owner.key().eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
-            if data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
-                && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
-            {
-                let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-                unsafe { RecordAuthorityDelegate::delete_record_delegate_unchecked(delegate, owner)? }
-            }
+        // Check if the authority is the owner
+        if authority
+            .key()
+            .eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+        {
             return Ok(());
         }
 
-        // Check if the record has an authority delegate
-        if data[HAS_AUTHORITY_DELEGATE_OFFSET].ne(&1u8) {
-            return Err(ProgramError::MissingRequiredSignature);
+        // Check if the owner type is pubkey
+        if data[OWNER_TYPE_OFFSET].ne(&(OwnerType::Pubkey as u8)) {
+            return Err(ProgramError::InvalidAccountData);
         }
 
         // Validate the delegate
-        let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(record, delegate, owner, delegation_type)
+        let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
+        Self::validate_delegate(&class, authority)
     }
 
     #[inline(always)]
     pub fn check_owner_or_delegate_tokenized(
         record: &AccountInfo,
-        owner: &AccountInfo,
+        class: Option<&AccountInfo>,
+        authority: &AccountInfo,
         mint: &AccountInfo,
         token_account: &AccountInfo,
-        delegate: Option<&AccountInfo>,
-        delegation_type: u8,
     ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator 
+        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
 
-        if unsafe { mint.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
-            return Err(ProgramError::IncorrectProgramId);
+        // Check if the authority is signer
+        if !authority.is_signer() {
+            return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if mint.data_len() != TOKEN_2022_MINT_LEN {
-            return Err(ProgramError::InvalidAccountData);
+        // Check if the mint is owned by the token program
+        Mint::check_program_id(mint)?;
+
+        let mint_data = mint.try_borrow_data()?;
+
+        // Check if the mint is the correct discriminator
+        unsafe {
+            Mint::check_discriminator_unchecked(&mint_data)?;
         }
 
         let record_data = record.try_borrow_data()?;
-
-        // Check if the owner type is token
-        if record_data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        // Check if the owner is signer
-        if !owner.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
+        
         // Check if the mint is the owner
-        if mint.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if mint
+            .key()
+            .ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
+
+        // Check if the token account is owned by the token program
+        Token::check_program_id(token_account)?;
 
         let token_data = token_account.try_borrow_data()?;
 
+        // Check if the token account is the correct discriminator
+        unsafe {
+            Token::check_discriminator_unchecked(&token_data)?;
+        }
+
         // Check if the authority is the owner
-        if owner.key().eq(&token_data[TOKEN_ACCOUNT_OWNER_OFFSET..TOKEN_ACCOUNT_OWNER_OFFSET + size_of::<Pubkey>()]) {
-            if record_data[HAS_AUTHORITY_DELEGATE_OFFSET] == 1
-                && delegation_type == Self::BURN_AUTHORITY_DELEGATION_TYPE
-            {
-                let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-                unsafe { RecordAuthorityDelegate::delete_record_delegate_unchecked(delegate, owner)? }
-            }
+        if authority
+            .key()
+            .eq(unsafe { &Token::get_owner_unchecked(&token_data)? })
+        {
             return Ok(());
         }
 
-        // Check if the record has an authority delegate
-        if record_data[HAS_AUTHORITY_DELEGATE_OFFSET].ne(&1u8) {
-            return Err(ProgramError::MissingRequiredSignature);
+        let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
+        Self::validate_delegate(&class, authority)
+    }
+
+    #[inline(always)]
+    pub unsafe fn update_owner_type_unchecked(
+        data: &mut RefMut<'info, [u8]>,
+        owner_type: OwnerType,
+    ) -> Result<(), ProgramError> {
+        // Check if the owner_type is the same
+        if data[OWNER_TYPE_OFFSET].eq(&(owner_type as u8)) {
+            return Ok(());
         }
 
-        let delegate = delegate.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(record, delegate, owner, delegation_type)
+        // Update the owner_type
+        data[OWNER_TYPE_OFFSET] = owner_type as u8;
+
+        Ok(())
     }
 
     #[inline(always)]
     pub unsafe fn update_is_frozen_unchecked(
-        mut data: RefMut<'info, [u8]>,
+        data: &mut RefMut<'info, [u8]>,
         is_frozen: bool,
     ) -> Result<(), ProgramError> {
-
         // Check if the is_frozen is the same
         if data[IS_FROZEN_OFFSET].eq(&(is_frozen as u8)) {
-            return Err(ProgramError::InvalidAccountData);
+            return Ok(());
         }
 
         // Update the is_frozen
@@ -278,33 +259,22 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub unsafe fn update_has_authority_extension_unchecked(
-        mut data: RefMut<'info, [u8]>,
-        has_authority_delegate: bool,
+    pub unsafe fn update_owner_unchecked(
+        data: &mut RefMut<'info, [u8]>,
+        new_owner: &Pubkey,
     ) -> Result<(), ProgramError> {
-        // Check if the has_authority_delegate is the same
-        if data[HAS_AUTHORITY_DELEGATE_OFFSET].eq(&(has_authority_delegate as u8)) {
+        // Check if the record is frozen
+        if data[IS_FROZEN_OFFSET].eq(&1u8) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Update the has_authority_delegate
-        data[HAS_AUTHORITY_DELEGATE_OFFSET] = has_authority_delegate as u8;
-
-        Ok(())
-    }
-
-    #[inline(always)]
-    pub unsafe fn update_owner_unchecked(
-        mut data: RefMut<'info, [u8]>,
-        new_owner: Pubkey,
-    ) -> Result<(), ProgramError> {
         // Check if the new_owner is the same
         if new_owner.eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
-            return Err(ProgramError::InvalidAccountData);
+            return Ok(());
         }
 
         // Update the owner
-        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(&new_owner);
+        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(new_owner);
 
         Ok(())
     }
@@ -367,7 +337,10 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub unsafe fn initialize_unchecked(&self, account_info: &'info AccountInfo) -> Result<(), ProgramError> {
+    pub unsafe fn initialize_unchecked(
+        &self,
+        account_info: &'info AccountInfo,
+    ) -> Result<(), ProgramError> {
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
         if account_info.data_len() < required_space {
             return Err(ProgramError::InvalidAccountData);
@@ -383,11 +356,6 @@ impl<'info> Record<'info> {
         ByteWriter::write_with_offset(&mut data, OWNER_TYPE_OFFSET, self.owner_type)?;
         ByteWriter::write_with_offset(&mut data, OWNER_OFFSET, self.owner)?;
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
-        ByteWriter::write_with_offset(
-            &mut data,
-            HAS_AUTHORITY_DELEGATE_OFFSET,
-            self.has_authority_delegate,
-        )?;
         ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;
 
         let mut variable_data = ByteWriter::new_with_offset(&mut data, NAME_LEN_OFFSET);
@@ -398,9 +366,7 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub unsafe fn from_bytes_unchecked(
-        data: &'info [u8],
-    ) -> Result<Self, ProgramError> {
+    pub unsafe fn from_bytes_unchecked(data: &'info [u8]) -> Result<Self, ProgramError> {
         let mut variable = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
 
         Ok(Self {
@@ -408,7 +374,6 @@ impl<'info> Record<'info> {
             owner_type: ByteReader::read_with_offset(data, OWNER_TYPE_OFFSET)?,
             owner: ByteReader::read_with_offset(data, OWNER_OFFSET)?,
             is_frozen: ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?,
-            has_authority_delegate: ByteReader::read_with_offset(data, HAS_AUTHORITY_DELEGATE_OFFSET)?,
             expiry: ByteReader::read_with_offset(data, EXPIRY_OFFSET)?,
             name: variable.read_str_with_length()?,
             data: variable.read_str(variable.remaining_bytes())?,

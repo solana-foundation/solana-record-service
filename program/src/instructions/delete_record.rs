@@ -15,14 +15,14 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
 /// 2. `record` - The record account to be deleted
-/// 3. `record_delegate` - [remaining accounts] Required if the record has a delegate
+/// 3. `class` - [optional] The class of the record to be deleted
 ///
 /// # Security
 /// 1. The authority must be either:
 ///    a. The record owner, or
-///    b. A delegate with burn authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct DeleteRecordAccounts<'info> {
-    owner: &'info AccountInfo,
+    authority: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
@@ -30,19 +30,14 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, record, rest @ ..] = accounts else {
+        let [authority, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Check if authority is the record owner or has a delegate
-        Record::check_owner_or_delegate(
-            record,
-            owner,
-            rest.first(),
-            Record::BURN_AUTHORITY_DELEGATION_TYPE,
-        )?;
+        Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        Ok(Self { owner, record })
+        Ok(Self { authority, record })
     }
 }
 
@@ -70,6 +65,6 @@ impl<'info> DeleteRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Safety: The account has already been validated
-        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.owner) }
+        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.authority) }
     }
 }

@@ -16,8 +16,25 @@ pub use update_metadata::*;
 pub mod initialize_mint_2;
 pub use initialize_mint_2::*;
 
+pub mod close_account;
+pub use close_account::*;
+
 pub mod mint_to_checked;
 pub use mint_to_checked::*;
 
 pub mod transfer_checked;
 pub use transfer_checked::*;
+
+pub mod freeze_account;
+pub use freeze_account::*;
+
+pub mod thaw_account;
+pub use thaw_account::*;
+
+pub mod burn;
+pub use burn::*;
+
+pub mod state;
+pub use state::*;
+
+pub mod constants;

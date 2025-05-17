@@ -28,52 +28,61 @@ import {
 } from '../shared';
 
 // Accounts.
-export type UpdateRecordInstructionAccounts = {
+export type UpdateTokenizedRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
-  /** Record account to be updated */
+  /** Mint account for the tokenized record */
+  mint: PublicKey | Pda;
+  /** Token Account for the tokenized record */
+  tokenAccount: PublicKey | Pda;
+  /** Record account associated with the tokenized record */
   record: PublicKey | Pda;
-  /** System Program used to extend our record account */
-  systemProgram?: PublicKey | Pda;
+  /** Token2022 Program used to update our metadata */
+  token2022?: PublicKey | Pda;
   /** Class account of the record */
   class?: PublicKey | Pda;
 };
 
 // Data.
-export type UpdateRecordInstructionData = {
+export type UpdateTokenizedRecordInstructionData = {
   discriminator: number;
-  data: string;
+  newData: string;
 };
 
-export type UpdateRecordInstructionDataArgs = { data: string };
+export type UpdateTokenizedRecordInstructionDataArgs = { newData: string };
 
-export function getUpdateRecordInstructionDataSerializer(): Serializer<
-  UpdateRecordInstructionDataArgs,
-  UpdateRecordInstructionData
+export function getUpdateTokenizedRecordInstructionDataSerializer(): Serializer<
+  UpdateTokenizedRecordInstructionDataArgs,
+  UpdateTokenizedRecordInstructionData
 > {
   return mapSerializer<
-    UpdateRecordInstructionDataArgs,
+    UpdateTokenizedRecordInstructionDataArgs,
     any,
-    UpdateRecordInstructionData
+    UpdateTokenizedRecordInstructionData
   >(
-    struct<UpdateRecordInstructionData>(
+    struct<UpdateTokenizedRecordInstructionData>(
       [
         ['discriminator', u8()],
-        ['data', string({ size: 'variable' })],
+        ['newData', string({ size: 'variable' })],
       ],
-      { description: 'UpdateRecordInstructionData' }
+      { description: 'UpdateTokenizedRecordInstructionData' }
     ),
-    (value) => ({ ...value, discriminator: 4 })
-  ) as Serializer<UpdateRecordInstructionDataArgs, UpdateRecordInstructionData>;
+    (value) => ({ ...value, discriminator: 9 })
+  ) as Serializer<
+    UpdateTokenizedRecordInstructionDataArgs,
+    UpdateTokenizedRecordInstructionData
+  >;
 }
 
 // Args.
-export type UpdateRecordInstructionArgs = UpdateRecordInstructionDataArgs;
+export type UpdateTokenizedRecordInstructionArgs =
+  UpdateTokenizedRecordInstructionDataArgs;
 
 // Instruction.
-export function updateRecord(
+export function updateTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: UpdateRecordInstructionAccounts & UpdateRecordInstructionArgs
+  input: UpdateTokenizedRecordInstructionAccounts &
+    UpdateTokenizedRecordInstructionArgs
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -88,33 +97,39 @@ export function updateRecord(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
+    mint: { index: 1, isWritable: true as boolean, value: input.mint ?? null },
+    tokenAccount: {
+      index: 2,
+      isWritable: false as boolean,
+      value: input.tokenAccount ?? null,
+    },
     record: {
-      index: 1,
+      index: 3,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    systemProgram: {
-      index: 2,
+    token2022: {
+      index: 4,
       isWritable: false as boolean,
-      value: input.systemProgram ?? null,
+      value: input.token2022 ?? null,
     },
     class: {
-      index: 3,
+      index: 5,
       isWritable: false as boolean,
       value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 
   // Arguments.
-  const resolvedArgs: UpdateRecordInstructionArgs = { ...input };
+  const resolvedArgs: UpdateTokenizedRecordInstructionArgs = { ...input };
 
   // Default values.
-  if (!resolvedAccounts.systemProgram.value) {
-    resolvedAccounts.systemProgram.value = context.programs.getPublicKey(
-      'systemProgram',
-      '11111111111111111111111111111111'
+  if (!resolvedAccounts.token2022.value) {
+    resolvedAccounts.token2022.value = context.programs.getPublicKey(
+      'token2022',
+      'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
     );
-    resolvedAccounts.systemProgram.isWritable = false;
+    resolvedAccounts.token2022.isWritable = false;
   }
 
   // Accounts in order.
@@ -130,8 +145,8 @@ export function updateRecord(
   );
 
   // Data.
-  const data = getUpdateRecordInstructionDataSerializer().serialize(
-    resolvedArgs as UpdateRecordInstructionDataArgs
+  const data = getUpdateTokenizedRecordInstructionDataSerializer().serialize(
+    resolvedArgs as UpdateTokenizedRecordInstructionDataArgs
   );
 
   // Bytes Created On Chain.

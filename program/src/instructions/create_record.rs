@@ -28,16 +28,15 @@ use crate::{
 /// 4. Initializes the record data
 ///
 /// # Accounts
-/// 1. `owner` - The account that will own the record (must be a signer)
+/// 1. `owner` - The account that will own the record
 /// 2. `class` - The class account that this record belongs to
 /// 3. `record` - The new record account to be created
 /// 4. `authority` - [as remaining accounts] The authority account of the class
 ///
 /// # Security
-/// 1. The owner account must be a signer.
-/// 2. Check if the class is permissioned, if so, the instruction must pass
+/// 1. Check if the class is permissioned, if so, the instruction must pass
 ///    the class authority as signer in the remaining accounts
-/// 3. The class must not be frozen
+/// 2. The class must not be frozen
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
     class: &'info AccountInfo,
@@ -51,11 +50,6 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
         let [owner, class, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
-
-        // Check owner is a signer
-        if !owner.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
 
         // Check class permission
         Class::check_permission(class, rest.first())?;
@@ -166,7 +160,6 @@ impl<'info> CreateRecord<'info> {
             owner_type: OwnerType::Pubkey,
             owner: *self.accounts.owner.key(),
             is_frozen: false,
-            has_authority_delegate: false,
             expiry: self.expiry,
             name: self.name,
             data: self.data,

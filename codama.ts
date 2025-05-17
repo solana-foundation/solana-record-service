@@ -29,30 +29,14 @@ const root = rootNode(
                 data: structTypeNode([
                     structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(2), defaultValueStrategy: 'omitted' }),
                     structFieldTypeNode({ name: 'class', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'ownerType', type: numberTypeNode("i8") }),
+                    structFieldTypeNode({ name: 'ownerType', type: numberTypeNode('u8'), defaultValue: numberValueNode(0), defaultValueStrategy: 'omitted' }),
                     structFieldTypeNode({ name: 'owner', type: publicKeyTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
-                    structFieldTypeNode({ name: 'hasAuthorityExtension', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
                     structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
                     structFieldTypeNode({ name: 'data', type: stringTypeNode("utf8") }),
                 ])
             }),
-            accountNode({
-                name: "recordDelegate",
-                discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(3)))
-                ],
-                data: structTypeNode([
-                    structFieldTypeNode({ name: 'discriminator', type: numberTypeNode('u8'), defaultValue: numberValueNode(3), defaultValueStrategy: 'omitted' }),
-                    structFieldTypeNode({ name: 'record', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
-                    structFieldTypeNode({ name: 'authorityProgram', type: publicKeyTypeNode() }),
-                ])
-            })
        ],
         instructions: [
             instructionNode({
@@ -231,7 +215,7 @@ const root = rootNode(
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to update a record"]
+                        docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -247,11 +231,11 @@ const root = rootNode(
                         docs: ["System Program used to extend our record account"]
                     }),
                     instructionAccountNode({
-                        name: "delegate",
+                        name: "class",
                         isOptional: true,
-                        isSigner: true,
+                        isSigner: false,
                         isWritable: false,
-                        docs: ["Delegate signer for record account"]
+                        docs: ["Class account of the record"]
                     }),
                 ]
             }),
@@ -274,7 +258,7 @@ const root = rootNode(
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to update a record"]
+                        docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -283,11 +267,11 @@ const root = rootNode(
                         docs: ["Record account to be updated"]
                     }),
                     instructionAccountNode({
-                        name: "delegate",
+                        name: "class",
                         isOptional: true,
-                        isSigner: true,
+                        isSigner: false,
                         isWritable: false,
-                        docs: ["Delegate signer for record account"]
+                        docs: ["Class account of the record"]
                     }),
                 ]
             }),
@@ -309,7 +293,7 @@ const root = rootNode(
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to update a record"]
+                        docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -318,11 +302,11 @@ const root = rootNode(
                         docs: ["Record account to be updated"]
                     }),
                     instructionAccountNode({
-                        name: "delegate",
+                        name: "class",
                         isOptional: true,
-                        isSigner: true,
+                        isSigner: false,
                         isWritable: false,
-                        docs: ["Delegate signer for record account"]
+                        docs: ["Class account of the record"]
                     }),
                 ]
             }),
@@ -345,7 +329,7 @@ const root = rootNode(
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to update a record"]
+                        docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -354,16 +338,16 @@ const root = rootNode(
                         docs: ["Record account to be updated"]
                     }),
                     instructionAccountNode({
-                        name: "delegate",
+                        name: "class",
                         isOptional: true,
-                        isSigner: true,
+                        isSigner: false,
                         isWritable: false,
-                        docs: ["Delegate signer for record account"]
+                        docs: ["Class account of the record"]
                     }),
                 ]
             }),
             instructionNode({
-                name: "createRecordAuthorityDelegate",
+                name: "mintTokenizedRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(8)))
                 ],
@@ -373,151 +357,38 @@ const root = rootNode(
                         type: numberTypeNode('u8'),
                         defaultValue: numberValueNode(8),
                         defaultValueStrategy: 'omitted',
-                    }),
-                    instructionArgumentNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'authorityProgram', type: publicKeyTypeNode() })
+                    })
                 ],
                 accounts: [
                     instructionAccountNode({
-                        name: "authority",
-                        isSigner: true,
-                        isWritable: true,
-                        docs: ["Authority used to create a delegate"]
-                    }),
-                    instructionAccountNode({
-                        name: "record",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Record account to create delegate for"]
-                    }),
-                    instructionAccountNode({
-                        name: "delegate",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Delegate for record account"]
-                    }),
-                    instructionAccountNode({
-                        name: "systemProgram",
-                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        name: "owner",
                         isSigner: false,
                         isWritable: false,
-                        docs: ["System Program used to extend our record account"]
+                        docs: ["Record owner"]
                     }),
-                ]
-            }),
-            instructionNode({
-                name: "updateRecordAuthorityDelegate",
-                discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(9)))
-                ],
-                arguments: [
-                    instructionArgumentNode({
-                        name: 'discriminator',
-                        type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(9),
-                        defaultValueStrategy: 'omitted',
-                    }),
-                    instructionArgumentNode({ name: 'updateAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'freezeAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'transferAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'burnAuthority', type: publicKeyTypeNode() }),
-                    instructionArgumentNode({ name: 'authorityProgram', type: publicKeyTypeNode() })
-                ],
-                accounts: [
                     instructionAccountNode({
                         name: "authority",
                         isSigner: true,
                         isWritable: true,
-                        docs: ["Authority used to create a delegate"]
-                    }),
-                    instructionAccountNode({
-                        name: "record",
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Record account to create delegate for"]
-                    }),
-                    instructionAccountNode({
-                        name: "delegate",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Delegate for record account"]
-                    })
-                ]
-            }),
-            instructionNode({
-                name: "deleteRecordAuthorityDelegate",
-                discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(10)))
-                ],
-                arguments: [
-                    instructionArgumentNode({
-                        name: 'discriminator',
-                        type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(10),
-                        defaultValueStrategy: 'omitted',
-                    })
-                ],
-                accounts: [
-                    instructionAccountNode({
-                        name: "authority",
-                        isSigner: true,
-                        isWritable: true,
-                        docs: ["Authority used to create a delegate"]
-                    }),
-                    instructionAccountNode({
-                        name: "record",
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Record account to create delegate for"]
-                    }),
-                    instructionAccountNode({
-                        name: "delegate",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Delegate for record account"]
-                    })
-                ]
-            }),
-            instructionNode({
-                name: "mintRecordToken",
-                discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(11)))
-                ],
-                arguments: [
-                    instructionArgumentNode({
-                        name: 'discriminator',
-                        type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(11),
-                        defaultValueStrategy: 'omitted',
-                    })
-                ],
-                accounts: [
-                    instructionAccountNode({
-                        name: "authority",
-                        isSigner: true,
-                        isWritable: true,
-                        docs: ["Authority used to create a delegate"]
+                        docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
                         name: "record",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Record account to create delegate for"]
+                        docs: ["Record account associated with the tokenized record"]
                     }),
                     instructionAccountNode({
                         name: "mint",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Mint account for record token"]
+                        docs: ["Mint account for the tokenized record"]
                     }),
                     instructionAccountNode({
                         name: "tokenAccount",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Token Account for record token"]
+                        docs: ["Token Account for the tokenized record"]
                     }),
                     instructionAccountNode({
                         name: "associatedTokenProgram",
@@ -540,6 +411,237 @@ const root = rootNode(
                         isWritable: false,
                         docs: ["System Program used to create our token"]
                     }),
+                    instructionAccountNode({
+                        name: "class",
+                        isOptional: true,
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),
+                ]
+            }),
+            instructionNode({
+                name: "updateTokenizedRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(9)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(9),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'newData', type: stringTypeNode("utf8") }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "mint",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Mint account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "tokenAccount",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token Account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account associated with the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "token2022",
+                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token2022 Program used to update our metadata"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isOptional: true,
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),
+                ]
+            }),
+            instructionNode({
+                name: "freezeTokenizedRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(10)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(10),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ name: 'isFrozen', type: booleanTypeNode() })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "mint",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Mint account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "tokenAccount",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Token Account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Record account associated with the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "token2022",
+                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token2022 Program used to freeze/unfreeze the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isOptional: true,
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),    
+                ]
+            }),
+            instructionNode({
+                name: "transferTokenizedRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(11)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(11),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "mint",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Mint account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "tokenAccount",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Token Account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "newTokenAccount",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["New Token Account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Record account associated with the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "token2022",
+                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token2022 Program used to freeze/unfreeze the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isOptional: true,
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),    
+                ]
+            }),
+            instructionNode({
+                name: "burnTokenizedRecord",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(12)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(12),
+                        defaultValueStrategy: 'omitted',
+                    })
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "mint",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Mint account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "tokenAccount",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Token Account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account associated with the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "token2022",
+                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Token2022 Program used to burn the tokenized record"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: false,
+                        isOptional: true,
+                        docs: ["Class account of the record"]
+                    }),    
                 ]
             })
         ]

@@ -1,4 +1,4 @@
-use core::slice::from_raw_parts;
+use core::{mem::size_of, slice::from_raw_parts};
 
 use pinocchio::{
     account_info::AccountInfo,
@@ -9,7 +9,7 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::{TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX, TOKEN_2022_PROGRAM_ID},
+    token2022::constants::TOKEN_2022_PROGRAM_ID,
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -24,10 +24,15 @@ pub struct InitializeMintCloseAuthority<'a> {
 }
 
 impl InitializeMintCloseAuthority<'_> {
+    const DISCRIMINATOR: u8 = 0x19;
+
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
     }
+
+    const DISCRIMINATOR_OFFSET: usize = 0;
+    const CLOSE_AUTHORITY_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u16>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
@@ -38,18 +43,20 @@ impl InitializeMintCloseAuthority<'_> {
         // -  [1..33]: closeAuthority (32 bytes, Pubkey)
         let mut instruction_data = [UNINIT_BYTE; 34];
 
-        // Set discriminator as u8 at offset [0]
         write_bytes(
-            &mut instruction_data[0..2],
-            &[TOKEN_2022_INITIALIZE_MINT_CLOSE_AUTHORITY_IX, 1],
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &[Self::DISCRIMINATOR, 1],
         );
-        // Set owner as [u8; 32] at offset [1..33]
-        write_bytes(&mut instruction_data[2..34], self.close_authority);
+
+        write_bytes(
+            &mut instruction_data[Self::CLOSE_AUTHORITY_OFFSET..],
+            self.close_authority,
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
-            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, 34) },
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
         invoke_signed(&instruction, &[self.mint], signers)

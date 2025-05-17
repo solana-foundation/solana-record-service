@@ -26,14 +26,11 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, ..] = &accounts else {
+        let [authority, class, _system_program] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Account Checks
-        if !authority.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        Class::check_authority(class, authority)?;
 
         Ok(Self { authority, class })
     }
@@ -74,6 +71,12 @@ impl<'info> UpdateClassMetadata<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        Class::update_metadata(self.accounts.class, self.accounts.authority, self.metadata)
+        unsafe {
+            Class::update_metadata_unchecked(
+                self.accounts.class,
+                self.accounts.authority,
+                self.metadata,
+            )
+        }
     }
 }

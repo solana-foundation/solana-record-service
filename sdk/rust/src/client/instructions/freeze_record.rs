@@ -11,12 +11,12 @@ use borsh::BorshSerialize;
 /// Accounts.
 #[derive(Debug)]
 pub struct FreezeRecord {
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
     /// Record account to be updated
     pub record: solana_program::pubkey::Pubkey,
-    /// Delegate signer for record account
-    pub delegate: Option<solana_program::pubkey::Pubkey>,
+    /// Class account of the record
+    pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
 impl FreezeRecord {
@@ -42,9 +42,9 @@ impl FreezeRecord {
             self.record,
             false,
         ));
-        if let Some(delegate) = self.delegate {
+        if let Some(class) = self.class {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-                delegate, true,
+                class, false,
             ));
         } else {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -95,12 +95,12 @@ pub struct FreezeRecordInstructionArgs {
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` record
-///   2. `[signer, optional]` delegate
+///   2. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct FreezeRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     record: Option<solana_program::pubkey::Pubkey>,
-    delegate: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
     is_frozen: Option<bool>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
@@ -109,7 +109,7 @@ impl FreezeRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
@@ -122,10 +122,10 @@ impl FreezeRecordBuilder {
         self
     }
     /// `[optional account]`
-    /// Delegate signer for record account
+    /// Class account of the record
     #[inline(always)]
-    pub fn delegate(&mut self, delegate: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
-        self.delegate = delegate;
+    pub fn class(&mut self, class: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+        self.class = class;
         self
     }
     #[inline(always)]
@@ -156,7 +156,7 @@ impl FreezeRecordBuilder {
         let accounts = FreezeRecord {
             authority: self.authority.expect("authority is not set"),
             record: self.record.expect("record is not set"),
-            delegate: self.delegate,
+            class: self.class,
         };
         let args = FreezeRecordInstructionArgs {
             is_frozen: self.is_frozen.clone().expect("is_frozen is not set"),
@@ -168,24 +168,24 @@ impl FreezeRecordBuilder {
 
 /// `freeze_record` CPI accounts.
 pub struct FreezeRecordCpiAccounts<'a, 'b> {
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate signer for record account
-    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
 /// `freeze_record` CPI instruction.
 pub struct FreezeRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Delegate signer for record account
-    pub delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    /// Class account of the record
+    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: FreezeRecordInstructionArgs,
 }
@@ -200,7 +200,7 @@ impl<'a, 'b> FreezeRecordCpi<'a, 'b> {
             __program: program,
             authority: accounts.authority,
             record: accounts.record,
-            delegate: accounts.delegate,
+            class: accounts.class,
             __args: args,
         }
     }
@@ -247,10 +247,9 @@ impl<'a, 'b> FreezeRecordCpi<'a, 'b> {
             *self.record.key,
             false,
         ));
-        if let Some(delegate) = self.delegate {
+        if let Some(class) = self.class {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-                *delegate.key,
-                true,
+                *class.key, false,
             ));
         } else {
             accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -278,8 +277,8 @@ impl<'a, 'b> FreezeRecordCpi<'a, 'b> {
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
         account_infos.push(self.record.clone());
-        if let Some(delegate) = self.delegate {
-            account_infos.push(delegate.clone());
+        if let Some(class) = self.class {
+            account_infos.push(class.clone());
         }
         remaining_accounts
             .iter()
@@ -299,7 +298,7 @@ impl<'a, 'b> FreezeRecordCpi<'a, 'b> {
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` record
-///   2. `[signer, optional]` delegate
+///   2. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct FreezeRecordCpiBuilder<'a, 'b> {
     instruction: Box<FreezeRecordCpiBuilderInstruction<'a, 'b>>,
@@ -311,13 +310,13 @@ impl<'a, 'b> FreezeRecordCpiBuilder<'a, 'b> {
             __program: program,
             authority: None,
             record: None,
-            delegate: None,
+            class: None,
             is_frozen: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Authority used to update a record
+    /// Record owner or class authority for permissioned classes
     #[inline(always)]
     pub fn authority(
         &mut self,
@@ -336,13 +335,13 @@ impl<'a, 'b> FreezeRecordCpiBuilder<'a, 'b> {
         self
     }
     /// `[optional account]`
-    /// Delegate signer for record account
+    /// Class account of the record
     #[inline(always)]
-    pub fn delegate(
+    pub fn class(
         &mut self,
-        delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+        class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     ) -> &mut Self {
-        self.instruction.delegate = delegate;
+        self.instruction.class = class;
         self
     }
     #[inline(always)]
@@ -405,7 +404,7 @@ impl<'a, 'b> FreezeRecordCpiBuilder<'a, 'b> {
 
             record: self.instruction.record.expect("record is not set"),
 
-            delegate: self.instruction.delegate,
+            class: self.instruction.class,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -420,7 +419,7 @@ struct FreezeRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    delegate: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     is_frozen: Option<bool>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(

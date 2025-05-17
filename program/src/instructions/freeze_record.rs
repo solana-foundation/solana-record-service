@@ -15,12 +15,12 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// # Accounts
 /// 1. `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
 /// 2. `record` - The record account to be frozen/unfrozen
-/// 3. `record_delegate` - [remaining accounts] Required if the authority is not the record owner
+/// 3. `class` - [optional] The class of the record to be frozen/unfrozen
 ///
 /// # Security
 /// 1. The authority must be either:
 ///    a. The record owner, or
-///    b. A delegate with freeze authority
+///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct FreezeRecordAccounts<'info> {
     record: &'info AccountInfo,
 }
@@ -28,17 +28,12 @@ pub struct FreezeRecordAccounts<'info> {
 impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, record, rest @ ..] = accounts else {
+        let [authority, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Check if authority is the record owner or has a delegate
-        Record::check_owner_or_delegate(
-            record,
-            owner,
-            rest.first(),
-            Record::FREEZE_AUTHORITY_DELEGATION_TYPE,
-        )?;
+        Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
         Ok(Self { record })
     }
@@ -86,6 +81,11 @@ impl<'info> FreezeRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Update the record to be frozen [this is safe, check safety docs]
-        unsafe { Record::update_is_frozen_unchecked(self.accounts.record.try_borrow_mut_data()?, self.is_frozen) }
+        unsafe {
+            Record::update_is_frozen_unchecked(
+                &mut self.accounts.record.try_borrow_mut_data()?,
+                self.is_frozen,
+            )
+        }
     }
 }

@@ -12,65 +12,65 @@ use crate::{
     utils::{write_bytes, UNINIT_BYTE},
 };
 
-/// Initializes a Mint Close Authority.
+/// Burns tokens by removing them from an account.
 ///
 /// ### Accounts:
-///  0. `[writable]` The source account.
-///  1. `[]` The token mint.
-///  2. `[writable]` The destination account.
-///  3. `[signer]` The source account's owner/delegate.
-///
-/// ### Data:
-///  0. amount (u64)
-///  1. decimals (u8)
-pub struct TransferChecked<'a> {
-    /// Mint Account.
-    pub source: &'a AccountInfo,
+///   0. `[WRITE]` The account to burn from.
+///   1. `[WRITE]` The token mint.
+///   2. `[SIGNER]` The account's owner/delegate.
+pub struct BurnChecked<'a> {
+    /// Source of the Burn Account
+    pub account: &'a AccountInfo,
+    /// Mint Account
     pub mint: &'a AccountInfo,
-    pub destination: &'a AccountInfo,
+    /// Owner of the Token Account
     pub authority: &'a AccountInfo,
+    /// Amount
     pub amount: u64,
+    /// Decimals
     pub decimals: u8,
 }
 
-const DISCRIMINATOR_OFFSET: usize = 0;
-const AMOUNT_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
-const DECIMALS_OFFSET: usize = AMOUNT_OFFSET + size_of::<u64>();
+impl BurnChecked<'_> {
+    const DISCRIMINATOR: u8 = 0x0f;
 
-impl TransferChecked<'_> {
-    const DISCRIMINATOR: u8 = 0x0c;
-    
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
     }
 
+    const DISCRIMINATOR_OFFSET: usize = 0;
+    const AMOUNT_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const DECIMALS_OFFSET: usize = Self::AMOUNT_OFFSET + size_of::<u64>();
+
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
-        let account_metas: [AccountMeta; 4] = [
-            AccountMeta::writable(self.source.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::writable(self.destination.key()),
+        let account_metas: [AccountMeta; 3] = [
+            AccountMeta::writable(self.account.key()),
+            AccountMeta::writable(self.mint.key()),
             AccountMeta::readonly_signer(self.authority.key()),
         ];
 
-        // instruction data
+        // Instruction data
         // -  [0]: instruction discriminator (1 byte, u8)
         // -  [1..9]: amount (8 bytes, u64)
         // -  [9]: decimals (1 byte, u8)
         let mut instruction_data = [UNINIT_BYTE; 10];
 
         write_bytes(
-            &mut instruction_data[DISCRIMINATOR_OFFSET..],
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
             &[Self::DISCRIMINATOR],
         );
 
         write_bytes(
-            &mut instruction_data[AMOUNT_OFFSET..],
+            &mut instruction_data[Self::AMOUNT_OFFSET..],
             &self.amount.to_le_bytes(),
         );
 
-        write_bytes(&mut instruction_data[DECIMALS_OFFSET..], &[self.decimals]);
+        write_bytes(
+            &mut instruction_data[Self::DECIMALS_OFFSET..],
+            &[self.decimals],
+        );
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
@@ -78,6 +78,10 @@ impl TransferChecked<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
-        invoke_signed(&instruction, &[self.source, self.mint, self.destination, self.authority], signers)
+        invoke_signed(
+            &instruction,
+            &[self.account, self.mint, self.authority],
+            signers,
+        )
     }
 }

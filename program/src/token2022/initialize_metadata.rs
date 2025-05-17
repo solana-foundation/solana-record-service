@@ -10,7 +10,8 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::{MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER, TOKEN_2022_PROGRAM_ID},
+    constants::{MAX_METADATA_LEN, MAX_NAME_LEN, SRS_TICKER},
+    token2022::constants::TOKEN_2022_PROGRAM_ID,
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -43,7 +44,7 @@ pub struct Metadata<'a> {
 }
 
 #[allow(clippy::len_without_is_empty)]
-impl<'a> Metadata<'a> {
+impl Metadata<'_> {
     pub const FIXED_HEADER_LEN: usize = size_of::<u16>() * 2 + // instruction_id_len + data_len
         size_of::<u32>() * 4; // name_len_size, symbol_len_size, uri_len_size, additional_metadata_len_size
 
@@ -67,6 +68,10 @@ impl InitializeMetadata<'_> {
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
     }
+
+    const DISCRIMINATOR_OFFSET: usize = 0;
+    const NAME_LENGTH_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u64>();
+    const NAME_OFFSET: usize = Self::NAME_LENGTH_OFFSET + size_of::<u32>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
@@ -92,50 +97,45 @@ impl InitializeMetadata<'_> {
                 + SRS_TICKER.len()
                 + MAX_METADATA_LEN];
 
-        // Write discriminator as u8 at offset [0]
-        write_bytes(&mut instruction_data[..8], &Self::DISCRIMINATOR);
-        // Write name length at offset [1]
         write_bytes(
-            &mut instruction_data
-                [Self::DISCRIMINATOR.len()..Self::DISCRIMINATOR.len() + size_of::<u32>()],
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &Self::DISCRIMINATOR,
+        );
+
+        write_bytes(
+            &mut instruction_data[Self::NAME_LENGTH_OFFSET..],
             &(self.name.len() as u32).to_le_bytes(),
         );
 
         // Switch to dynamic offsets
-        let mut offset = Self::DISCRIMINATOR.len() + size_of::<u32>() + self.name.len();
+        let mut offset = Self::NAME_OFFSET + self.name.len();
 
-        // Write name at offset [12]
         write_bytes(
-            &mut instruction_data[Self::DISCRIMINATOR.len() + size_of::<u32>()..offset],
+            &mut instruction_data[Self::NAME_OFFSET..],
             self.name.as_bytes(),
         );
 
         // Write symbol length
         write_bytes(
-            &mut instruction_data[offset..offset + size_of::<u32>()],
+            &mut instruction_data[offset..],
             &(self.symbol.len() as u32).to_le_bytes(),
         );
         offset += size_of::<u32>();
 
         // Write symbol
-        write_bytes(
-            &mut instruction_data[offset..offset + self.symbol.len()],
-            self.symbol.as_bytes(),
-        );
+        write_bytes(&mut instruction_data[offset..], self.symbol.as_bytes());
         offset += self.symbol.len();
 
         // Write URI length
         write_bytes(
-            &mut instruction_data[offset..offset + size_of::<u32>()],
+            &mut instruction_data[offset..],
             &(self.uri.len() as u32).to_le_bytes(),
         );
         offset += size_of::<u32>();
 
         // Write URI
-        write_bytes(
-            &mut instruction_data[offset..offset + self.uri.len()],
-            self.uri.as_bytes(),
-        );
+        write_bytes(&mut instruction_data[offset..], self.uri.as_bytes());
+
         offset += self.uri.len();
 
         let instruction = Instruction {

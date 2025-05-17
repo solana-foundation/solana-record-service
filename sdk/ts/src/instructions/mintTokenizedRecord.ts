@@ -27,14 +27,16 @@ import {
 } from '../shared';
 
 // Accounts.
-export type MintRecordTokenInstructionAccounts = {
-  /** Authority used to create a delegate */
+export type MintTokenizedRecordInstructionAccounts = {
+  /** Record owner */
+  owner: PublicKey | Pda;
+  /** Record owner or class authority for permissioned classes */
   authority: Signer;
-  /** Record account to create delegate for */
+  /** Record account associated with the tokenized record */
   record: PublicKey | Pda;
-  /** Mint account for record token */
+  /** Mint account for the tokenized record */
   mint: PublicKey | Pda;
-  /** Token Account for record token */
+  /** Token Account for the tokenized record */
   tokenAccount: PublicKey | Pda;
   /** Associated Token Program used to create our token */
   associatedTokenProgram?: PublicKey | Pda;
@@ -42,36 +44,38 @@ export type MintRecordTokenInstructionAccounts = {
   token2022?: PublicKey | Pda;
   /** System Program used to create our token */
   systemProgram?: PublicKey | Pda;
+  /** Class account of the record */
+  class?: PublicKey | Pda;
 };
 
 // Data.
-export type MintRecordTokenInstructionData = { discriminator: number };
+export type MintTokenizedRecordInstructionData = { discriminator: number };
 
-export type MintRecordTokenInstructionDataArgs = {};
+export type MintTokenizedRecordInstructionDataArgs = {};
 
-export function getMintRecordTokenInstructionDataSerializer(): Serializer<
-  MintRecordTokenInstructionDataArgs,
-  MintRecordTokenInstructionData
+export function getMintTokenizedRecordInstructionDataSerializer(): Serializer<
+  MintTokenizedRecordInstructionDataArgs,
+  MintTokenizedRecordInstructionData
 > {
   return mapSerializer<
-    MintRecordTokenInstructionDataArgs,
+    MintTokenizedRecordInstructionDataArgs,
     any,
-    MintRecordTokenInstructionData
+    MintTokenizedRecordInstructionData
   >(
-    struct<MintRecordTokenInstructionData>([['discriminator', u8()]], {
-      description: 'MintRecordTokenInstructionData',
+    struct<MintTokenizedRecordInstructionData>([['discriminator', u8()]], {
+      description: 'MintTokenizedRecordInstructionData',
     }),
-    (value) => ({ ...value, discriminator: 11 })
+    (value) => ({ ...value, discriminator: 8 })
   ) as Serializer<
-    MintRecordTokenInstructionDataArgs,
-    MintRecordTokenInstructionData
+    MintTokenizedRecordInstructionDataArgs,
+    MintTokenizedRecordInstructionData
   >;
 }
 
 // Instruction.
-export function mintRecordToken(
+export function mintTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: MintRecordTokenInstructionAccounts
+  input: MintTokenizedRecordInstructionAccounts
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -81,36 +85,46 @@ export function mintRecordToken(
 
   // Accounts.
   const resolvedAccounts = {
-    authority: {
+    owner: {
       index: 0,
+      isWritable: false as boolean,
+      value: input.owner ?? null,
+    },
+    authority: {
+      index: 1,
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
     record: {
-      index: 1,
+      index: 2,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    mint: { index: 2, isWritable: true as boolean, value: input.mint ?? null },
+    mint: { index: 3, isWritable: true as boolean, value: input.mint ?? null },
     tokenAccount: {
-      index: 3,
+      index: 4,
       isWritable: true as boolean,
       value: input.tokenAccount ?? null,
     },
     associatedTokenProgram: {
-      index: 4,
+      index: 5,
       isWritable: false as boolean,
       value: input.associatedTokenProgram ?? null,
     },
     token2022: {
-      index: 5,
+      index: 6,
       isWritable: false as boolean,
       value: input.token2022 ?? null,
     },
     systemProgram: {
-      index: 6,
+      index: 7,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
+    },
+    class: {
+      index: 8,
+      isWritable: false as boolean,
+      value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 
@@ -151,7 +165,7 @@ export function mintRecordToken(
   );
 
   // Data.
-  const data = getMintRecordTokenInstructionDataSerializer().serialize({});
+  const data = getMintTokenizedRecordInstructionDataSerializer().serialize({});
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

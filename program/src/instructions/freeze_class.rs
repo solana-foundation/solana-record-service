@@ -80,6 +80,12 @@ impl<'info> FreezeClass<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        unsafe { Class::update_is_frozen_unchecked(self.accounts.class, self.accounts.authority, self.is_frozen) }
+        unsafe {
+            Class::update_is_frozen_unchecked(
+                self.accounts.class,
+                self.accounts.authority,
+                self.is_frozen,
+            )
+        }
     }
 }
