@@ -227,7 +227,7 @@ impl<'info> MintTokenizedRecord<'info> {
             mint: self.accounts.mint,
             decimals: 0,
             mint_authority: self.accounts.mint.key(),
-            freeze_authority: None,
+            freeze_authority: Some(self.accounts.mint.key()),
         }
         .invoke()
     }

@@ -2,7 +2,7 @@ use crate::{state::Record, token2022::TransferChecked, utils::Context};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
+    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
 };
 
 /// TransferRecord instruction.

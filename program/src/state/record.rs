@@ -4,7 +4,7 @@ use crate::{
 };
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey
+    account_info::{AccountInfo, Ref, RefMut}, program_error::ProgramError, pubkey::Pubkey
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};

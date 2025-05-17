@@ -189,7 +189,8 @@ fn keyed_account_for_mint(
     // Is initialized
     mint_account_data[45] = 1;
     // Freeze authority
-    mint_account_data[46..82].fill(0);
+    mint_account_data[46..50].copy_from_slice(&[1, 0, 0, 0]);
+    mint_account_data[50..82].copy_from_slice(&address.to_bytes());
 
     // Padding
     mint_account_data[82..165].fill(0);
@@ -266,13 +267,13 @@ fn keyed_account_for_token(
             mint.as_ref()
         ], &mollusk_svm_programs_token::associated_token::ID);
 
-    let mut token_account_data = [0u8; 166];
+    let mut token_account_data = [0u8; 170];
     // Mint
     token_account_data[0..32].copy_from_slice(&mint.to_bytes());
     // Owner
     token_account_data[32..64].copy_from_slice(&owner.to_bytes());
     // Amount
-    token_account_data[64..72].copy_from_slice(&[0, 0, 0, 0, 0, 0, 0, 1]);
+    token_account_data[64..72].copy_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0]);
     // Delegate
     token_account_data[72..108].copy_from_slice(&[0; 36]);
     // State
@@ -283,6 +284,8 @@ fn keyed_account_for_token(
     token_account_data[129..165].copy_from_slice(&[0; 36]);
     // Account type
     token_account_data[165] = 2;
+    // Extension
+    token_account_data[166..170].copy_from_slice(&[7, 0, 0, 0]);
 
 
     // Create the mint account
@@ -1047,14 +1050,7 @@ fn mint_record_token() {
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
     // ATA
-    let (token_account, _) = Pubkey::find_program_address(
-        &[
-            owner.as_ref(),
-            mollusk_svm_programs_token::token2022::ID.as_ref(),
-            mint.as_ref(),
-        ],
-        &mollusk_svm_programs_token::associated_token::ID,
-    );
+    let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
 
     let (associated_token_program, associated_token_program_data) =
         mollusk_svm_programs_token::associated_token::keyed_account();
@@ -1096,6 +1092,7 @@ fn mint_record_token() {
         &[
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
+            Check::account(&token_account).data(&token_account_data.data).build(),
         ],
     );
 }
