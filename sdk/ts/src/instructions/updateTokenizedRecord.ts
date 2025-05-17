@@ -17,6 +17,7 @@ import {
 import {
   Serializer,
   mapSerializer,
+  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -27,7 +28,7 @@ import {
 } from '../shared';
 
 // Accounts.
-export type BurnRecordTokenInstructionAccounts = {
+export type UpdateTokenizedRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Mint account for the tokenized record */
@@ -36,40 +37,52 @@ export type BurnRecordTokenInstructionAccounts = {
   tokenAccount: PublicKey | Pda;
   /** Record account associated with the tokenized record */
   record: PublicKey | Pda;
-  /** Token2022 Program used to burn the tokenized record */
+  /** Token2022 Program used to update our metadata */
   token2022?: PublicKey | Pda;
   /** Class account of the record */
   class?: PublicKey | Pda;
 };
 
 // Data.
-export type BurnRecordTokenInstructionData = { discriminator: number };
+export type UpdateTokenizedRecordInstructionData = {
+  discriminator: number;
+  newData: string;
+};
 
-export type BurnRecordTokenInstructionDataArgs = {};
+export type UpdateTokenizedRecordInstructionDataArgs = { newData: string };
 
-export function getBurnRecordTokenInstructionDataSerializer(): Serializer<
-  BurnRecordTokenInstructionDataArgs,
-  BurnRecordTokenInstructionData
+export function getUpdateTokenizedRecordInstructionDataSerializer(): Serializer<
+  UpdateTokenizedRecordInstructionDataArgs,
+  UpdateTokenizedRecordInstructionData
 > {
   return mapSerializer<
-    BurnRecordTokenInstructionDataArgs,
+    UpdateTokenizedRecordInstructionDataArgs,
     any,
-    BurnRecordTokenInstructionData
+    UpdateTokenizedRecordInstructionData
   >(
-    struct<BurnRecordTokenInstructionData>([['discriminator', u8()]], {
-      description: 'BurnRecordTokenInstructionData',
-    }),
-    (value) => ({ ...value, discriminator: 12 })
+    struct<UpdateTokenizedRecordInstructionData>(
+      [
+        ['discriminator', u8()],
+        ['newData', string({ size: 'variable' })],
+      ],
+      { description: 'UpdateTokenizedRecordInstructionData' }
+    ),
+    (value) => ({ ...value, discriminator: 9 })
   ) as Serializer<
-    BurnRecordTokenInstructionDataArgs,
-    BurnRecordTokenInstructionData
+    UpdateTokenizedRecordInstructionDataArgs,
+    UpdateTokenizedRecordInstructionData
   >;
 }
 
+// Args.
+export type UpdateTokenizedRecordInstructionArgs =
+  UpdateTokenizedRecordInstructionDataArgs;
+
 // Instruction.
-export function burnRecordToken(
+export function updateTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: BurnRecordTokenInstructionAccounts
+  input: UpdateTokenizedRecordInstructionAccounts &
+    UpdateTokenizedRecordInstructionArgs
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -107,6 +120,9 @@ export function burnRecordToken(
     },
   } satisfies ResolvedAccountsWithIndices;
 
+  // Arguments.
+  const resolvedArgs: UpdateTokenizedRecordInstructionArgs = { ...input };
+
   // Default values.
   if (!resolvedAccounts.token2022.value) {
     resolvedAccounts.token2022.value = context.programs.getPublicKey(
@@ -129,7 +145,9 @@ export function burnRecordToken(
   );
 
   // Data.
-  const data = getBurnRecordTokenInstructionDataSerializer().serialize({});
+  const data = getUpdateTokenizedRecordInstructionDataSerializer().serialize(
+    resolvedArgs as UpdateTokenizedRecordInstructionDataArgs
+  );
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

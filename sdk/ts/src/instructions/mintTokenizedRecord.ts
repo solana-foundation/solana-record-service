@@ -27,7 +27,7 @@ import {
 } from '../shared';
 
 // Accounts.
-export type MintRecordTokenInstructionAccounts = {
+export type MintTokenizedRecordInstructionAccounts = {
   /** Record owner */
   owner: PublicKey | Pda;
   /** Record owner or class authority for permissioned classes */
@@ -49,33 +49,33 @@ export type MintRecordTokenInstructionAccounts = {
 };
 
 // Data.
-export type MintRecordTokenInstructionData = { discriminator: number };
+export type MintTokenizedRecordInstructionData = { discriminator: number };
 
-export type MintRecordTokenInstructionDataArgs = {};
+export type MintTokenizedRecordInstructionDataArgs = {};
 
-export function getMintRecordTokenInstructionDataSerializer(): Serializer<
-  MintRecordTokenInstructionDataArgs,
-  MintRecordTokenInstructionData
+export function getMintTokenizedRecordInstructionDataSerializer(): Serializer<
+  MintTokenizedRecordInstructionDataArgs,
+  MintTokenizedRecordInstructionData
 > {
   return mapSerializer<
-    MintRecordTokenInstructionDataArgs,
+    MintTokenizedRecordInstructionDataArgs,
     any,
-    MintRecordTokenInstructionData
+    MintTokenizedRecordInstructionData
   >(
-    struct<MintRecordTokenInstructionData>([['discriminator', u8()]], {
-      description: 'MintRecordTokenInstructionData',
+    struct<MintTokenizedRecordInstructionData>([['discriminator', u8()]], {
+      description: 'MintTokenizedRecordInstructionData',
     }),
     (value) => ({ ...value, discriminator: 8 })
   ) as Serializer<
-    MintRecordTokenInstructionDataArgs,
-    MintRecordTokenInstructionData
+    MintTokenizedRecordInstructionDataArgs,
+    MintTokenizedRecordInstructionData
   >;
 }
 
 // Instruction.
-export function mintRecordToken(
+export function mintTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: MintRecordTokenInstructionAccounts
+  input: MintTokenizedRecordInstructionAccounts
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -165,7 +165,7 @@ export function mintRecordToken(
   );
 
   // Data.
-  const data = getMintRecordTokenInstructionDataSerializer().serialize({});
+  const data = getMintTokenizedRecordInstructionDataSerializer().serialize({});
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

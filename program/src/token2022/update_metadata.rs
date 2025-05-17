@@ -55,7 +55,7 @@ impl UpdateMetadata<'_> {
         // Account metadata
         let account_metas: [AccountMeta; 2] = [
             AccountMeta::writable(self.metadata.key()),
-            AccountMeta::readonly(self.update_authority.key()),
+            AccountMeta::readonly_signer(self.update_authority.key()),
         ];
 
         // instruction data

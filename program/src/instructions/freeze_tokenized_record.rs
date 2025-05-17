@@ -106,14 +106,14 @@ impl<'info> FreezeTokenizedRecord<'info> {
             Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)?
         };
 
-        if is_frozen == self.is_frozen {
-            return Err(ProgramError::InvalidArgument);
+        if is_frozen.eq(&self.is_frozen) {
+            return Ok(());
         }
 
         let bump =
             [
                 try_find_program_address(
-                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &[b"mint", self.accounts.record.key()],
                     &crate::ID,
                 )
                 .ok_or(ProgramError::InvalidArgument)?

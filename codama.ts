@@ -347,7 +347,7 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
-                name: "mintRecordToken",
+                name: "mintTokenizedRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(8)))
                 ],
@@ -421,7 +421,7 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
-                name: "updateRecordToken",
+                name: "updateTokenizedRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(9)))
                 ],
@@ -505,13 +505,13 @@ const root = rootNode(
                     instructionAccountNode({
                         name: "tokenAccount",
                         isSigner: false,
-                        isWritable: false,
+                        isWritable: true,
                         docs: ["Token Account for the tokenized record"]
                     }),
                     instructionAccountNode({
                         name: "record",
                         isSigner: false,
-                        isWritable: true,
+                        isWritable: false,
                         docs: ["Record account associated with the tokenized record"]
                     }),
                     instructionAccountNode({
@@ -591,7 +591,7 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
-                name: "burnRecordToken",
+                name: "burnTokenizedRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(12)))
                 ],
@@ -619,7 +619,7 @@ const root = rootNode(
                     instructionAccountNode({
                         name: "tokenAccount",
                         isSigner: false,
-                        isWritable: false,
+                        isWritable: true,
                         docs: ["Token Account for the tokenized record"]
                     }),
                     instructionAccountNode({

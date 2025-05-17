@@ -91,7 +91,7 @@ impl<'info> BurnTokenizedRecord<'info> {
         let bump =
             [
                 try_find_program_address(
-                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &[b"mint", self.accounts.record.key()],
                     &crate::ID,
                 )
                 .ok_or(ProgramError::InvalidArgument)?

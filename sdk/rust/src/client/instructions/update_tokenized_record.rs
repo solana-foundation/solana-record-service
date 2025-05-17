@@ -11,7 +11,7 @@ use kaigan::types::RemainderStr;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct UpdateRecordToken {
+pub struct UpdateTokenizedRecord {
     /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
     /// Mint account for the tokenized record
@@ -26,10 +26,10 @@ pub struct UpdateRecordToken {
     pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
-impl UpdateRecordToken {
+impl UpdateTokenizedRecord {
     pub fn instruction(
         &self,
-        args: UpdateRecordTokenInstructionArgs,
+        args: UpdateTokenizedRecordInstructionArgs,
     ) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
@@ -37,7 +37,7 @@ impl UpdateRecordToken {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: UpdateRecordTokenInstructionArgs,
+        args: UpdateTokenizedRecordInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
@@ -71,7 +71,7 @@ impl UpdateRecordToken {
             ));
         }
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&UpdateRecordTokenInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateTokenizedRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
         data.append(&mut args);
 
@@ -85,17 +85,17 @@ impl UpdateRecordToken {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordTokenInstructionData {
+pub struct UpdateTokenizedRecordInstructionData {
     discriminator: u8,
 }
 
-impl UpdateRecordTokenInstructionData {
+impl UpdateTokenizedRecordInstructionData {
     pub fn new() -> Self {
         Self { discriminator: 9 }
     }
 }
 
-impl Default for UpdateRecordTokenInstructionData {
+impl Default for UpdateTokenizedRecordInstructionData {
     fn default() -> Self {
         Self::new()
     }
@@ -103,11 +103,11 @@ impl Default for UpdateRecordTokenInstructionData {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordTokenInstructionArgs {
+pub struct UpdateTokenizedRecordInstructionArgs {
     pub new_data: RemainderStr,
 }
 
-/// Instruction builder for `UpdateRecordToken`.
+/// Instruction builder for `UpdateTokenizedRecord`.
 ///
 /// ### Accounts:
 ///
@@ -118,7 +118,7 @@ pub struct UpdateRecordTokenInstructionArgs {
 ///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
-pub struct UpdateRecordTokenBuilder {
+pub struct UpdateTokenizedRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     mint: Option<solana_program::pubkey::Pubkey>,
     token_account: Option<solana_program::pubkey::Pubkey>,
@@ -129,7 +129,7 @@ pub struct UpdateRecordTokenBuilder {
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl UpdateRecordTokenBuilder {
+impl UpdateTokenizedRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -196,7 +196,7 @@ impl UpdateRecordTokenBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = UpdateRecordToken {
+        let accounts = UpdateTokenizedRecord {
             authority: self.authority.expect("authority is not set"),
             mint: self.mint.expect("mint is not set"),
             token_account: self.token_account.expect("token_account is not set"),
@@ -206,7 +206,7 @@ impl UpdateRecordTokenBuilder {
             )),
             class: self.class,
         };
-        let args = UpdateRecordTokenInstructionArgs {
+        let args = UpdateTokenizedRecordInstructionArgs {
             new_data: self.new_data.clone().expect("new_data is not set"),
         };
 
@@ -214,8 +214,8 @@ impl UpdateRecordTokenBuilder {
     }
 }
 
-/// `update_record_token` CPI accounts.
-pub struct UpdateRecordTokenCpiAccounts<'a, 'b> {
+/// `update_tokenized_record` CPI accounts.
+pub struct UpdateTokenizedRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
@@ -230,8 +230,8 @@ pub struct UpdateRecordTokenCpiAccounts<'a, 'b> {
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-/// `update_record_token` CPI instruction.
-pub struct UpdateRecordTokenCpi<'a, 'b> {
+/// `update_tokenized_record` CPI instruction.
+pub struct UpdateTokenizedRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
@@ -247,14 +247,14 @@ pub struct UpdateRecordTokenCpi<'a, 'b> {
     /// Class account of the record
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
-    pub __args: UpdateRecordTokenInstructionArgs,
+    pub __args: UpdateTokenizedRecordInstructionArgs,
 }
 
-impl<'a, 'b> UpdateRecordTokenCpi<'a, 'b> {
+impl<'a, 'b> UpdateTokenizedRecordCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: UpdateRecordTokenCpiAccounts<'a, 'b>,
-        args: UpdateRecordTokenInstructionArgs,
+        accounts: UpdateTokenizedRecordCpiAccounts<'a, 'b>,
+        args: UpdateTokenizedRecordInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
@@ -339,7 +339,7 @@ impl<'a, 'b> UpdateRecordTokenCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&UpdateRecordTokenInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&UpdateTokenizedRecordInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&self.__args).unwrap();
         data.append(&mut args);
 
@@ -370,7 +370,7 @@ impl<'a, 'b> UpdateRecordTokenCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `UpdateRecordToken` via CPI.
+/// Instruction builder for `UpdateTokenizedRecord` via CPI.
 ///
 /// ### Accounts:
 ///
@@ -381,13 +381,13 @@ impl<'a, 'b> UpdateRecordTokenCpi<'a, 'b> {
 ///   4. `[]` token2022
 ///   5. `[optional]` class
 #[derive(Clone, Debug)]
-pub struct UpdateRecordTokenCpiBuilder<'a, 'b> {
-    instruction: Box<UpdateRecordTokenCpiBuilderInstruction<'a, 'b>>,
+pub struct UpdateTokenizedRecordCpiBuilder<'a, 'b> {
+    instruction: Box<UpdateTokenizedRecordCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> UpdateRecordTokenCpiBuilder<'a, 'b> {
+impl<'a, 'b> UpdateTokenizedRecordCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(UpdateRecordTokenCpiBuilderInstruction {
+        let instruction = Box::new(UpdateTokenizedRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
             mint: None,
@@ -498,14 +498,14 @@ impl<'a, 'b> UpdateRecordTokenCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = UpdateRecordTokenInstructionArgs {
+        let args = UpdateTokenizedRecordInstructionArgs {
             new_data: self
                 .instruction
                 .new_data
                 .clone()
                 .expect("new_data is not set"),
         };
-        let instruction = UpdateRecordTokenCpi {
+        let instruction = UpdateTokenizedRecordCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
@@ -532,7 +532,7 @@ impl<'a, 'b> UpdateRecordTokenCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct UpdateRecordTokenCpiBuilderInstruction<'a, 'b> {
+struct UpdateTokenizedRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,

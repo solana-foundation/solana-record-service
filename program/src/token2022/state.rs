@@ -1,8 +1,11 @@
-use crate::token2022::constants::{
-    TOKEN_2022_MINT_LEN, TOKEN_2022_PROGRAM_ID, TOKEN_IS_FROZEN_FLAG,
-};
+use crate::token2022::constants::{TOKEN_2022_PROGRAM_ID, TOKEN_IS_FROZEN_FLAG};
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+
+const TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET: usize = 165;
+const MINT_DISCRIMINATOR: u8 = 0x01;
+const TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 0x02;
+
 #[repr(C)]
 pub struct Mint<'info> {
     pub raw_data: &'info [u8],
@@ -10,7 +13,7 @@ pub struct Mint<'info> {
 
 impl<'info> Mint<'info> {
     pub fn check_program_id(account_info: &AccountInfo) -> Result<(), ProgramError> {
-        if account_info.key() != &TOKEN_2022_PROGRAM_ID {
+        if unsafe { account_info.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
             return Err(ProgramError::IncorrectProgramId);
         }
 
@@ -18,7 +21,7 @@ impl<'info> Mint<'info> {
     }
 
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
-        if data.len().ne(&TOKEN_2022_MINT_LEN) {
+        if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -38,7 +41,7 @@ pub struct Token<'info> {
 
 impl<'info> Token<'info> {
     pub fn check_program_id(account_info: &AccountInfo) -> Result<(), ProgramError> {
-        if account_info.key() != &TOKEN_2022_PROGRAM_ID {
+        if unsafe { account_info.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
             return Err(ProgramError::IncorrectProgramId);
         }
 
@@ -46,7 +49,7 @@ impl<'info> Token<'info> {
     }
 
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
-        if data.len().eq(&TOKEN_2022_MINT_LEN) {
+        if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&TOKEN_ACCOUNT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 

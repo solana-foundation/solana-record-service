@@ -100,12 +100,12 @@ export function freezeTokenizedRecord(
     mint: { index: 1, isWritable: false as boolean, value: input.mint ?? null },
     tokenAccount: {
       index: 2,
-      isWritable: false as boolean,
+      isWritable: true as boolean,
       value: input.tokenAccount ?? null,
     },
     record: {
       index: 3,
-      isWritable: true as boolean,
+      isWritable: false as boolean,
       value: input.record ?? null,
     },
     token2022: {

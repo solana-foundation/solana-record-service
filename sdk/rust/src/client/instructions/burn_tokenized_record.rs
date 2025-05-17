@@ -10,7 +10,7 @@ use borsh::BorshSerialize;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct BurnRecordToken {
+pub struct BurnTokenizedRecord {
     /// Record owner or class authority for permissioned classes
     pub authority: solana_program::pubkey::Pubkey,
     /// Mint account for the tokenized record
@@ -25,7 +25,7 @@ pub struct BurnRecordToken {
     pub class: Option<solana_program::pubkey::Pubkey>,
 }
 
-impl BurnRecordToken {
+impl BurnTokenizedRecord {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
@@ -43,7 +43,7 @@ impl BurnRecordToken {
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.mint, false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.token_account,
             false,
         ));
@@ -66,7 +66,7 @@ impl BurnRecordToken {
             ));
         }
         accounts.extend_from_slice(remaining_accounts);
-        let data = borsh::to_vec(&BurnRecordTokenInstructionData::new()).unwrap();
+        let data = borsh::to_vec(&BurnTokenizedRecordInstructionData::new()).unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
@@ -78,34 +78,34 @@ impl BurnRecordToken {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct BurnRecordTokenInstructionData {
+pub struct BurnTokenizedRecordInstructionData {
     discriminator: u8,
 }
 
-impl BurnRecordTokenInstructionData {
+impl BurnTokenizedRecordInstructionData {
     pub fn new() -> Self {
         Self { discriminator: 12 }
     }
 }
 
-impl Default for BurnRecordTokenInstructionData {
+impl Default for BurnTokenizedRecordInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Instruction builder for `BurnRecordToken`.
+/// Instruction builder for `BurnTokenizedRecord`.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` mint
-///   2. `[]` token_account
+///   2. `[writable]` token_account
 ///   3. `[writable]` record
 ///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
-pub struct BurnRecordTokenBuilder {
+pub struct BurnTokenizedRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     mint: Option<solana_program::pubkey::Pubkey>,
     token_account: Option<solana_program::pubkey::Pubkey>,
@@ -115,7 +115,7 @@ pub struct BurnRecordTokenBuilder {
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl BurnRecordTokenBuilder {
+impl BurnTokenizedRecordBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -177,7 +177,7 @@ impl BurnRecordTokenBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = BurnRecordToken {
+        let accounts = BurnTokenizedRecord {
             authority: self.authority.expect("authority is not set"),
             mint: self.mint.expect("mint is not set"),
             token_account: self.token_account.expect("token_account is not set"),
@@ -192,8 +192,8 @@ impl BurnRecordTokenBuilder {
     }
 }
 
-/// `burn_record_token` CPI accounts.
-pub struct BurnRecordTokenCpiAccounts<'a, 'b> {
+/// `burn_tokenized_record` CPI accounts.
+pub struct BurnTokenizedRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
@@ -208,8 +208,8 @@ pub struct BurnRecordTokenCpiAccounts<'a, 'b> {
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-/// `burn_record_token` CPI instruction.
-pub struct BurnRecordTokenCpi<'a, 'b> {
+/// `burn_tokenized_record` CPI instruction.
+pub struct BurnTokenizedRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
@@ -226,10 +226,10 @@ pub struct BurnRecordTokenCpi<'a, 'b> {
     pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
-impl<'a, 'b> BurnRecordTokenCpi<'a, 'b> {
+impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: BurnRecordTokenCpiAccounts<'a, 'b>,
+        accounts: BurnTokenizedRecordCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
             __program: program,
@@ -284,7 +284,7 @@ impl<'a, 'b> BurnRecordTokenCpi<'a, 'b> {
             *self.mint.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.token_account.key,
             false,
         ));
@@ -313,7 +313,7 @@ impl<'a, 'b> BurnRecordTokenCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = borsh::to_vec(&BurnRecordTokenInstructionData::new()).unwrap();
+        let data = borsh::to_vec(&BurnTokenizedRecordInstructionData::new()).unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
@@ -342,24 +342,24 @@ impl<'a, 'b> BurnRecordTokenCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `BurnRecordToken` via CPI.
+/// Instruction builder for `BurnTokenizedRecord` via CPI.
 ///
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
 ///   1. `[writable]` mint
-///   2. `[]` token_account
+///   2. `[writable]` token_account
 ///   3. `[writable]` record
 ///   4. `[]` token2022
 ///   5. `[optional]` class
 #[derive(Clone, Debug)]
-pub struct BurnRecordTokenCpiBuilder<'a, 'b> {
-    instruction: Box<BurnRecordTokenCpiBuilderInstruction<'a, 'b>>,
+pub struct BurnTokenizedRecordCpiBuilder<'a, 'b> {
+    instruction: Box<BurnTokenizedRecordCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> BurnRecordTokenCpiBuilder<'a, 'b> {
+impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(BurnRecordTokenCpiBuilderInstruction {
+        let instruction = Box::new(BurnTokenizedRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
             mint: None,
@@ -464,7 +464,7 @@ impl<'a, 'b> BurnRecordTokenCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let instruction = BurnRecordTokenCpi {
+        let instruction = BurnTokenizedRecordCpi {
             __program: self.instruction.__program,
 
             authority: self.instruction.authority.expect("authority is not set"),
@@ -490,7 +490,7 @@ impl<'a, 'b> BurnRecordTokenCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct BurnRecordTokenCpiBuilderInstruction<'a, 'b> {
+struct BurnTokenizedRecordCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,

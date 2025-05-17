@@ -39,6 +39,7 @@ const DECIMALS_OFFSET: usize = AMOUNT_OFFSET + size_of::<u64>();
 
 impl TransferChecked<'_> {
     const DISCRIMINATOR: u8 = 0x0c;
+    
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])

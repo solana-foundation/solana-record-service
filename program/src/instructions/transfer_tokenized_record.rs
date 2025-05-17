@@ -2,11 +2,7 @@ use crate::{state::Record, token2022::TransferChecked, utils::Context};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    ProgramResult,
+    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
 };
 
 /// TransferRecord instruction.
@@ -76,7 +72,7 @@ pub struct TransferTokenizedRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
         // Deserialize our accounts array
         let accounts = TransferTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
@@ -95,7 +91,7 @@ impl<'info> TransferTokenizedRecord<'info> {
         let bump =
             [
                 try_find_program_address(
-                    &[b"mint", self.accounts.record.key().as_ref()],
+                    &[b"mint", self.accounts.record.key()],
                     &crate::ID,
                 )
                 .ok_or(ProgramError::InvalidArgument)?
@@ -118,6 +114,8 @@ impl<'info> TransferTokenizedRecord<'info> {
             amount: 1,
             decimals: 0,
         }
-        .invoke_signed(&signers)
+        .invoke_signed(&signers)?;
+
+        Ok(())
     }
 }

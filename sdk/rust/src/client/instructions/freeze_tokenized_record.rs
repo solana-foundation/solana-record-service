@@ -47,11 +47,11 @@ impl FreezeTokenizedRecord {
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.mint, false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.token_account,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.record,
             false,
         ));
@@ -112,8 +112,8 @@ pub struct FreezeTokenizedRecordInstructionArgs {
 ///
 ///   0. `[signer]` authority
 ///   1. `[]` mint
-///   2. `[]` token_account
-///   3. `[writable]` record
+///   2. `[writable]` token_account
+///   3. `[]` record
 ///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
 ///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
@@ -309,11 +309,11 @@ impl<'a, 'b> FreezeTokenizedRecordCpi<'a, 'b> {
             *self.mint.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.token_account.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.record.key,
             false,
         ));
@@ -375,8 +375,8 @@ impl<'a, 'b> FreezeTokenizedRecordCpi<'a, 'b> {
 ///
 ///   0. `[signer]` authority
 ///   1. `[]` mint
-///   2. `[]` token_account
-///   3. `[writable]` record
+///   2. `[writable]` token_account
+///   3. `[]` record
 ///   4. `[]` token2022
 ///   5. `[optional]` class
 #[derive(Clone, Debug)]
