@@ -23,6 +23,7 @@ import {
   Serializer,
   bool,
   i64,
+  i8,
   mapSerializer,
   publicKey as publicKeySerializer,
   string,
@@ -45,6 +46,7 @@ export type RecordAccountData = {
 
 export type RecordAccountDataArgs = {
   class: PublicKey;
+  ownerType: number;
   owner: PublicKey;
   isFrozen: boolean;
   expiry: number | bigint;
