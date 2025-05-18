@@ -16,7 +16,7 @@ pinocchio-system = "0.2.3"
 pinocchio-associated-token-account = "0.1.1"
 
 [dev-dependencies]
-solana-record-service-sdk = { workspace = true }
+solana-record-service-client = { workspace = true }
 mollusk-svm = "0.1.5"
 mollusk-svm-programs-token = "0.1.5"
 spl-token-2022 = "8.0.1"

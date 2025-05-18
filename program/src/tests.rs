@@ -9,7 +9,7 @@ use solana_sdk::{
     pubkey::Pubkey,
 };
 
-use solana_record_service_sdk::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
