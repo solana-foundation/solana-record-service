@@ -2,6 +2,9 @@
 name = "solana-record-service-client"
 version = "0.1.0"
 edition = "2021"
+description = "Rust client for the Solana Record Service"
+license = "MIT"
+repository = "https://github.com/solana-foundation/solana-record-service"
 
 [lib]
 name = "solana_record_service_client"
