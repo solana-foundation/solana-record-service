@@ -1,0 +1,31 @@
+{
+  "name": "srs-lib",
+  "version": "1.0.0",
+  "repository": "git@github.com:solana-foundation/solana-record-service.git",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "pnpm run build",
+    "test": "mocha --require ts-node/register 'test/**/*'"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.11.24",
+    "chai": "^5.2.0",
+    "mocha": "^10.8.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@metaplex-foundation/umi": "^1.2.0",
+    "@solana/kit": "^2.1.0",
+    "bn.js": "^5.2.1",
+    "borsh": "^2.0.0",
+    "borsher": "^4.0.0"
+  }
+}
