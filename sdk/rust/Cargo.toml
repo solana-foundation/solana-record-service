@@ -1,10 +1,10 @@
 [package]
-name = "solana-record-service-sdk"
+name = "solana-record-service-client"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "solana_record_service_sdk"
+name = "solana_record_service_client"
 
 [dependencies]
 kaigan = ">=0.2.6"
