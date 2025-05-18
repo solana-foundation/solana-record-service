@@ -4,3 +4,4 @@ yarn.lock
 Cargo.lock
 target
 test-ledger
+dist/
