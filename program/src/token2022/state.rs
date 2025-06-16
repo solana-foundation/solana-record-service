@@ -27,6 +27,20 @@ impl<'info> Mint<'info> {
 
         Ok(())
     }
+
+    pub fn check_initialized(account_info: &AccountInfo) -> Result<bool, ProgramError> {
+        if unsafe { account_info.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
+            return Ok(false);
+        }
+
+        let data = account_info.try_borrow_data()?;
+
+        if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
 }
 
 const TOKEN_MINT_OFFSET: usize = 0;

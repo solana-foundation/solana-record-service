@@ -6,6 +6,8 @@ pub const TOKEN_2022_MINT_BASE_LEN: usize = 0x54;
 pub const TOKEN_2022_PERMANENT_DELEGATE_LEN: usize = 0x24;
 pub const TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN: usize = 0x24;
 pub const TOKEN_2022_METADATA_POINTER_LEN: usize = 0x44;
+pub const TOKEN_2022_GROUP_POINTER_LEN: usize = 0x50;
+pub const TOKEN_2022_MEMBER_POINTER_LEN: usize = 0x48;
 pub const TOKEN_IS_FROZEN_FLAG: u8 = 2;
 
 // CloseAccount - 9

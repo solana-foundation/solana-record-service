@@ -15,6 +15,8 @@ use kaigan::types::U8PrefixString;
 pub struct CreateClass {
     /// Authority used to create a new class
     pub authority: solana_program::pubkey::Pubkey,
+    /// Account that will pay for the class account
+    pub payer: solana_program::pubkey::Pubkey,
     /// New class account to be initialized
     pub class: solana_program::pubkey::Pubkey,
     /// System Program used to open our new class account
@@ -35,10 +37,13 @@ impl CreateClass {
         args: CreateClassInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.authority,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.payer, true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.class, false,
@@ -91,12 +96,14 @@ pub struct CreateClassInstructionArgs {
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` class
-///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   0. `[signer]` authority
+///   1. `[writable, signer]` payer
+///   2. `[writable]` class
+///   3. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct CreateClassBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
+    payer: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     is_permissioned: Option<bool>,
@@ -114,6 +121,12 @@ impl CreateClassBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// Account that will pay for the class account
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// New class account to be initialized
@@ -171,6 +184,7 @@ impl CreateClassBuilder {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = CreateClass {
             authority: self.authority.expect("authority is not set"),
+            payer: self.payer.expect("payer is not set"),
             class: self.class.expect("class is not set"),
             system_program: self
                 .system_program
@@ -194,6 +208,8 @@ impl CreateClassBuilder {
 pub struct CreateClassCpiAccounts<'a, 'b> {
     /// Authority used to create a new class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay for the class account
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// New class account to be initialized
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
     /// System Program used to open our new class account
@@ -206,6 +222,8 @@ pub struct CreateClassCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Authority used to create a new class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay for the class account
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// New class account to be initialized
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
     /// System Program used to open our new class account
@@ -223,6 +241,7 @@ impl<'a, 'b> CreateClassCpi<'a, 'b> {
         Self {
             __program: program,
             authority: accounts.authority,
+            payer: accounts.payer,
             class: accounts.class,
             system_program: accounts.system_program,
             __args: args,
@@ -262,9 +281,13 @@ impl<'a, 'b> CreateClassCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.authority.key,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.payer.key,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
@@ -291,9 +314,10 @@ impl<'a, 'b> CreateClassCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.class.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
@@ -312,9 +336,10 @@ impl<'a, 'b> CreateClassCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-///   0. `[writable, signer]` authority
-///   1. `[writable]` class
-///   2. `[]` system_program
+///   0. `[signer]` authority
+///   1. `[writable, signer]` payer
+///   2. `[writable]` class
+///   3. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct CreateClassCpiBuilder<'a, 'b> {
     instruction: Box<CreateClassCpiBuilderInstruction<'a, 'b>>,
@@ -325,6 +350,7 @@ impl<'a, 'b> CreateClassCpiBuilder<'a, 'b> {
         let instruction = Box::new(CreateClassCpiBuilderInstruction {
             __program: program,
             authority: None,
+            payer: None,
             class: None,
             system_program: None,
             is_permissioned: None,
@@ -342,6 +368,12 @@ impl<'a, 'b> CreateClassCpiBuilder<'a, 'b> {
         authority: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// Account that will pay for the class account
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     /// New class account to be initialized
@@ -443,6 +475,8 @@ impl<'a, 'b> CreateClassCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            payer: self.instruction.payer.expect("payer is not set"),
+
             class: self.instruction.class.expect("class is not set"),
 
             system_program: self
@@ -462,6 +496,7 @@ impl<'a, 'b> CreateClassCpiBuilder<'a, 'b> {
 struct CreateClassCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     is_permissioned: Option<bool>,

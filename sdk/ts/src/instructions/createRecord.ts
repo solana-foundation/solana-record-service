@@ -32,6 +32,8 @@ import {
 export type CreateRecordInstructionAccounts = {
   /** Owner of the new record */
   owner: Signer;
+  /** Account that will pay for the record account */
+  payer: Signer;
   /** Class account for the record to be created */
   class: PublicKey | Pda;
   /** Record account to be created */
@@ -96,26 +98,31 @@ export function createRecord(
   const resolvedAccounts = {
     owner: {
       index: 0,
-      isWritable: true as boolean,
+      isWritable: false as boolean,
       value: input.owner ?? null,
     },
-    class: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    class: {
+      index: 2,
       isWritable: true as boolean,
       value: input.class ?? null,
     },
     record: {
-      index: 2,
+      index: 3,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
     systemProgram: {
-      index: 3,
+      index: 4,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
     authority: {
-      index: 4,
+      index: 5,
       isWritable: false as boolean,
       value: input.authority ?? null,
     },

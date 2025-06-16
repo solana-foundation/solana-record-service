@@ -54,11 +54,12 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
 
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 2
-        + size_of::<Pubkey>() * 2
-        + size_of::<bool>() * 2
-        + size_of::<i64>()
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>()
+        + size_of::<Pubkey>()
         + size_of::<u8>()
+        + size_of::<Pubkey>()
+        + size_of::<bool>()
+        + size_of::<i64>()
         + size_of::<u8>();
 
     /// Check if the program id and discriminator are valid

@@ -70,8 +70,14 @@ const root = rootNode(
                     instructionAccountNode({
                         name: "authority",
                         isSigner: true,
-                        isWritable: true,
+                        isWritable: false,
                         docs: ["Authority used to create a new class"]
+                    }),
+                    instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay for the class account"]
                     }),
                     instructionAccountNode({
                         name: "class",
@@ -175,8 +181,14 @@ const root = rootNode(
                     instructionAccountNode({
                         name: "owner",
                         isSigner: true,
-                        isWritable: true,
+                        isWritable: false,
                         docs: ["Owner of the new record"]
+                    }),
+                    instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay for the record account"]
                     }),
                     instructionAccountNode({
                         name: "class",
@@ -377,9 +389,15 @@ const root = rootNode(
                         docs: ["Record owner"]
                     }),
                     instructionAccountNode({
-                        name: "authority",
+                        name: "payer",
                         isSigner: true,
                         isWritable: true,
+                        docs: ["Account that will pay for the mint account"]
+                    }),
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: false,
                         docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({

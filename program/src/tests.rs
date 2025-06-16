@@ -309,6 +309,7 @@ fn create_class() {
 
     let instruction = CreateClass {
         authority,
+        payer: authority,
         class,
         system_program,
     }
@@ -489,6 +490,7 @@ fn create_record() {
 
     let instruction = CreateRecord {
         owner,
+        payer: owner,
         class,
         record,
         system_program,
@@ -535,6 +537,7 @@ fn create_permissioned_record() {
 
     let instruction = CreateRecord {
         owner,
+        payer: authority,
         class,
         record,
         system_program,
@@ -1059,6 +1062,7 @@ fn mint_record_token() {
 
     let instruction = MintTokenizedRecord {
         owner,
+        payer: owner,
         authority: owner,
         record,
         mint,
@@ -1127,6 +1131,7 @@ fn mint_record_token_with_delegate() {
 
     let instruction = MintTokenizedRecord {
         owner,
+        payer: authority,
         authority,
         record,
         mint,

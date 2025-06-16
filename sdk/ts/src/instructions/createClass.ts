@@ -32,6 +32,8 @@ import {
 export type CreateClassInstructionAccounts = {
   /** Authority used to create a new class */
   authority: Signer;
+  /** Account that will pay for the class account */
+  payer: Signer;
   /** New class account to be initialized */
   class: PublicKey | Pda;
   /** System Program used to open our new class account */
@@ -95,16 +97,21 @@ export function createClass(
   const resolvedAccounts = {
     authority: {
       index: 0,
-      isWritable: true as boolean,
+      isWritable: false as boolean,
       value: input.authority ?? null,
     },
-    class: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    class: {
+      index: 2,
       isWritable: true as boolean,
       value: input.class ?? null,
     },
     systemProgram: {
-      index: 2,
+      index: 3,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
