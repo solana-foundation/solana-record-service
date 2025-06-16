@@ -255,6 +255,17 @@ fn keyed_account_for_mint(
     (address, record_mint_account)
 }
 
+fn keyed_account_for_group(
+    class: Pubkey,
+) -> (Pubkey, Account) {
+    let (address, _bump) =
+        Pubkey::find_program_address(&[b"group", &class.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+
+    let group_account = Account::new(100_000_000u64, 100_000_000, &TOKEN_2022_PROGRAM_ID);
+
+    (address, group_account)
+}
+
 fn keyed_account_for_token(
     owner: Pubkey,
     mint: Pubkey,
@@ -1046,12 +1057,14 @@ fn mint_record_token() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
     // Class
-    let (class, _class_data) = keyed_account_for_class_default();
+    let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
         keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
+    // Group
+    let (group, group_data) = keyed_account_for_group(class);
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
 
@@ -1066,11 +1079,12 @@ fn mint_record_token() {
         authority: owner,
         record,
         mint,
+        class,
+        group,
         token_account,
         associated_token_program,
         token2022,
         system_program,
-        class: None,
     }
     .instruction();
 
@@ -1088,6 +1102,8 @@ fn mint_record_token() {
             (owner, owner_data),
             (record, record_data),
             (mint, Account::default()),
+            (class, class_data),
+            (group, Account::default()),
             (token_account, Account::default()),
             (associated_token_program, associated_token_program_data),
             (token2022, token2022_data),
@@ -1096,6 +1112,7 @@ fn mint_record_token() {
         &[
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
+            Check::account(&group).data(&group_data.data).build(),
             Check::account(&token_account).data(&token_account_data.data).build(),
         ],
     );
@@ -1114,15 +1131,10 @@ fn mint_record_token_with_delegate() {
         keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
+    // Group
+    let (group, group_data) = keyed_account_for_group(class);
     // ATA
-    let (token_account, _) = Pubkey::find_program_address(
-        &[
-            owner.as_ref(),
-            mollusk_svm_programs_token::token2022::ID.as_ref(),
-            mint.as_ref(),
-        ],
-        &mollusk_svm_programs_token::associated_token::ID,
-    );
+    let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
 
     let (associated_token_program, associated_token_program_data) =
         mollusk_svm_programs_token::associated_token::keyed_account();
@@ -1135,11 +1147,12 @@ fn mint_record_token_with_delegate() {
         authority,
         record,
         mint,
+        class,
+        group,
         token_account,
         associated_token_program,
         token2022,
         system_program,
-        class: Some(class),
     }
     .instruction();
 
@@ -1158,15 +1171,18 @@ fn mint_record_token_with_delegate() {
             (authority, authority_data),
             (record, record_data),
             (mint, Account::default()),
+            (class, class_data),
+            (group, Account::default()),
             (token_account, Account::default()),
             (associated_token_program, associated_token_program_data),
             (token2022, token2022_data),
             (system_program, system_program_data),
-            (class, class_data),
         ],
         &[
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
+            Check::account(&group).data(&group_data.data).build(),
+            Check::account(&token_account).data(&token_account_data.data).build(),
         ],
     );
 }

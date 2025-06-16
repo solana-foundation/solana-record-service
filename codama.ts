@@ -413,6 +413,18 @@ const root = rootNode(
                         docs: ["Mint account for the tokenized record"]
                     }),
                     instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),
+                    instructionAccountNode({
+                        name: "group",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Group account for the tokenized record"]
+                    }),
+                    instructionAccountNode({
                         name: "tokenAccount",
                         isSigner: false,
                         isWritable: true,
@@ -438,13 +450,6 @@ const root = rootNode(
                         isSigner: false,
                         isWritable: false,
                         docs: ["System Program used to create our token"]
-                    }),
-                    instructionAccountNode({
-                        name: "class",
-                        isOptional: true,
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Class account of the record"]
                     }),
                 ]
             }),

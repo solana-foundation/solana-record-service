@@ -140,7 +140,7 @@ impl<'info> MintTokenizedRecord<'info> {
             self.initialize_group_mint_account()?;
 
             // Initialize the group
-            self.initialize_group(&group_bump)?;
+            // self.initialize_group(&group_bump)?;
         }
 
         // Create mint account
@@ -158,7 +158,7 @@ impl<'info> MintTokenizedRecord<'info> {
         // Initialize metadata
         self.initialize_metadata(&mint_bump)?;
         // Initialize the group member
-        self.initialize_group_member(&group_bump)?;
+        self.initialize_group_member(&group_bump, &mint_bump)?;
         // Initialize token account for user
         self.initialize_token_account()?;
         // Mint record token
@@ -199,7 +199,7 @@ impl<'info> MintTokenizedRecord<'info> {
             + TOKEN_2022_GROUP_POINTER_LEN;
 
         let lamports = Rent::get()?.minimum_balance(
-            space,
+            space ,
         );
 
         let seeds = [
@@ -225,7 +225,7 @@ impl<'info> MintTokenizedRecord<'info> {
         InitializeGroupPointer {
             mint: self.accounts.group,
             authority: self.accounts.group.key(),
-            group_address: self.accounts.mint.key(),
+            group_address: self.accounts.group.key(),
         }
         .invoke()
     }
@@ -243,7 +243,7 @@ impl<'info> MintTokenizedRecord<'info> {
             mint: self.accounts.group,
             mint_authority: self.accounts.group,
             update_authority: self.accounts.group.key(),
-            max_size: u64::MAX,
+            max_size: 100,
         }
         .invoke_signed(&signers)
     }
@@ -363,14 +363,20 @@ impl<'info> MintTokenizedRecord<'info> {
         .invoke_signed(&signers)
     }
 
-    fn initialize_group_member(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
-        let seeds = [
+    fn initialize_group_member(&self, group_bump: &[u8; 1], mint_bump: &[u8; 1]) -> Result<(), ProgramError> {
+        let group_seeds = [
             Seed::from(b"group"),
             Seed::from(self.accounts.class.key()),
-            Seed::from(bump),
+            Seed::from(group_bump),
         ];
 
-        let signers = [Signer::from(&seeds)];
+        let mint_seeds = [
+            Seed::from(b"mint"),
+            Seed::from(self.accounts.record.key()),
+            Seed::from(mint_bump),
+        ];
+
+        let signers = [Signer::from(&mint_seeds), Signer::from(&group_seeds)];
 
         InitializeMember {
             mint: self.accounts.mint,
