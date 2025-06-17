@@ -16,6 +16,8 @@ use crate::{
 pub struct InitializeMember<'a> {
     /// Mint Account.
     pub mint: &'a AccountInfo,
+    /// Member Account
+    pub member: &'a AccountInfo,
     /// Mint Authority Account.
     pub mint_authority: &'a AccountInfo,
     /// Update Authority Account.
@@ -39,11 +41,11 @@ impl InitializeMember<'_> {
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
         let account_metas: [AccountMeta; 5] = [
-            AccountMeta::writable(self.mint.key()),
-            AccountMeta::readonly(self.mint.key()),
-            AccountMeta::readonly_signer(self.mint_authority.key()),
-            AccountMeta::readonly(self.group.key()),
-            AccountMeta::readonly_signer(self.group_update_authority.key()),
+            AccountMeta::writable_signer(self.mint.key()),
+            AccountMeta::writable_signer(self.member.key()),
+            AccountMeta::writable_signer(self.mint_authority.key()),
+            AccountMeta::writable_signer(self.group.key()),
+            AccountMeta::writable_signer(self.group_update_authority.key()),
         ];
 
         // instruction data

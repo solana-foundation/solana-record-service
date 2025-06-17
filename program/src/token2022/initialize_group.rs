@@ -34,7 +34,7 @@ impl InitializeGroup<'_> {
     }
 
     const DISCRIMINATOR_OFFSET: usize = 0;
-    const UPDATE_AUTHORITY_OFFSET: usize = Self::DISCRIMINATOR_OFFSET;
+    const UPDATE_AUTHORITY_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<[u8; 8]>();
     const MAX_SIZE_OFFSET: usize = Self::UPDATE_AUTHORITY_OFFSET + size_of::<Pubkey>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {

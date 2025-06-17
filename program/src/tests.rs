@@ -5,8 +5,7 @@ use core::str::FromStr;
 use kaigan::types::{RemainderStr, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_sdk::{
-    account::{Account, WritableAccount},
-    pubkey::Pubkey,
+    account::{Account, WritableAccount}, msg, pubkey::Pubkey
 };
 
 use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
@@ -35,18 +34,18 @@ fn make_remainder_str(s: &str) -> RemainderStr {
 fn keyed_account_for_authority() -> (Pubkey, Account) {
     (
         AUTHORITY,
-        Account::new(100_000_000u64, 0, &Pubkey::default()),
+        Account::new(100_000_000_000u64, 0, &Pubkey::default()),
     )
 }
 
 fn keyed_account_for_random_authority() -> (Pubkey, Account) {
     (
         RANDOM_PUBKEY,
-        Account::new(100_000_000u64, 0, &Pubkey::default()),
+        Account::new(100_000_000_000u64, 0, &Pubkey::default()),
     )
 }
 fn keyed_account_for_owner() -> (Pubkey, Account) {
-    (OWNER, Account::new(100_000_000u64, 0, &Pubkey::default()))
+    (OWNER, Account::new(100_000_000_000u64, 0, &Pubkey::default()))
 }
 
 fn keyed_account_for_class_default() -> (Pubkey, Account) {

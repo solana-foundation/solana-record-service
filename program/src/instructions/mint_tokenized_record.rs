@@ -9,7 +9,7 @@ use crate::{
     state::{OwnerType, Record, NAME_OFFSET, OWNER_OFFSET},
     token2022::{
         constants::{
-            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
+            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
         }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, Mint, MintToChecked
     },
     utils::Context,
@@ -140,7 +140,7 @@ impl<'info> MintTokenizedRecord<'info> {
             self.initialize_group_mint_account()?;
 
             // Initialize the group
-            // self.initialize_group(&group_bump)?;
+            self.initialize_group(&group_bump)?;
         }
 
         // Create mint account
@@ -199,7 +199,7 @@ impl<'info> MintTokenizedRecord<'info> {
             + TOKEN_2022_GROUP_POINTER_LEN;
 
         let lamports = Rent::get()?.minimum_balance(
-            space ,
+            space + TOKEN_2022_GROUP_LEN
         );
 
         let seeds = [
@@ -272,7 +272,7 @@ impl<'info> MintTokenizedRecord<'info> {
         // 2. `record.data_len()` - The full length of the record account
         // 3. `-NAME_OFFSET` - Remove fixed data in record account that isn't used for metadata
         let lamports = Rent::get()?.minimum_balance(
-            space + self.accounts.record.data_len() + Metadata::FIXED_HEADER_LEN + NAME_OFFSET, // Deduct static data at start of record account that isn't used in metadata
+            space + self.accounts.record.data_len() + Metadata::FIXED_HEADER_LEN + NAME_OFFSET + TOKEN_2022_MEMBER_LEN // Deduct static data at start of record account that isn't used in metadata
         );
 
         let seeds = [
@@ -332,7 +332,7 @@ impl<'info> MintTokenizedRecord<'info> {
     fn initialize_group_member_pointer(&self) -> Result<(), ProgramError> {
         InitializeGroupMemberPointer {
             mint: self.accounts.mint,
-            authority: self.accounts.mint.key(),
+            authority: self.accounts.group.key(),
             member_address: self.accounts.mint.key(),
         }
         .invoke()
@@ -380,6 +380,7 @@ impl<'info> MintTokenizedRecord<'info> {
 
         InitializeMember {
             mint: self.accounts.mint,
+            member: self.accounts.mint,
             mint_authority: self.accounts.mint,
             group: self.accounts.group,
             group_update_authority: self.accounts.group,
