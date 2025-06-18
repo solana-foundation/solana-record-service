@@ -1,7 +1,7 @@
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, log::sol_log_data, program::invoke_signed, ProgramResult
+    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, ProgramResult
 };
 
 use crate::{
@@ -26,8 +26,6 @@ pub struct InitializeMember<'a> {
     pub group_update_authority: &'a AccountInfo,
 }
 
-
-
 impl InitializeMember<'_> {
     pub const DISCRIMINATOR: [u8; 8] = [0x98, 0x20, 0xde, 0xb0, 0xdf, 0xed, 0x74, 0x86];
 
@@ -38,14 +36,14 @@ impl InitializeMember<'_> {
 
     const DISCRIMINATOR_OFFSET: usize = 0;
 
-    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {        
         // Account metadata
         let account_metas: [AccountMeta; 5] = [
-            AccountMeta::writable_signer(self.mint.key()),
-            AccountMeta::writable_signer(self.member.key()),
-            AccountMeta::writable_signer(self.mint_authority.key()),
-            AccountMeta::writable_signer(self.group.key()),
-            AccountMeta::writable_signer(self.group_update_authority.key()),
+            AccountMeta::writable(self.mint.key()),
+            AccountMeta::readonly(self.member.key()),
+            AccountMeta::readonly_signer(self.mint_authority.key()),
+            AccountMeta::writable(self.group.key()),
+            AccountMeta::readonly_signer(self.group_update_authority.key()),
         ];
 
         // instruction data
@@ -63,8 +61,6 @@ impl InitializeMember<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
-        sol_log_data(&[instruction.data]);
-
-        invoke_signed(&instruction, &[self.mint], signers)
+        invoke_signed(&instruction, &[self.mint, self.member, self.mint_authority, self.group, self.group_update_authority], signers)
     }
 }

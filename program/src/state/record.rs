@@ -366,6 +366,8 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
+    /// # Safety
+    /// SRS Program ID is not checked
     #[inline(always)]
     pub unsafe fn from_bytes_unchecked(data: &'info [u8]) -> Result<Self, ProgramError> {
         let mut variable = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);

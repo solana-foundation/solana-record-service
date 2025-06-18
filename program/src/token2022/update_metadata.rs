@@ -4,7 +4,6 @@ use core::slice::from_raw_parts;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction, Signer},
-    log::sol_log_data,
     program::invoke_signed,
     ProgramResult,
 };
@@ -34,7 +33,7 @@ pub struct UpdateMetadata<'a> {
     pub metadata: &'a AccountInfo,
     /// Update Authority Account [signer]
     pub update_authority: &'a AccountInfo,
-    ///
+    /// URI to update the metadata to
     pub new_uri: &'a str,
 }
 
@@ -99,8 +98,6 @@ impl UpdateMetadata<'_> {
                 )
             },
         };
-
-        sol_log_data(&[instruction.data]);
 
         invoke_signed(&instruction, &[self.update_authority], signers)
     }

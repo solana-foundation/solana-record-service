@@ -4,7 +4,6 @@ use core::slice::from_raw_parts;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction, Signer},
-    log::sol_log_data,
     program::invoke_signed,
     ProgramResult,
 };
@@ -143,8 +142,6 @@ impl InitializeMetadata<'_> {
             accounts: &account_metas,
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, offset) },
         };
-
-        sol_log_data(&[instruction.data]);
 
         invoke_signed(&instruction, &[self.mint], signers)
     }

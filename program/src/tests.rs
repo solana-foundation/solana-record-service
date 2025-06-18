@@ -1049,8 +1049,6 @@ fn mint_record_token() {
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
-    println!("Accounts: {}, {}, {}, {}, {}", owner.to_string(), record.to_string(), class.to_string(), mint.to_string(), group.to_string());
-
     let instruction = MintTokenizedRecord {
         owner,
         payer: owner,

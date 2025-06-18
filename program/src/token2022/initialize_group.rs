@@ -2,7 +2,7 @@ use core::mem::size_of;
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, log::sol_log_data, program::invoke_signed, pubkey::Pubkey, ProgramResult
+    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, pubkey::Pubkey, ProgramResult
 };
 
 use crate::{
@@ -71,8 +71,6 @@ impl InitializeGroup<'_> {
             accounts: &account_metas,
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
-
-        sol_log_data(&[instruction.data]);
 
         invoke_signed(&instruction, &[self.mint], signers)
     }

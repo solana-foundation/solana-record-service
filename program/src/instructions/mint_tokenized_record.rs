@@ -15,7 +15,7 @@ use crate::{
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, syscalls::sol_log_pubkey, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -132,13 +132,10 @@ impl<'info> MintTokenizedRecord<'info> {
         if !Mint::check_initialized(self.accounts.group)? {
             // Create the group mint account if needed
             self.create_group_mint_account(&group_bump)?;
-
             // Initialize the group pointer extension
             self.initialize_group_pointer()?;
-
             // Initialize the group mint account
             self.initialize_group_mint_account()?;
-
             // Initialize the group
             self.initialize_group(&group_bump)?;
         }
