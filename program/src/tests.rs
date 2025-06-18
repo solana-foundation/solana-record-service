@@ -1,12 +1,12 @@
 use borsh::de::BorshDeserialize;
 use borsh::ser::BorshSerialize;
+use solana_account::{Account, WritableAccount};
+use solana_program::program_error::ProgramError;
 use core::str::FromStr;
 
 use kaigan::types::{RemainderStr, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
-use solana_sdk::{
-    account::{Account, WritableAccount}, msg, pubkey::Pubkey
-};
+use solana_pubkey::Pubkey;
 
 use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
 
@@ -393,13 +393,11 @@ fn update_class_metadata() {
 
 #[test]
 /// Fails because the class_authority != authority of the instruction
-fn fail_update_class_metadata() {
+fn update_class_metadata_incorrect_authority() {
     // Authority
     let (random_authority, random_authority_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class_default();
-    // Class Updated
-    let (_, class_data_updated) = keyed_account_for_class(AUTHORITY, false, false, "test", "test2");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -425,10 +423,7 @@ fn fail_update_class_metadata() {
             (system_program, system_program_data),
         ],
         &[
-            Check::success(),
-            Check::account(&class)
-                .data(&class_data_updated.data)
-                .build(),
+            Check::err(ProgramError::MissingRequiredSignature),
         ],
     );
 }
@@ -675,16 +670,13 @@ fn update_record_with_delegate() {
 
 #[test]
 /// Fails because the class is not permissioned
-fn fail_update_record_with_delegate_1() {
+fn update_record_with_delegate_not_permissioned() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(authority, false, false, "test", "test");
     // Record
     let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
-    // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -713,26 +705,20 @@ fn fail_update_record_with_delegate_1() {
             (class, class_data),
         ],
         &[
-            Check::success(),
-            Check::account(&record)
-                .data(&record_data_updated.data)
-                .build(),
+            Check::err(ProgramError::InvalidAccountData)
         ],
     );
 }
 
 #[test]
 /// Fails because class authority != from authority of the instruction
-fn fail_update_record_with_delegate_2() {
+fn update_record_with_delegate_incorrect_authority() {
     // Authority
     let (random_authority, random_authority_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
-    // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -761,10 +747,7 @@ fn fail_update_record_with_delegate_2() {
             (class, class_data),
         ],
         &[
-            Check::success(),
-            Check::account(&record)
-                .data(&record_data_updated.data)
-                .build(),
+            Check::err(ProgramError::MissingRequiredSignature),
         ],
     );
 }
@@ -847,16 +830,13 @@ fn transfer_record_with_delegate() {
 
 #[test]
 /// Fails because the record is frozen
-fn fail_transfer_record() {
+fn fail_transfer_record_frozen() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
-    // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, true, 0, "test", "test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -876,10 +856,7 @@ fn fail_transfer_record() {
         &instruction,
         &[(owner, owner_data), (record, record_data)],
         &[
-            Check::success(),
-            Check::account(&record)
-                .data(&record_data_updated.data)
-                .build(),
+            Check::err(ProgramError::InvalidAccountData)
         ],
     );
 }
@@ -1071,6 +1048,8 @@ fn mint_record_token() {
         mollusk_svm_programs_token::associated_token::keyed_account();
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
     let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    println!("Accounts: {}, {}, {}, {}, {}", owner.to_string(), record.to_string(), class.to_string(), mint.to_string(), group.to_string());
 
     let instruction = MintTokenizedRecord {
         owner,
