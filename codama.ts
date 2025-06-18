@@ -279,7 +279,7 @@ const root = rootNode(
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
                     instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    instructionArgumentNode(structFieldTypeNode(definedTypeNode(metadata)))
+                    instructionArgumentNode(definedTypeNode(metadata))
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -377,7 +377,7 @@ const root = rootNode(
                         defaultValue: numberValueNode(4),
                         defaultValueStrategy: 'omitted',
                     }),
-                    instructionArgumentNode(structFieldTypeNode(definedTypeNode(metadata)))
+                    instructionArgumentNode(definedTypeNode(metadata))
                 ],
                 accounts: [
                     instructionAccountNode({
