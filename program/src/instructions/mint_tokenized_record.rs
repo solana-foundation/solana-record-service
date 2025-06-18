@@ -5,17 +5,16 @@ use pinocchio::log::sol_log;
 use pinocchio_associated_token_account::instructions::Create;
 
 use crate::{
-    constants::SRS_TICKER,
-    state::{OwnerType, Record, NAME_OFFSET, OWNER_OFFSET},
+    state::{OwnerType, Record, OWNER_OFFSET},
     token2022::{
         constants::{
             TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
-        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Metadata, Mint, MintToChecked
+        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked
     },
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, syscalls::sol_log_pubkey, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -103,6 +102,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
 
 pub struct MintTokenizedRecord<'info> {
     accounts: MintTokenizedRecordAccounts<'info>,
+    metadata_data: &'info [u8],
 }
 
 impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
@@ -112,7 +112,9 @@ impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
         // Deserialize our accounts array
         let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
-        Ok(Self { accounts })
+        let metadata_data = ctx.data;
+
+        Ok(Self { accounts, metadata_data })
     }
 }
 
@@ -266,10 +268,10 @@ impl<'info> MintTokenizedRecord<'info> {
 
         // To avoid resizing the ming, we calculate the correct lamports for our token AOT with:
         // 1. `space` - The sum of the above static extension lengths
-        // 2. `record.data_len()` - The full length of the record account
-        // 3. `-NAME_OFFSET` - Remove fixed data in record account that isn't used for metadata
+        // 2. `metadata_data.len()` - The full length of the metadata data
+        // 3. `TOKEN_2022_MEMBER_LEN` - The length of the member extension
         let lamports = Rent::get()?.minimum_balance(
-            space + self.accounts.record.data_len() + Metadata::FIXED_HEADER_LEN + NAME_OFFSET + TOKEN_2022_MEMBER_LEN // Deduct static data at start of record account that isn't used in metadata
+            space + self.metadata_data.len() + TOKEN_2022_MEMBER_LEN
         );
 
         let seeds = [
@@ -336,10 +338,6 @@ impl<'info> MintTokenizedRecord<'info> {
     }
 
     fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
-        let data = self.accounts.record.try_borrow_data()?;
-
-        let (name, uri) = unsafe { Record::get_name_and_data_unchecked(&data)? };
-
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -349,13 +347,10 @@ impl<'info> MintTokenizedRecord<'info> {
         let signers = [Signer::from(&seeds)];
 
         InitializeMetadata {
-            metadata: self.accounts.mint,
-            update_authority: self.accounts.mint,
             mint: self.accounts.mint,
+            update_authority: self.accounts.mint,
             mint_authority: self.accounts.mint,
-            name,
-            symbol: SRS_TICKER,
-            uri,
+            metadata_data: self.metadata_data,
         }
         .invoke_signed(&signers)
     }
