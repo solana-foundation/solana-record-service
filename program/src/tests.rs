@@ -4,11 +4,11 @@ use solana_account::{Account, WritableAccount};
 use solana_program::program_error::ProgramError;
 use core::str::FromStr;
 
-use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString};
+use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString, U16PrefixString, U64PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
-use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID, types::{Metadata, MetadataAdditionalMetadata}};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -21,10 +21,61 @@ pub const TOKEN_2022_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
     0xb6, 0x1a, 0xfc, 0x4d, 0x83, 0xb9, 0x0d, 0x27, 0xfe, 0xbd, 0xf9, 0x28, 0xd8, 0xa1, 0x8b, 0xfc,
 ]);
 
+// Custom U32PrefixString type following kaigan pattern
+#[derive(Clone, Eq, PartialEq)]
+struct U32PrefixString(String);
+
+impl std::ops::Deref for U32PrefixString {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for U32PrefixString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{:?}", self.0))
+    }
+}
+
+impl U32PrefixString {
+    fn try_from_slice(slice: &[u8]) -> Result<Self, &'static str> {
+        if slice.len() < 4 {
+            return Err("Slice too short");
+        }
+        let len = u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]) as usize;
+        if slice.len() < 4 + len {
+            return Err("Slice too short for string");
+        }
+        let string_data = &slice[4..4 + len];
+        let string = String::from_utf8(string_data.to_vec())
+            .map_err(|_| "Invalid utf8")?;
+        Ok(Self(string))
+    }
+}
+
+impl From<U32PrefixString> for String {
+    fn from(u32_str: U32PrefixString) -> Self {
+        u32_str.0
+    }
+}
+
 /* Helpers */
 fn make_u8prefix_string(s: &str) -> U8PrefixString {
     U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat())
         .expect("Invalid name")
+}
+
+fn make_u32prefix_string(s: &str) -> String {
+    let len = s.len() as u32;
+    let len_bytes = len.to_le_bytes();
+    let mut data = Vec::new();
+    data.extend_from_slice(&len_bytes);
+    data.extend_from_slice(s.as_bytes());
+    U32PrefixString::try_from_slice(&data)
+        .expect("Invalid name")
+        .into()
 }
 
 fn make_remainder_vec(b: &[u8]) -> RemainderVec<u8> {
@@ -112,6 +163,96 @@ fn keyed_account_for_record(
         expiry,
         name: make_u8prefix_string(name),
         data: RemainderVec::<u8>::try_from_slice(data).unwrap(),
+    }
+    .try_to_vec()
+    .expect("Invalid record");
+
+    let mut record_account = Account::new(
+        100_000_000u64,
+        record_account_data.len(),
+        &Pubkey::from(crate::ID),
+    );
+    record_account
+        .data_as_mut_slice()
+        .clone_from_slice(&record_account_data);
+
+    (address, record_account)
+}
+
+/// Fake Metadata that has 
+/// - name: "test"
+/// - symbol: "SRS"
+/// - uri: "test"
+/// - additional_metadata: []
+const METADATA: &[u8] = &[4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0, 0, 0];
+
+fn keyed_account_for_record_with_metadata(
+    class: Pubkey,
+    owner_type: u8,
+    owner: Pubkey,
+    is_frozen: bool,
+    expiry: i64,
+    name: &str,
+) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), name.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    let record_account_data = Record {
+        discriminator: 2,
+        class,
+        owner_type,
+        owner,
+        is_frozen,
+        expiry,
+        name: make_u8prefix_string(name),
+        data: RemainderVec::<u8>::try_from_slice(METADATA).unwrap(),
+    }
+    .try_to_vec()
+    .expect("Invalid record");
+
+    let mut record_account = Account::new(
+        100_000_000u64,
+        record_account_data.len(),
+        &Pubkey::from(crate::ID),
+    );
+    record_account
+        .data_as_mut_slice()
+        .clone_from_slice(&record_account_data);
+
+    (address, record_account)
+}
+
+/// Fake Metadata that has 
+/// - name: "test"
+/// - symbol: "SRS"
+/// - uri: "test"
+/// - additional_metadata: [
+///     { label: "test", value: "test" }
+/// ]
+const METADATA_WITH_ADDITIONAL_METADATA: &[u8] = &[4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116];
+
+fn keyed_account_for_record_with_metadata_and_additional_metadata(
+    class: Pubkey,
+    owner_type: u8,
+    owner: Pubkey,
+    is_frozen: bool,
+    expiry: i64,
+    name: &str,
+) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), name.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    let record_account_data = Record {
+        discriminator: 2,
+        class,
+        owner_type,
+        owner,
+        is_frozen,
+        expiry,
+        name: make_u8prefix_string(name),
+        data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_ADDITIONAL_METADATA).unwrap(),
     }
     .try_to_vec()
     .expect("Invalid record");
@@ -483,6 +624,111 @@ fn create_record() {
         expiration: 0,
         name: make_u8prefix_string("test"),
         data: make_remainder_vec(b"test"),
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (record, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record).data(&record_data.data).build(),
+        ],
+    );
+}
+
+#[test]
+fn create_record_with_metadata() {
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Class
+    let (class, class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+    //System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = CreateRecordTokenizable {
+        owner,
+        payer: owner,
+        class,
+        record,
+        system_program,
+        authority: None,
+    }
+    .instruction(CreateRecordTokenizableInstructionArgs {
+        expiration: 0,
+        name: make_u8prefix_string("test"),
+        metadata: Metadata {
+            name: make_u32prefix_string("test"),
+            symbol: make_u32prefix_string("SRS"),
+            uri: make_u32prefix_string("test"),
+            additional_metadata: vec![],
+        },
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (record, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record).data(&record_data.data).build(),
+        ],
+    );
+}
+
+#[test]
+fn create_record_with_metadata_and_additional_metadata() {
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Class
+    let (class, class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record_with_metadata_and_additional_metadata(class, 0, owner, false, 0, "test");
+    //System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = CreateRecordTokenizable {
+        owner,
+        payer: owner,
+        class,
+        record,
+        system_program,
+        authority: None,
+    }
+    .instruction(CreateRecordTokenizableInstructionArgs {
+        expiration: 0,
+        name: make_u8prefix_string("test"),
+        metadata: Metadata {
+            name: make_u32prefix_string("test"),
+            symbol: make_u32prefix_string("SRS"),
+            uri: make_u32prefix_string("test"),
+            additional_metadata: vec![
+                MetadataAdditionalMetadata {
+                    label: make_u32prefix_string("test"),
+                    value: make_u32prefix_string("test"),
+                }
+            ],
+        },
     });
 
     let mollusk = Mollusk::new(
@@ -1014,7 +1260,7 @@ fn mint_record_token() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record_with_metadata_and_additional_metadata(class, 0, owner, false, 0, "test");
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
     // Group

@@ -14,7 +14,7 @@ use crate::{
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -337,6 +337,7 @@ impl<'info> MintTokenizedRecord<'info> {
     fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         let record_data = self.accounts.record.try_borrow_data()?;
         let metadata_data = unsafe { Record::get_metadata_data_unchecked(&record_data)? };
+        
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),

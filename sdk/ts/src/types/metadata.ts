@@ -6,12 +6,10 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { Option } from '@metaplex-foundation/umi';
 import {
   Serializer,
   array,
   mapSerializer,
-  option,
   string,
   struct,
 } from '@metaplex-foundation/umi/serializers';
@@ -21,10 +19,17 @@ export type Metadata = {
   name: string;
   symbol: string;
   uri: string;
-  additionalMetadata: Option<Array<{ label: string; value: string }>>;
+  /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+  additionalMetadata: Array<{ label: string; value: string }>;
 };
 
-export type MetadataArgs = { name: string; symbol?: string; uri: string };
+export type MetadataArgs = {
+  name: string;
+  symbol?: string;
+  uri: string;
+  /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+  additionalMetadata: Array<{ label: string; value: string }>;
+};
 
 export function getMetadataSerializer(): Serializer<MetadataArgs, Metadata> {
   return mapSerializer<MetadataArgs, any, Metadata>(
@@ -35,22 +40,16 @@ export function getMetadataSerializer(): Serializer<MetadataArgs, Metadata> {
         ['uri', string()],
         [
           'additionalMetadata',
-          option(
-            array(
-              struct<any>([
-                ['label', string()],
-                ['value', string()],
-              ])
-            )
+          array(
+            struct<any>([
+              ['label', string()],
+              ['value', string()],
+            ])
           ),
         ],
       ],
       { description: 'Metadata' }
     ),
-    (value) => ({
-      ...value,
-      symbol: value.symbol ?? 'SRS',
-      additionalMetadata: 0,
-    })
+    (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
   ) as Serializer<MetadataArgs, Metadata>;
 }

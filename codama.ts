@@ -47,12 +47,7 @@ const metadata = definedTypeNode({
             name: 'uri', 
             type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
         }),
-        structFieldTypeNode({
-            name: 'additionalMetadata',
-            type: optionTypeNode(additional_metadata.type),
-            defaultValue: numberValueNode(0),
-            defaultValueStrategy: 'omitted'
-        })
+        structFieldTypeNode(additional_metadata)
     ])
 });
 

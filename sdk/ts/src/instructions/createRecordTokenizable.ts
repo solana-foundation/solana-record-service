@@ -8,7 +8,6 @@
 
 import {
   Context,
-  Option,
   Pda,
   PublicKey,
   Signer,
@@ -20,7 +19,6 @@ import {
   array,
   i64,
   mapSerializer,
-  option,
   string,
   struct,
   u8,
@@ -57,7 +55,8 @@ export type CreateRecordTokenizableInstructionData = {
     name: string;
     symbol: string;
     uri: string;
-    additionalMetadata: Option<Array<{ label: string; value: string }>>;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
   };
 };
 
@@ -65,7 +64,13 @@ export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
   name: string;
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: { name: string; symbol?: string; uri: string };
+  metadata: {
+    name: string;
+    symbol?: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
 };
 
 export function getCreateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -91,21 +96,15 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
               ['uri', string()],
               [
                 'additionalMetadata',
-                option(
-                  array(
-                    struct<any>([
-                      ['label', string()],
-                      ['value', string()],
-                    ])
-                  )
+                array(
+                  struct<any>([
+                    ['label', string()],
+                    ['value', string()],
+                  ])
                 ),
               ],
             ]),
-            (value) => ({
-              ...value,
-              symbol: value.symbol ?? 'SRS',
-              additionalMetadata: 0,
-            })
+            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
           ),
         ],
       ],

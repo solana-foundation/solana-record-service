@@ -15,7 +15,8 @@ pub struct Metadata {
     pub name: String,
     pub symbol: String,
     pub uri: String,
-    pub additional_metadata: Option<Vec<MetadataAdditionalMetadata>>,
+    /// Additional metadata for Token22 Metadata Extension compatible Metadata format
+    pub additional_metadata: Vec<MetadataAdditionalMetadata>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]

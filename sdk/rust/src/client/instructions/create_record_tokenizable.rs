@@ -9,6 +9,8 @@ use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::U8PrefixString;
 
+use crate::types::Metadata;
+
 /// Accounts.
 #[derive(Debug)]
 pub struct CreateRecordTokenizable {
@@ -104,7 +106,7 @@ impl Default for CreateRecordTokenizableInstructionData {
 pub struct CreateRecordTokenizableInstructionArgs {
     pub expiration: i64,
     pub name: U8PrefixString,
-    pub metadata: CreateRecordTokenizableInstructionData,
+    pub metadata: Metadata,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
@@ -143,7 +145,7 @@ pub struct CreateRecordTokenizableBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     expiration: Option<i64>,
     name: Option<U8PrefixString>,
-    metadata: Option<CreateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -200,7 +202,7 @@ impl CreateRecordTokenizableBuilder {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: CreateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.metadata = Some(metadata);
         self
     }
@@ -490,7 +492,7 @@ impl<'a, 'b> CreateRecordTokenizableCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: CreateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.instruction.metadata = Some(metadata);
         self
     }
@@ -585,7 +587,7 @@ struct CreateRecordTokenizableCpiBuilderInstruction<'a, 'b> {
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     expiration: Option<i64>,
     name: Option<U8PrefixString>,
-    metadata: Option<CreateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

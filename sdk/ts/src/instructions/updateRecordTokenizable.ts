@@ -8,7 +8,6 @@
 
 import {
   Context,
-  Option,
   Pda,
   PublicKey,
   Signer,
@@ -19,7 +18,6 @@ import {
   Serializer,
   array,
   mapSerializer,
-  option,
   string,
   struct,
   u8,
@@ -50,13 +48,20 @@ export type UpdateRecordTokenizableInstructionData = {
     name: string;
     symbol: string;
     uri: string;
-    additionalMetadata: Option<Array<{ label: string; value: string }>>;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
   };
 };
 
 export type UpdateRecordTokenizableInstructionDataArgs = {
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: { name: string; symbol?: string; uri: string };
+  metadata: {
+    name: string;
+    symbol?: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
 };
 
 export function getUpdateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -80,21 +85,15 @@ export function getUpdateRecordTokenizableInstructionDataSerializer(): Serialize
               ['uri', string()],
               [
                 'additionalMetadata',
-                option(
-                  array(
-                    struct<any>([
-                      ['label', string()],
-                      ['value', string()],
-                    ])
-                  )
+                array(
+                  struct<any>([
+                    ['label', string()],
+                    ['value', string()],
+                  ])
                 ),
               ],
             ]),
-            (value) => ({
-              ...value,
-              symbol: value.symbol ?? 'SRS',
-              additionalMetadata: 0,
-            })
+            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
           ),
         ],
       ],
