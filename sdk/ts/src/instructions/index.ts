@@ -9,6 +9,7 @@
 export * from './burnTokenizedRecord';
 export * from './createClass';
 export * from './createRecord';
+export * from './createRecordTokenizable';
 export * from './deleteRecord';
 export * from './freezeClass';
 export * from './freezeRecord';
@@ -18,4 +19,5 @@ export * from './transferRecord';
 export * from './transferTokenizedRecord';
 export * from './updateClassMetadata';
 export * from './updateRecord';
+export * from './updateRecordTokenizable';
 export * from './updateTokenizedRecord';

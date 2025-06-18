@@ -1,5 +1,5 @@
 import { renderJavaScriptUmiVisitor, renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
-import { accountNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, programNode, publicKeyTypeNode, publicKeyValueNode, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, structFieldTypeNode, structTypeNode } from "codama"
+import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
 import path from "path";
 import fs from "fs";
 
@@ -10,6 +10,44 @@ const typescriptClientsDir = path.join(
   "sdk",
   "ts",
 );
+
+const additional_metadata = definedTypeNode({
+    name: "additionalMetadata",
+    docs: "Additional metadata for Token22 Metadata Extension compatible Metadata format",
+    type: arrayTypeNode(
+        structTypeNode([
+            structFieldTypeNode({
+                name: 'label',
+                type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+            }),
+            structFieldTypeNode({
+                name: 'value', 
+                type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+            })
+        ]),
+        prefixedCountNode(numberTypeNode("u32"))
+    )
+});
+
+const metadata = definedTypeNode({
+    name: "metadata",
+    docs: "Token22 Metadata Extension compatible Metadata format",
+    type: structTypeNode([
+        structFieldTypeNode({
+            name: 'name',
+            type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+        }),
+        structFieldTypeNode({
+            name: 'symbol', 
+            type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+        }),
+        structFieldTypeNode({
+            name: 'uri', 
+            type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+        }),
+        structFieldTypeNode(additional_metadata)
+    ])
+});
 
 const root = rootNode(
     programNode({
@@ -219,6 +257,65 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
+                name: "createRecordTokenizable",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(3)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(3),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode({ 
+                        name: 'expiration', type: numberTypeNode("i64") 
+                    }),
+                    instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
+                    instructionArgumentNode(structFieldTypeNode(definedTypeNode(metadata)))
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "owner",
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Owner of the new record"]
+                    }),
+                    instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay for the record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Class account for the record to be created"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be created"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to create our record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "authority",
+                        isOptional: true,
+                        isSigner: true,
+                        isWritable: false,
+                        docs: ["Optional authority for permissioned classes"]
+                    }),
+                ]
+            }),
+            instructionNode({
                 name: "updateRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(4)))
@@ -231,6 +328,49 @@ const root = rootNode(
                         defaultValueStrategy: 'omitted',
                     }),
                     instructionArgumentNode({ name: 'data', type: stringTypeNode("utf8") }),
+                ],
+                accounts: [
+                    instructionAccountNode({
+                        name: "authority",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "record",
+                        isSigner: false,
+                        isWritable: true,
+                        docs: ["Record account to be updated"]
+                    }),
+                    instructionAccountNode({
+                        name: "systemProgram",
+                        defaultValue: publicKeyValueNode('11111111111111111111111111111111', 'systemProgram'),
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["System Program used to extend our record account"]
+                    }),
+                    instructionAccountNode({
+                        name: "class",
+                        isOptional: true,
+                        isSigner: false,
+                        isWritable: false,
+                        docs: ["Class account of the record"]
+                    }),
+                ]
+            }),
+            instructionNode({
+                name: "updateRecordTokenizable",
+                discriminators: [
+                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(4)))
+                ],
+                arguments: [
+                    instructionArgumentNode({
+                        name: 'discriminator',
+                        type: numberTypeNode('u8'),
+                        defaultValue: numberValueNode(4),
+                        defaultValueStrategy: 'omitted',
+                    }),
+                    instructionArgumentNode(structFieldTypeNode(definedTypeNode(metadata)))
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -677,6 +817,11 @@ const root = rootNode(
                     }),    
                 ]
             })
+        ],
+        definedTypes: [
+            definedTypeNode(
+                metadata
+            )
         ]
     })
 )
