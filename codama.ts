@@ -15,7 +15,7 @@ const root = rootNode(
     programNode({
         name: "solana-record-service",
         publicKey: "srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa",
-        version: "1.0.0",
+        version: "1.1.0",
         accounts: [
             accountNode({
                 name: "class",
