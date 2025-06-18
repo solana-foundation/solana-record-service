@@ -16,6 +16,7 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
+  bytes,
   i64,
   mapSerializer,
   string,
@@ -49,13 +50,13 @@ export type CreateRecordInstructionData = {
   discriminator: number;
   expiration: bigint;
   name: string;
-  data: string;
+  data: Uint8Array;
 };
 
 export type CreateRecordInstructionDataArgs = {
   expiration: number | bigint;
   name: string;
-  data: string;
+  data: Uint8Array;
 };
 
 export function getCreateRecordInstructionDataSerializer(): Serializer<
@@ -72,7 +73,7 @@ export function getCreateRecordInstructionDataSerializer(): Serializer<
         ['discriminator', u8()],
         ['expiration', i64()],
         ['name', string({ size: u8() })],
-        ['data', string({ size: 'variable' })],
+        ['data', bytes()],
       ],
       { description: 'CreateRecordInstructionData' }
     ),

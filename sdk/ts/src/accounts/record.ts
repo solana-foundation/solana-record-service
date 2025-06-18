@@ -22,6 +22,7 @@ import {
 import {
   Serializer,
   bool,
+  bytes,
   i64,
   mapSerializer,
   publicKey as publicKeySerializer,
@@ -40,7 +41,7 @@ export type RecordAccountData = {
   isFrozen: boolean;
   expiry: bigint;
   name: string;
-  data: string;
+  data: Uint8Array;
 };
 
 export type RecordAccountDataArgs = {
@@ -49,7 +50,7 @@ export type RecordAccountDataArgs = {
   isFrozen: boolean;
   expiry: number | bigint;
   name: string;
-  data: string;
+  data: Uint8Array;
 };
 
 export function getRecordAccountDataSerializer(): Serializer<
@@ -66,7 +67,7 @@ export function getRecordAccountDataSerializer(): Serializer<
         ['isFrozen', bool()],
         ['expiry', i64()],
         ['name', string({ size: u8() })],
-        ['data', string({ size: 'variable' })],
+        ['data', bytes()],
       ],
       { description: 'RecordAccountData' }
     ),
@@ -148,7 +149,7 @@ export function getRecordGpaBuilder(
       isFrozen: boolean;
       expiry: number | bigint;
       name: string;
-      data: string;
+      data: Uint8Array;
     }>({
       discriminator: [0, u8()],
       class: [1, publicKeySerializer()],
@@ -157,7 +158,7 @@ export function getRecordGpaBuilder(
       isFrozen: [66, bool()],
       expiry: [67, i64()],
       name: [75, string({ size: u8() })],
-      data: [null, string({ size: 'variable' })],
+      data: [null, bytes()],
     })
     .deserializeUsing<Record>((account) => deserializeRecord(account));
 }

@@ -7,7 +7,7 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderStr;
+use kaigan::types::RemainderVec;
 use kaigan::types::U8PrefixString;
 
 /// Accounts.
@@ -105,7 +105,7 @@ impl Default for CreateRecordInstructionData {
 pub struct CreateRecordInstructionArgs {
     pub expiration: i64,
     pub name: U8PrefixString,
-    pub data: RemainderStr,
+    pub data: RemainderVec<u8>,
 }
 
 /// Instruction builder for `CreateRecord`.
@@ -128,7 +128,7 @@ pub struct CreateRecordBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     expiration: Option<i64>,
     name: Option<U8PrefixString>,
-    data: Option<RemainderStr>,
+    data: Option<RemainderVec<u8>>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -185,7 +185,7 @@ impl CreateRecordBuilder {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
         self.data = Some(data);
         self
     }
@@ -475,7 +475,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
         self.instruction.data = Some(data);
         self
     }
@@ -566,7 +566,7 @@ struct CreateRecordCpiBuilderInstruction<'a, 'b> {
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     expiration: Option<i64>,
     name: Option<U8PrefixString>,
-    data: Option<RemainderStr>,
+    data: Option<RemainderVec<u8>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

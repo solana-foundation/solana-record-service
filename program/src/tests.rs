@@ -4,11 +4,11 @@ use solana_account::{Account, WritableAccount};
 use solana_program::program_error::ProgramError;
 use core::str::FromStr;
 
-use kaigan::types::{RemainderStr, U8PrefixString};
+use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
-use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID, types::Metadata};
+use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -26,6 +26,11 @@ fn make_u8prefix_string(s: &str) -> U8PrefixString {
     U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat())
         .expect("Invalid name")
 }
+
+fn make_remainder_vec(b: &[u8]) -> RemainderVec<u8> {
+    RemainderVec::<u8>::try_from_slice(b).expect("Invalid slice")
+}
+
 
 fn make_remainder_str(s: &str) -> RemainderStr {
     RemainderStr::from_str(s).expect("Invalid metadata")
@@ -92,7 +97,7 @@ fn keyed_account_for_record(
     is_frozen: bool,
     expiry: i64,
     name: &str,
-    data: &str,
+    data: &[u8],
 ) -> (Pubkey, Account) {
     let (address, _bump) = Pubkey::find_program_address(
         &[b"record", &class.as_ref(), name.as_ref()],
@@ -106,7 +111,7 @@ fn keyed_account_for_record(
         is_frozen,
         expiry,
         name: make_u8prefix_string(name),
-        data: make_remainder_str(data),
+        data: RemainderVec::<u8>::try_from_slice(data).unwrap(),
     }
     .try_to_vec()
     .expect("Invalid record");
@@ -462,7 +467,7 @@ fn create_record() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -477,7 +482,7 @@ fn create_record() {
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
         name: make_u8prefix_string("test"),
-        data: make_remainder_str("test"),
+        data: make_remainder_vec(b"test"),
     });
 
     let mollusk = Mollusk::new(
@@ -509,7 +514,7 @@ fn create_permissioned_record() {
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -524,7 +529,7 @@ fn create_permissioned_record() {
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
         name: make_u8prefix_string("test"),
-        data: make_remainder_str("test"),
+        data: make_remainder_vec(b"test"),
     });
 
     let mollusk = Mollusk::new(
@@ -555,10 +560,10 @@ fn update_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", "test2");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -570,7 +575,7 @@ fn update_record() {
         class: None,
     }
     .instruction(UpdateRecordInstructionArgs {
-        data: make_remainder_str("test2"),
+        data: make_remainder_vec(b"test2"),
     });
 
     let mollusk = Mollusk::new(
@@ -601,10 +606,10 @@ fn update_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test2");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -616,7 +621,7 @@ fn update_record_with_delegate() {
         class: Some(class),
     }
     .instruction(UpdateRecordInstructionArgs {
-        data: make_remainder_str("test2"),
+        data: make_remainder_vec(b"test2"),
     });
 
     let mollusk = Mollusk::new(
@@ -649,7 +654,7 @@ fn update_record_with_delegate_not_permissioned() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, false, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -661,7 +666,7 @@ fn update_record_with_delegate_not_permissioned() {
         class: Some(class),
     }
     .instruction(UpdateRecordInstructionArgs {
-        data: make_remainder_str("test2"),
+        data: make_remainder_vec(b"test2"),
     });
 
     let mollusk = Mollusk::new(
@@ -691,7 +696,7 @@ fn update_record_with_delegate_incorrect_authority() {
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -703,7 +708,7 @@ fn update_record_with_delegate_incorrect_authority() {
         class: Some(class),
     }
     .instruction(UpdateRecordInstructionArgs {
-        data: make_remainder_str("test2"),
+        data: make_remainder_vec(b"test2"),
     });
 
     let mollusk = Mollusk::new(
@@ -732,10 +737,10 @@ fn transfer_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", "test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -770,10 +775,10 @@ fn transfer_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", "test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority,
@@ -809,7 +814,7 @@ fn fail_transfer_record_frozen() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -841,7 +846,7 @@ fn delete_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority: owner,
@@ -872,7 +877,7 @@ fn delete_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority,
@@ -903,9 +908,9 @@ fn freeze_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
+    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority: owner,
@@ -938,9 +943,9 @@ fn freeze_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
+    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -973,9 +978,9 @@ fn freeze_record_already_frozen() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", "test");
+    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1009,7 +1014,7 @@ fn mint_record_token() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
     // Group
@@ -1021,13 +1026,6 @@ fn mint_record_token() {
         mollusk_svm_programs_token::associated_token::keyed_account();
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
     let (system_program, system_program_data) = keyed_account_for_system_program();
-
-    let metadata = Metadata {
-        name: "test".to_string(),
-        symbol: "test".to_string(),
-        uri: "test".to_string(),
-        additional_metadata: None,
-    };
 
     let instruction = MintTokenizedRecord {
         owner,
@@ -1042,9 +1040,7 @@ fn mint_record_token() {
         token2022,
         system_program,
     }
-    .instruction(MintTokenizedRecordInstructionArgs {
-        metadata_data: metadata,
-    });
+    .instruction();
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
@@ -1086,7 +1082,7 @@ fn mint_record_token_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", "test");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record, "test", "test");
     // Group
@@ -1146,131 +1142,6 @@ fn mint_record_token_with_delegate() {
 }
 
 #[test]
-fn update_tokenized_record() {
-    // Owner
-    let (owner, owner_data) = keyed_account_for_owner();
-    // Class
-    let (class, _class_data) = keyed_account_for_class_default();
-    // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
-    let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
-    // Mint updated
-    let (_, mint_data_updated) = keyed_account_for_mint(record_address, "test", "test2");
-    // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
-    // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test2");
-    // ATA
-    let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
-
-    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
-
-    let instruction = UpdateTokenizedRecord {
-        authority: owner,
-        record,
-        mint,
-        token_account,
-        token2022,
-        class: None,
-    }
-    .instruction(UpdateTokenizedRecordInstructionArgs {
-        new_data: make_remainder_str("test2"),
-    });
-
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
-    );
-
-    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
-    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
-
-    mollusk.process_and_validate_instruction(
-        &instruction,
-        &[
-            (owner, owner_data),
-            (record, record_data),
-            (mint, mint_data),
-            (token_account, token_account_data),
-            (token2022, token2022_data),
-        ],
-        &[
-            Check::success(),
-            Check::account(&mint).data(&mint_data_updated.data).build(),
-            Check::account(&record).data(&record_data_updated.data).build(),
-        ],
-    );
-}
-
-#[test]
-fn update_tokenized_record_delegate() {
-    // Authority
-    let (authority, authority_data) = keyed_account_for_authority();
-    // Class
-    let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
-    // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
-    let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
-    // Mint updated
-    let (_, mint_data_updated) = keyed_account_for_mint(record_address, "test", "test2");
-    // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
-    // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test2");
-    // ATA
-    let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
-
-    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
-
-    let instruction = UpdateTokenizedRecord {
-        authority,
-        record,
-        mint,
-        token_account,
-        token2022,
-        class: Some(class),
-    }
-    .instruction(UpdateTokenizedRecordInstructionArgs {
-        new_data: make_remainder_str("test2"),
-    });
-
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
-    );
-
-    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
-    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
-
-    mollusk.process_and_validate_instruction(
-        &instruction,
-        &[
-            (authority, authority_data),
-            (record, record_data),
-            (mint, mint_data),
-            (token_account, token_account_data),
-            (token2022, token2022_data),
-            (class, class_data),
-        ],
-        &[
-            Check::success(),
-            Check::account(&mint).data(&mint_data_updated.data).build(),
-            Check::account(&record).data(&record_data_updated.data).build(),
-        ],
-    );
-}
-
-#[test]
 fn freeze_tokenized_record() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
@@ -1284,7 +1155,7 @@ fn freeze_tokenized_record() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // ATA updated
@@ -1340,7 +1211,7 @@ fn freeze_tokenized_record_delegate() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -1397,7 +1268,7 @@ fn transfer_tokenized_record() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -1454,7 +1325,7 @@ fn transfer_tokenized_record_delegate() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
@@ -1512,7 +1383,7 @@ fn burn_tokenized_record() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -1568,7 +1439,7 @@ fn burn_tokenized_record_delegate() {
     let (mint, mint_data) = keyed_account_for_mint(record_address, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", "test");
+        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA

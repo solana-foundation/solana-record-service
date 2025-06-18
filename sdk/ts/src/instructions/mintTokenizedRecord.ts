@@ -8,7 +8,6 @@
 
 import {
   Context,
-  Option,
   Pda,
   PublicKey,
   Signer,
@@ -17,10 +16,7 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  array,
   mapSerializer,
-  option,
-  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -57,21 +53,9 @@ export type MintTokenizedRecordInstructionAccounts = {
 };
 
 // Data.
-export type MintTokenizedRecordInstructionData = {
-  discriminator: number;
-  /** Token22 Metadata Extension compatible Metadata format */
-  metadata: {
-    name: string;
-    symbol: string;
-    uri: string;
-    additionalMetadata: Option<Array<{ label: string; value: string }>>;
-  };
-};
+export type MintTokenizedRecordInstructionData = { discriminator: number };
 
-export type MintTokenizedRecordInstructionDataArgs = {
-  /** Token22 Metadata Extension compatible Metadata format */
-  metadata: { name: string; symbol?: string; uri: string };
-};
+export type MintTokenizedRecordInstructionDataArgs = {};
 
 export function getMintTokenizedRecordInstructionDataSerializer(): Serializer<
   MintTokenizedRecordInstructionDataArgs,
@@ -82,38 +66,9 @@ export function getMintTokenizedRecordInstructionDataSerializer(): Serializer<
     any,
     MintTokenizedRecordInstructionData
   >(
-    struct<MintTokenizedRecordInstructionData>(
-      [
-        ['discriminator', u8()],
-        [
-          'metadata',
-          mapSerializer<any, any, any>(
-            struct<any>([
-              ['name', string()],
-              ['symbol', string()],
-              ['uri', string()],
-              [
-                'additionalMetadata',
-                option(
-                  array(
-                    struct<any>([
-                      ['label', string()],
-                      ['value', string()],
-                    ])
-                  )
-                ),
-              ],
-            ]),
-            (value) => ({
-              ...value,
-              symbol: value.symbol ?? 'SRS',
-              additionalMetadata: 0,
-            })
-          ),
-        ],
-      ],
-      { description: 'MintTokenizedRecordInstructionData' }
-    ),
+    struct<MintTokenizedRecordInstructionData>([['discriminator', u8()]], {
+      description: 'MintTokenizedRecordInstructionData',
+    }),
     (value) => ({ ...value, discriminator: 8 })
   ) as Serializer<
     MintTokenizedRecordInstructionDataArgs,
@@ -121,15 +76,10 @@ export function getMintTokenizedRecordInstructionDataSerializer(): Serializer<
   >;
 }
 
-// Args.
-export type MintTokenizedRecordInstructionArgs =
-  MintTokenizedRecordInstructionDataArgs;
-
 // Instruction.
 export function mintTokenizedRecord(
   context: Pick<Context, 'programs'>,
-  input: MintTokenizedRecordInstructionAccounts &
-    MintTokenizedRecordInstructionArgs
+  input: MintTokenizedRecordInstructionAccounts
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -192,9 +142,6 @@ export function mintTokenizedRecord(
     },
   } satisfies ResolvedAccountsWithIndices;
 
-  // Arguments.
-  const resolvedArgs: MintTokenizedRecordInstructionArgs = { ...input };
-
   // Default values.
   if (!resolvedAccounts.associatedTokenProgram.value) {
     resolvedAccounts.associatedTokenProgram.value =
@@ -232,9 +179,7 @@ export function mintTokenizedRecord(
   );
 
   // Data.
-  const data = getMintTokenizedRecordInstructionDataSerializer().serialize(
-    resolvedArgs as MintTokenizedRecordInstructionDataArgs
-  );
+  const data = getMintTokenizedRecordInstructionDataSerializer().serialize({});
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

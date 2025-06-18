@@ -16,8 +16,8 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
+  bytes,
   mapSerializer,
-  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -42,10 +42,10 @@ export type UpdateRecordInstructionAccounts = {
 // Data.
 export type UpdateRecordInstructionData = {
   discriminator: number;
-  data: string;
+  data: Uint8Array;
 };
 
-export type UpdateRecordInstructionDataArgs = { data: string };
+export type UpdateRecordInstructionDataArgs = { data: Uint8Array };
 
 export function getUpdateRecordInstructionDataSerializer(): Serializer<
   UpdateRecordInstructionDataArgs,
@@ -59,7 +59,7 @@ export function getUpdateRecordInstructionDataSerializer(): Serializer<
     struct<UpdateRecordInstructionData>(
       [
         ['discriminator', u8()],
-        ['data', string({ size: 'variable' })],
+        ['data', bytes()],
       ],
       { description: 'UpdateRecordInstructionData' }
     ),

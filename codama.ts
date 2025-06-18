@@ -1,5 +1,5 @@
 import { renderJavaScriptUmiVisitor, renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
-import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, stringValueNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
+import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, bytesTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, stringValueNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
 import path from "path";
 import fs from "fs";
 
@@ -89,7 +89,7 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
                     structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    structFieldTypeNode({ name: 'data', type: stringTypeNode("utf8") }),
+                    structFieldTypeNode({ name: 'data', type: bytesTypeNode() }),
                 ])
             }),
        ],
@@ -220,7 +220,7 @@ const root = rootNode(
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
                     instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    instructionArgumentNode({ name: 'data', type: stringTypeNode("utf8") }),
+                    instructionArgumentNode({ name: 'data', type: bytesTypeNode() }),
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -334,7 +334,7 @@ const root = rootNode(
                         defaultValue: numberValueNode(4),
                         defaultValueStrategy: 'omitted',
                     }),
-                    instructionArgumentNode({ name: 'data', type: stringTypeNode("utf8") }),
+                    instructionArgumentNode({ name: 'data', type: bytesTypeNode() }),
                 ],
                 accounts: [
                     instructionAccountNode({

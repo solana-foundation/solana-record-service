@@ -7,7 +7,7 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderStr;
+use kaigan::types::RemainderVec;
 
 /// Accounts.
 #[derive(Debug)]
@@ -93,7 +93,7 @@ impl Default for UpdateRecordInstructionData {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UpdateRecordInstructionArgs {
-    pub data: RemainderStr,
+    pub data: RemainderVec<u8>,
 }
 
 /// Instruction builder for `UpdateRecord`.
@@ -110,7 +110,7 @@ pub struct UpdateRecordBuilder {
     record: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
-    data: Option<RemainderStr>,
+    data: Option<RemainderVec<u8>>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -145,7 +145,7 @@ impl UpdateRecordBuilder {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
         self.data = Some(data);
         self
     }
@@ -385,7 +385,7 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderStr) -> &mut Self {
+    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
         self.instruction.data = Some(data);
         self
     }
@@ -462,7 +462,7 @@ struct UpdateRecordCpiBuilderInstruction<'a, 'b> {
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    data: Option<RemainderStr>,
+    data: Option<RemainderVec<u8>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,
