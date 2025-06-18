@@ -8,6 +8,8 @@
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
+use crate::types::Metadata;
+
 /// Accounts.
 #[derive(Debug)]
 pub struct UpdateRecordTokenizable {
@@ -92,7 +94,7 @@ impl Default for UpdateRecordTokenizableInstructionData {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UpdateRecordTokenizableInstructionArgs {
-    pub metadata: UpdateRecordTokenizableInstructionData,
+    pub metadata: Metadata,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
@@ -125,7 +127,7 @@ pub struct UpdateRecordTokenizableBuilder {
     record: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
-    metadata: Option<UpdateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -160,7 +162,7 @@ impl UpdateRecordTokenizableBuilder {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: UpdateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.metadata = Some(metadata);
         self
     }
@@ -192,7 +194,7 @@ impl UpdateRecordTokenizableBuilder {
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
             class: self.class,
         };
-        let args = UpdateRecordTokenizableInstructionArgs {
+        let args: UpdateRecordTokenizableInstructionArgs = UpdateRecordTokenizableInstructionArgs {
             metadata: self.metadata.clone().expect("metadata is not set"),
         };
 
@@ -400,7 +402,7 @@ impl<'a, 'b> UpdateRecordTokenizableCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: UpdateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.instruction.metadata = Some(metadata);
         self
     }
@@ -481,7 +483,7 @@ struct UpdateRecordTokenizableCpiBuilderInstruction<'a, 'b> {
     record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    metadata: Option<UpdateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

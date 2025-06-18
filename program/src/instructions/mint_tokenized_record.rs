@@ -9,7 +9,7 @@ use crate::{
     token2022::{
         constants::{
             TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
-        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked
+        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, UpdateMetadata
     },
     utils::Context,
 };
@@ -336,7 +336,7 @@ impl<'info> MintTokenizedRecord<'info> {
 
     fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         let record_data = self.accounts.record.try_borrow_data()?;
-        let metadata_data = unsafe { Record::get_metadata_data_unchecked(&record_data)? };
+        let (metadata_data, additional_metadata_data) = unsafe { Record::get_metadata_data_unchecked(&record_data)? };
         
         let seeds = [
             Seed::from(b"mint"),
@@ -352,7 +352,35 @@ impl<'info> MintTokenizedRecord<'info> {
             mint_authority: self.accounts.mint,
             metadata_data,
         }
-        .invoke_signed(&signers)
+        .invoke_signed(&signers)?;
+
+        if let Some(additional_metadata_data) = additional_metadata_data {
+            let additional_metadata_num = u32::from_le_bytes(additional_metadata_data[0..size_of::<u32>()].try_into().unwrap());
+
+            let mut offset = size_of::<u32>();
+
+            // Process each additional metadata entry
+            for _ in 0..additional_metadata_num {
+                let starting_value_offset = offset;
+
+                let field_len = u32::from_le_bytes(additional_metadata_data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+                offset += size_of::<u32>() + field_len;
+                let value_len = u32::from_le_bytes(additional_metadata_data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+                offset += size_of::<u32>() + value_len;
+
+                let entry_data = additional_metadata_data[starting_value_offset..offset].to_vec();
+
+                // Call UpdateMetadata for this entry
+                UpdateMetadata {
+                    metadata: self.accounts.mint,
+                    update_authority: self.accounts.mint,
+                    additional_metadata: &entry_data,
+                }
+                .invoke_signed(&signers)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn initialize_group_member(&self, group_bump: &[u8; 1], mint_bump: &[u8; 1]) -> Result<(), ProgramError> {
