@@ -36,13 +36,17 @@ pub struct MintTokenizedRecord {
 }
 
 impl MintTokenizedRecord {
-    pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        self.instruction_with_remaining_accounts(&[])
+    pub fn instruction(
+        &self,
+        args: MintTokenizedRecordInstructionArgs,
+    ) -> solana_program::instruction::Instruction {
+        self.instruction_with_remaining_accounts(args, &[])
     }
     #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
+        args: MintTokenizedRecordInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(11 + remaining_accounts.len());
@@ -86,7 +90,9 @@ impl MintTokenizedRecord {
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let data = borsh::to_vec(&MintTokenizedRecordInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&MintTokenizedRecordInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&args).unwrap();
+        data.append(&mut args);
 
         solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
@@ -112,6 +118,28 @@ impl Default for MintTokenizedRecordInstructionData {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MintTokenizedRecordInstructionArgs {
+    pub metadata: MintTokenizedRecordInstructionData,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MintTokenizedRecordInstructionDataMetadataAdditionalMetadata {
+    pub label: String,
+    pub value: String,
+}
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MintTokenizedRecordInstructionDataMetadata {
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub additional_metadata:
+        Option<Vec<MintTokenizedRecordInstructionDataMetadataAdditionalMetadata>>,
 }
 
 /// Instruction builder for `MintTokenizedRecord`.
@@ -142,6 +170,7 @@ pub struct MintTokenizedRecordBuilder {
     associated_token_program: Option<solana_program::pubkey::Pubkey>,
     token2022: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
+    metadata: Option<MintTokenizedRecordInstructionData>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -221,6 +250,11 @@ impl MintTokenizedRecordBuilder {
         self.system_program = Some(system_program);
         self
     }
+    #[inline(always)]
+    pub fn metadata(&mut self, metadata: MintTokenizedRecordInstructionData) -> &mut Self {
+        self.metadata = Some(metadata);
+        self
+    }
     /// Add an additional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -260,8 +294,11 @@ impl MintTokenizedRecordBuilder {
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
+        let args = MintTokenizedRecordInstructionArgs {
+            metadata: self.metadata.clone().expect("metadata is not set"),
+        };
 
-        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
+        accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
@@ -317,12 +354,15 @@ pub struct MintTokenizedRecordCpi<'a, 'b> {
     pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
     /// System Program used to create our token
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    /// The arguments for the instruction.
+    pub __args: MintTokenizedRecordInstructionArgs,
 }
 
 impl<'a, 'b> MintTokenizedRecordCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
         accounts: MintTokenizedRecordCpiAccounts<'a, 'b>,
+        args: MintTokenizedRecordInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
@@ -337,6 +377,7 @@ impl<'a, 'b> MintTokenizedRecordCpi<'a, 'b> {
             associated_token_program: accounts.associated_token_program,
             token2022: accounts.token2022,
             system_program: accounts.system_program,
+            __args: args,
         }
     }
     #[inline(always)]
@@ -425,7 +466,9 @@ impl<'a, 'b> MintTokenizedRecordCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = borsh::to_vec(&MintTokenizedRecordInstructionData::new()).unwrap();
+        let mut data = borsh::to_vec(&MintTokenizedRecordInstructionData::new()).unwrap();
+        let mut args = borsh::to_vec(&self.__args).unwrap();
+        data.append(&mut args);
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
@@ -492,6 +535,7 @@ impl<'a, 'b> MintTokenizedRecordCpiBuilder<'a, 'b> {
             associated_token_program: None,
             token2022: None,
             system_program: None,
+            metadata: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -580,6 +624,11 @@ impl<'a, 'b> MintTokenizedRecordCpiBuilder<'a, 'b> {
         self.instruction.system_program = Some(system_program);
         self
     }
+    #[inline(always)]
+    pub fn metadata(&mut self, metadata: MintTokenizedRecordInstructionData) -> &mut Self {
+        self.instruction.metadata = Some(metadata);
+        self
+    }
     /// Add an additional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -621,6 +670,13 @@ impl<'a, 'b> MintTokenizedRecordCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
+        let args = MintTokenizedRecordInstructionArgs {
+            metadata: self
+                .instruction
+                .metadata
+                .clone()
+                .expect("metadata is not set"),
+        };
         let instruction = MintTokenizedRecordCpi {
             __program: self.instruction.__program,
 
@@ -654,6 +710,7 @@ impl<'a, 'b> MintTokenizedRecordCpiBuilder<'a, 'b> {
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
+            __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -676,6 +733,7 @@ struct MintTokenizedRecordCpiBuilderInstruction<'a, 'b> {
     associated_token_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     token2022: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    metadata: Option<MintTokenizedRecordInstructionData>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

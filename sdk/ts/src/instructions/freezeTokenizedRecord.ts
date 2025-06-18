@@ -67,7 +67,7 @@ export function getFreezeTokenizedRecordInstructionDataSerializer(): Serializer<
       ],
       { description: 'FreezeTokenizedRecordInstructionData' }
     ),
-    (value) => ({ ...value, discriminator: 10 })
+    (value) => ({ ...value, discriminator: 9 })
   ) as Serializer<
     FreezeTokenizedRecordInstructionDataArgs,
     FreezeTokenizedRecordInstructionData

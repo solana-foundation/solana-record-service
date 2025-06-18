@@ -20,4 +20,3 @@ export * from './transferTokenizedRecord';
 export * from './updateClassMetadata';
 export * from './updateRecord';
 export * from './updateRecordTokenizable';
-export * from './updateTokenizedRecord';

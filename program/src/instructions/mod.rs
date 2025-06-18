@@ -25,9 +25,6 @@ pub use delete_record::DeleteRecord;
 pub mod mint_tokenized_record;
 pub use mint_tokenized_record::*;
 
-pub mod update_tokenized_record;
-pub use update_tokenized_record::*;
-
 pub mod transfer_tokenized_record;
 pub use transfer_tokenized_record::*;
 

@@ -102,7 +102,6 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
 
 pub struct MintTokenizedRecord<'info> {
     accounts: MintTokenizedRecordAccounts<'info>,
-    metadata_data: &'info [u8],
 }
 
 impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
@@ -112,9 +111,7 @@ impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
         // Deserialize our accounts array
         let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
-        let metadata_data = ctx.data;
-
-        Ok(Self { accounts, metadata_data })
+        Ok(Self { accounts })
     }
 }
 
@@ -271,7 +268,7 @@ impl<'info> MintTokenizedRecord<'info> {
         // 2. `metadata_data.len()` - The full length of the metadata data
         // 3. `TOKEN_2022_MEMBER_LEN` - The length of the member extension
         let lamports = Rent::get()?.minimum_balance(
-            space + self.metadata_data.len() + TOKEN_2022_MEMBER_LEN
+            space + unsafe { Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)? } + TOKEN_2022_MEMBER_LEN
         );
 
         let seeds = [
@@ -338,6 +335,8 @@ impl<'info> MintTokenizedRecord<'info> {
     }
 
     fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
+        let record_data = self.accounts.record.try_borrow_data()?;
+        let metadata_data = unsafe { Record::get_metadata_data_unchecked(&record_data)? };
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -350,7 +349,7 @@ impl<'info> MintTokenizedRecord<'info> {
             mint: self.accounts.mint,
             update_authority: self.accounts.mint,
             mint_authority: self.accounts.mint,
-            metadata_data: self.metadata_data,
+            metadata_data,
         }
         .invoke_signed(&signers)
     }

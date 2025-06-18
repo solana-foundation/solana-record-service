@@ -8,7 +8,7 @@ use kaigan::types::{RemainderStr, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
-use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID};
+use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID, types::Metadata};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -1022,6 +1022,13 @@ fn mint_record_token() {
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
+    let metadata = Metadata {
+        name: "test".to_string(),
+        symbol: "test".to_string(),
+        uri: "test".to_string(),
+        additional_metadata: None,
+    };
+
     let instruction = MintTokenizedRecord {
         owner,
         payer: owner,
@@ -1035,7 +1042,9 @@ fn mint_record_token() {
         token2022,
         system_program,
     }
-    .instruction();
+    .instruction(MintTokenizedRecordInstructionArgs {
+        metadata_data: metadata,
+    });
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,

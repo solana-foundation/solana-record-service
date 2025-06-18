@@ -327,14 +327,19 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub unsafe fn get_name_and_data_unchecked(
+    pub unsafe fn get_metadata_len_unchecked(
         data: &'info Ref<'info, [u8]>,
-    ) -> Result<(&'info str, &'info str), ProgramError> {
+    ) -> Result<usize, ProgramError> {
         let record_data_offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
-        let record_name =
-            str::from_utf8_unchecked(&data[NAME_LEN_OFFSET + size_of::<u8>()..record_data_offset]);
-        let record_data = str::from_utf8_unchecked(&data[record_data_offset..]);
-        Ok((record_name, record_data))
+        Ok(data.len() - record_data_offset)
+    }
+
+    #[inline(always)]
+    pub unsafe fn get_metadata_data_unchecked(
+        data: &'info Ref<'info, [u8]>,
+    ) -> Result<&'info [u8], ProgramError> {
+        let record_data_offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
+        Ok(&data[record_data_offset..])
     }
 
     #[inline(always)]

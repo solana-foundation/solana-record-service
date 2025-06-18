@@ -107,8 +107,8 @@ pub struct UpdateRecordTokenizableInstructionDataMetadata {
     pub name: String,
     pub symbol: String,
     pub uri: String,
-    /// Additional metadata for Token22 Metadata Extension compatible Metadata format
-    pub additional_metadata: Vec<UpdateRecordTokenizableInstructionDataMetadataAdditionalMetadata>,
+    pub additional_metadata:
+        Option<Vec<UpdateRecordTokenizableInstructionDataMetadataAdditionalMetadata>>,
 }
 
 /// Instruction builder for `UpdateRecordTokenizable`.

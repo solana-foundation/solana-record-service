@@ -1,5 +1,5 @@
 import { renderJavaScriptUmiVisitor, renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
-import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
+import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, stringValueNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
 import path from "path";
 import fs from "fs";
 
@@ -39,13 +39,20 @@ const metadata = definedTypeNode({
         }),
         structFieldTypeNode({
             name: 'symbol', 
-            type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
+            type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32")),
+            defaultValue: stringValueNode("SRS"),
+            defaultValueStrategy: 'optional'
         }),
         structFieldTypeNode({
             name: 'uri', 
             type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u32"))
         }),
-        structFieldTypeNode(additional_metadata)
+        structFieldTypeNode({
+            name: 'additionalMetadata',
+            type: optionTypeNode(additional_metadata.type),
+            defaultValue: numberValueNode(0),
+            defaultValueStrategy: 'omitted'
+        })
     ])
 });
 
@@ -519,7 +526,7 @@ const root = rootNode(
                         type: numberTypeNode('u8'),
                         defaultValue: numberValueNode(8),
                         defaultValueStrategy: 'omitted',
-                    })
+                    }),
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -594,61 +601,6 @@ const root = rootNode(
                 ]
             }),
             instructionNode({
-                name: "updateTokenizedRecord",
-                discriminators: [
-                    constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(9)))
-                ],
-                arguments: [
-                    instructionArgumentNode({
-                        name: 'discriminator',
-                        type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(9),
-                        defaultValueStrategy: 'omitted',
-                    }),
-                    instructionArgumentNode({ name: 'newData', type: stringTypeNode("utf8") }),
-                ],
-                accounts: [
-                    instructionAccountNode({
-                        name: "authority",
-                        isSigner: true,
-                        isWritable: true,
-                        docs: ["Record owner or class authority for permissioned classes"]
-                    }),
-                    instructionAccountNode({
-                        name: "mint",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Mint account for the tokenized record"]
-                    }),
-                    instructionAccountNode({
-                        name: "tokenAccount",
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Token Account for the tokenized record"]
-                    }),
-                    instructionAccountNode({
-                        name: "record",
-                        isSigner: false,
-                        isWritable: true,
-                        docs: ["Record account associated with the tokenized record"]
-                    }),
-                    instructionAccountNode({
-                        name: "token2022",
-                        defaultValue: publicKeyValueNode('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb', 'token2022'),
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Token2022 Program used to update our metadata"]
-                    }),
-                    instructionAccountNode({
-                        name: "class",
-                        isOptional: true,
-                        isSigner: false,
-                        isWritable: false,
-                        docs: ["Class account of the record"]
-                    }),
-                ]
-            }),
-            instructionNode({
                 name: "freezeTokenizedRecord",
                 discriminators: [
                     constantDiscriminatorNode(constantValueNode(numberTypeNode("u8"), numberValueNode(10)))
@@ -657,7 +609,7 @@ const root = rootNode(
                     instructionArgumentNode({
                         name: 'discriminator',
                         type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(10),
+                        defaultValue: numberValueNode(9),
                         defaultValueStrategy: 'omitted',
                     }),
                     instructionArgumentNode({ name: 'isFrozen', type: booleanTypeNode() })
@@ -712,7 +664,7 @@ const root = rootNode(
                     instructionArgumentNode({
                         name: 'discriminator',
                         type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(11),
+                        defaultValue: numberValueNode(10),
                         defaultValueStrategy: 'omitted',
                     }),
                 ],
@@ -772,7 +724,7 @@ const root = rootNode(
                     instructionArgumentNode({
                         name: 'discriminator',
                         type: numberTypeNode('u8'),
-                        defaultValue: numberValueNode(12),
+                        defaultValue: numberValueNode(11),
                         defaultValueStrategy: 'omitted',
                     })
                 ],

@@ -90,7 +90,7 @@ pub struct TransferTokenizedRecordInstructionData {
 
 impl TransferTokenizedRecordInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 11 }
+        Self { discriminator: 10 }
     }
 }
 
