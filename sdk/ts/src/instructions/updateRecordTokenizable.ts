@@ -16,8 +16,9 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  bytes,
+  array,
   mapSerializer,
+  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -28,7 +29,7 @@ import {
 } from '../shared';
 
 // Accounts.
-export type UpdateRecordInstructionAccounts = {
+export type UpdateRecordTokenizableInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Record account to be updated */
@@ -40,40 +41,80 @@ export type UpdateRecordInstructionAccounts = {
 };
 
 // Data.
-export type UpdateRecordInstructionData = {
+export type UpdateRecordTokenizableInstructionData = {
   discriminator: number;
-  data: Uint8Array;
+  /** Token22 Metadata Extension compatible Metadata format */
+  metadata: {
+    name: string;
+    symbol: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
 };
 
-export type UpdateRecordInstructionDataArgs = { data: Uint8Array };
+export type UpdateRecordTokenizableInstructionDataArgs = {
+  /** Token22 Metadata Extension compatible Metadata format */
+  metadata: {
+    name: string;
+    symbol?: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
+};
 
-export function getUpdateRecordInstructionDataSerializer(): Serializer<
-  UpdateRecordInstructionDataArgs,
-  UpdateRecordInstructionData
+export function getUpdateRecordTokenizableInstructionDataSerializer(): Serializer<
+  UpdateRecordTokenizableInstructionDataArgs,
+  UpdateRecordTokenizableInstructionData
 > {
   return mapSerializer<
-    UpdateRecordInstructionDataArgs,
+    UpdateRecordTokenizableInstructionDataArgs,
     any,
-    UpdateRecordInstructionData
+    UpdateRecordTokenizableInstructionData
   >(
-    struct<UpdateRecordInstructionData>(
+    struct<UpdateRecordTokenizableInstructionData>(
       [
         ['discriminator', u8()],
-        ['data', bytes()],
+        [
+          'metadata',
+          mapSerializer<any, any, any>(
+            struct<any>([
+              ['name', string()],
+              ['symbol', string()],
+              ['uri', string()],
+              [
+                'additionalMetadata',
+                array(
+                  struct<any>([
+                    ['label', string()],
+                    ['value', string()],
+                  ])
+                ),
+              ],
+            ]),
+            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
+          ),
+        ],
       ],
-      { description: 'UpdateRecordInstructionData' }
+      { description: 'UpdateRecordTokenizableInstructionData' }
     ),
     (value) => ({ ...value, discriminator: 4 })
-  ) as Serializer<UpdateRecordInstructionDataArgs, UpdateRecordInstructionData>;
+  ) as Serializer<
+    UpdateRecordTokenizableInstructionDataArgs,
+    UpdateRecordTokenizableInstructionData
+  >;
 }
 
 // Args.
-export type UpdateRecordInstructionArgs = UpdateRecordInstructionDataArgs;
+export type UpdateRecordTokenizableInstructionArgs =
+  UpdateRecordTokenizableInstructionDataArgs;
 
 // Instruction.
-export function updateRecord(
+export function updateRecordTokenizable(
   context: Pick<Context, 'programs'>,
-  input: UpdateRecordInstructionAccounts & UpdateRecordInstructionArgs
+  input: UpdateRecordTokenizableInstructionAccounts &
+    UpdateRecordTokenizableInstructionArgs
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -106,7 +147,7 @@ export function updateRecord(
   } satisfies ResolvedAccountsWithIndices;
 
   // Arguments.
-  const resolvedArgs: UpdateRecordInstructionArgs = { ...input };
+  const resolvedArgs: UpdateRecordTokenizableInstructionArgs = { ...input };
 
   // Default values.
   if (!resolvedAccounts.systemProgram.value) {
@@ -130,8 +171,8 @@ export function updateRecord(
   );
 
   // Data.
-  const data = getUpdateRecordInstructionDataSerializer().serialize(
-    resolvedArgs as UpdateRecordInstructionDataArgs
+  const data = getUpdateRecordTokenizableInstructionDataSerializer().serialize(
+    resolvedArgs as UpdateRecordTokenizableInstructionDataArgs
   );
 
   // Bytes Created On Chain.

@@ -4,14 +4,13 @@ use core::slice::from_raw_parts;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction, Signer},
-    log::sol_log_data,
     program::invoke_signed,
     ProgramResult,
 };
 
 use crate::{
     constants::MAX_METADATA_LEN,
-    token2022::constants::{TOKEN_2022_PROGRAM_ID, TOKEN_IS_FROZEN_FLAG},
+    token2022::constants::TOKEN_2022_PROGRAM_ID,
     utils::{write_bytes, UNINIT_BYTE},
 };
 
@@ -34,14 +33,13 @@ pub struct UpdateMetadata<'a> {
     pub metadata: &'a AccountInfo,
     /// Update Authority Account [signer]
     pub update_authority: &'a AccountInfo,
-    ///
-    pub new_uri: &'a str,
+    /// URI to update the metadata to
+    pub additional_metadata: &'a [u8],
 }
 
 const DISCRIMINATOR_OFFSET: usize = 0;
 const FIELD_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u64>();
-const NEW_URI_LENGTH_OFFSET: usize = FIELD_OFFSET + size_of::<u8>();
-const NEW_URI_OFFSET: usize = NEW_URI_LENGTH_OFFSET + size_of::<u32>();
+const ADDITIONAL_METADATA_LENGTH_OFFSET: usize = FIELD_OFFSET + size_of::<u8>();
 
 impl UpdateMetadata<'_> {
     pub const DISCRIMINATOR: [u8; 8] = [0xdd, 0xe9, 0x31, 0x2d, 0xb5, 0xca, 0xdc, 0xc8];
@@ -74,34 +72,23 @@ impl UpdateMetadata<'_> {
         // Write field at offset [8]
         write_bytes(
             &mut instruction_data[FIELD_OFFSET..],
-            &[TOKEN_IS_FROZEN_FLAG],
+            &[3],
         );
 
         // Write new_uri length at offset [9..13]
         write_bytes(
-            &mut instruction_data[NEW_URI_LENGTH_OFFSET..],
-            &(self.new_uri.len() as u32).to_le_bytes(),
+            &mut instruction_data[ADDITIONAL_METADATA_LENGTH_OFFSET..],
+            &(self.additional_metadata),
         );
 
-        // Write new_uri at offset [13]
-        write_bytes(
-            &mut instruction_data[NEW_URI_OFFSET..],
-            self.new_uri.as_bytes(),
-        );
+        let instruction_len = ADDITIONAL_METADATA_LENGTH_OFFSET + self.additional_metadata.len();
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
-            data: unsafe {
-                from_raw_parts(
-                    instruction_data.as_ptr() as _,
-                    NEW_URI_OFFSET + self.new_uri.len(),
-                )
-            },
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_len) },
         };
 
-        sol_log_data(&[instruction.data]);
-
-        invoke_signed(&instruction, &[self.update_authority], signers)
+        invoke_signed(&instruction, &[self.metadata, self.update_authority], signers)
     }
 }

@@ -20,12 +20,28 @@ impl<'info> Mint<'info> {
         Ok(())
     }
 
+    /// # Safety
+    /// Token Program ID is not checked
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
         if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(())
+    }
+
+    pub fn check_initialized(account_info: &AccountInfo) -> Result<bool, ProgramError> {
+        if unsafe { account_info.owner().ne(&TOKEN_2022_PROGRAM_ID) } {
+            return Ok(false);
+        }
+
+        let data = account_info.try_borrow_data()?;
+
+        if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 }
 
@@ -48,6 +64,8 @@ impl<'info> Token<'info> {
         Ok(())
     }
 
+    /// # Safety
+    /// Token Program ID is not checked
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
         if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&TOKEN_ACCOUNT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
@@ -56,6 +74,8 @@ impl<'info> Token<'info> {
         Ok(())
     }
 
+    /// # Safety
+    /// Token Program ID is not checked
     pub unsafe fn get_mint_address_unchecked(data: &[u8]) -> Result<Pubkey, ProgramError> {
         Ok(
             data[TOKEN_MINT_OFFSET..TOKEN_MINT_OFFSET + size_of::<Pubkey>()]
@@ -64,6 +84,8 @@ impl<'info> Token<'info> {
         )
     }
 
+    /// # Safety
+    /// Token Program ID is not checked
     pub unsafe fn get_owner_unchecked(data: &[u8]) -> Result<Pubkey, ProgramError> {
         Ok(
             data[TOKEN_OWNER_OFFSET..TOKEN_OWNER_OFFSET + size_of::<Pubkey>()]
@@ -72,6 +94,8 @@ impl<'info> Token<'info> {
         )
     }
 
+    /// # Safety
+    /// Token Program ID is not checked
     pub unsafe fn get_is_frozen_unchecked(data: &[u8]) -> Result<bool, ProgramError> {
         Ok(data[TOKEN_IS_FROZEN_OFFSET].eq(&TOKEN_IS_FROZEN_FLAG))
     }

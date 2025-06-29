@@ -2,9 +2,9 @@ use crate::{
     token2022::{Mint, Token},
     utils::{resize_account, ByteReader, ByteWriter},
 };
-use core::{mem::size_of, str};
+use core::{mem::size_of, slice::from_raw_parts, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, program_error::ProgramError, pubkey::Pubkey
+    account_info::{AccountInfo, Ref, RefMut}, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
@@ -54,11 +54,12 @@ impl<'info> Record<'info> {
     pub const DISCRIMINATOR: u8 = 2;
 
     /// Minimum size required for a valid record account
-    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>() * 2
-        + size_of::<Pubkey>() * 2
-        + size_of::<bool>() * 2
-        + size_of::<i64>()
+    pub const MINIMUM_CLASS_SIZE: usize = size_of::<u8>()
+        + size_of::<Pubkey>()
         + size_of::<u8>()
+        + size_of::<Pubkey>()
+        + size_of::<bool>()
+        + size_of::<i64>()
         + size_of::<u8>();
 
     /// Check if the program id and discriminator are valid
@@ -326,14 +327,60 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
-    pub unsafe fn get_name_and_data_unchecked(
+    pub unsafe fn get_metadata_len_unchecked(
         data: &'info Ref<'info, [u8]>,
-    ) -> Result<(&'info str, &'info str), ProgramError> {
-        let record_data_offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
-        let record_name =
-            str::from_utf8_unchecked(&data[NAME_LEN_OFFSET + size_of::<u8>()..record_data_offset]);
-        let record_data = str::from_utf8_unchecked(&data[record_data_offset..]);
-        Ok((record_name, record_data))
+    ) -> Result<usize, ProgramError> {
+        let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
+        
+        // Read name_len and skip name
+        let name_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + name_len;
+
+        // Read ticker_len and skip ticker
+        let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + ticker_len;
+
+        // Read uri_len and skip uri
+        let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + uri_len;
+        
+        // Read additional_metadata_len and skip additional_metadata if present
+        let additional_metadata_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        
+        if additional_metadata_len > 0 {
+            offset += size_of::<u32>() + additional_metadata_len;
+        }
+
+        Ok(offset)
+    }
+
+    #[inline(always)]
+    pub unsafe fn get_metadata_data_unchecked(
+        data: &'info Ref<'info, [u8]>,
+    ) -> Result<(&'info [u8], Option<&'info [u8]>), ProgramError> {
+        let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
+        
+        // Read name_len and skip name
+        let name_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + name_len;
+        
+        // Read ticker_len and skip ticker
+        let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + ticker_len;
+        
+        // Read uri_len and skip uri
+        let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        offset += size_of::<u32>() + uri_len;
+        
+        let metadata_data = &data[NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize..offset];
+        
+        let additional_metadata_data = if u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) != 0 {
+            Some(&data[offset..])
+        } else {
+            None
+        };
+
+        Ok((metadata_data, additional_metadata_data))
     }
 
     #[inline(always)]
@@ -365,6 +412,8 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
+    /// # Safety
+    /// SRS Program ID is not checked
     #[inline(always)]
     pub unsafe fn from_bytes_unchecked(data: &'info [u8]) -> Result<Self, ProgramError> {
         let mut variable = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);

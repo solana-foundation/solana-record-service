@@ -29,9 +29,10 @@ use crate::{
 ///
 /// # Accounts
 /// 1. `owner` - The account that will own the record
-/// 2. `class` - The class account that this record belongs to
-/// 3. `record` - The new record account to be created
-/// 4. `authority` - [as remaining accounts] The authority account of the class
+/// 2. `payer` - The account that will pay for the record account
+/// 3. `class` - The class account that this record belongs to
+/// 4. `record` - The new record account to be created
+/// 5. `authority` - [as remaining accounts] The authority account of the class
 ///
 /// # Security
 /// 1. Check if the class is permissioned, if so, the instruction must pass
@@ -39,6 +40,7 @@ use crate::{
 /// 2. The class must not be frozen
 pub struct CreateRecordAccounts<'info> {
     owner: &'info AccountInfo,
+    payer: &'info AccountInfo,
     class: &'info AccountInfo,
     record: &'info AccountInfo,
 }
@@ -47,7 +49,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [owner, class, record, _system_program, rest @ ..] = accounts else {
+        let [owner, payer, class, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -56,6 +58,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
 
         Ok(Self {
             owner,
+            payer,
             class,
             record,
         })
@@ -147,7 +150,7 @@ impl<'info> CreateRecord<'info> {
         let signers = [Signer::from(&seeds)];
 
         CreateAccount {
-            from: self.accounts.owner,
+            from: self.accounts.payer,
             to: self.accounts.record,
             lamports,
             space: space as u64,

@@ -90,7 +90,7 @@ pub struct FreezeTokenizedRecordInstructionData {
 
 impl FreezeTokenizedRecordInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 10 }
+        Self { discriminator: 9 }
     }
 }
 

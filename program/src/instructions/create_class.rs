@@ -30,12 +30,14 @@ use crate::{
 ///
 /// # Accounts
 /// 1. `authority` - The account that will own the class (must be a signer)
-/// 2. `class` - The new class account to be created
+/// 2. `payer` - The account that will pay for the class account
+/// 3. `class` - The new class account to be created
 ///
 /// # Security
 /// 1. The authority account must be a signer
 pub struct CreateClassAccounts<'info> {
     authority: &'info AccountInfo,
+    payer: &'info AccountInfo,
     class: &'info AccountInfo,
 }
 
@@ -43,7 +45,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, _system_program] = accounts else {
+        let [authority, payer, class, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -52,7 +54,11 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self { authority, class })
+        Ok(Self {
+            authority,
+            payer,
+            class,
+        })
     }
 }
 
@@ -153,7 +159,7 @@ impl<'info> CreateClass<'info> {
 
         // Create the account with our program as owner
         CreateAccount {
-            from: self.accounts.authority,
+            from: self.accounts.payer,
             to: self.accounts.class,
             lamports,
             space: space as u64,

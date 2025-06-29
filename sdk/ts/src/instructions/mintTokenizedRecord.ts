@@ -30,12 +30,18 @@ import {
 export type MintTokenizedRecordInstructionAccounts = {
   /** Record owner */
   owner: PublicKey | Pda;
+  /** Account that will pay for the mint account */
+  payer: Signer;
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
   /** Record account associated with the tokenized record */
   record: PublicKey | Pda;
   /** Mint account for the tokenized record */
   mint: PublicKey | Pda;
+  /** Class account of the record */
+  class: PublicKey | Pda;
+  /** Group account for the tokenized record */
+  group: PublicKey | Pda;
   /** Token Account for the tokenized record */
   tokenAccount: PublicKey | Pda;
   /** Associated Token Program used to create our token */
@@ -44,8 +50,6 @@ export type MintTokenizedRecordInstructionAccounts = {
   token2022?: PublicKey | Pda;
   /** System Program used to create our token */
   systemProgram?: PublicKey | Pda;
-  /** Class account of the record */
-  class?: PublicKey | Pda;
 };
 
 // Data.
@@ -90,41 +94,51 @@ export function mintTokenizedRecord(
       isWritable: false as boolean,
       value: input.owner ?? null,
     },
-    authority: {
+    payer: {
       index: 1,
       isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    authority: {
+      index: 2,
+      isWritable: false as boolean,
       value: input.authority ?? null,
     },
     record: {
-      index: 2,
+      index: 3,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
-    mint: { index: 3, isWritable: true as boolean, value: input.mint ?? null },
+    mint: { index: 4, isWritable: true as boolean, value: input.mint ?? null },
+    class: {
+      index: 5,
+      isWritable: false as boolean,
+      value: input.class ?? null,
+    },
+    group: {
+      index: 6,
+      isWritable: true as boolean,
+      value: input.group ?? null,
+    },
     tokenAccount: {
-      index: 4,
+      index: 7,
       isWritable: true as boolean,
       value: input.tokenAccount ?? null,
     },
     associatedTokenProgram: {
-      index: 5,
+      index: 8,
       isWritable: false as boolean,
       value: input.associatedTokenProgram ?? null,
     },
     token2022: {
-      index: 6,
+      index: 9,
       isWritable: false as boolean,
       value: input.token2022 ?? null,
     },
     systemProgram: {
-      index: 7,
+      index: 10,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
-    },
-    class: {
-      index: 8,
-      isWritable: false as boolean,
-      value: input.class ?? null,
     },
   } satisfies ResolvedAccountsWithIndices;
 

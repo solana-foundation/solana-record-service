@@ -16,7 +16,7 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  bytes,
+  array,
   i64,
   mapSerializer,
   string,
@@ -30,7 +30,7 @@ import {
 } from '../shared';
 
 // Accounts.
-export type CreateRecordInstructionAccounts = {
+export type CreateRecordTokenizableInstructionAccounts = {
   /** Owner of the new record */
   owner: Signer;
   /** Account that will pay for the record account */
@@ -46,48 +46,86 @@ export type CreateRecordInstructionAccounts = {
 };
 
 // Data.
-export type CreateRecordInstructionData = {
+export type CreateRecordTokenizableInstructionData = {
   discriminator: number;
   expiration: bigint;
   name: string;
-  data: Uint8Array;
+  /** Token22 Metadata Extension compatible Metadata format */
+  metadata: {
+    name: string;
+    symbol: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
 };
 
-export type CreateRecordInstructionDataArgs = {
+export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
   name: string;
-  data: Uint8Array;
+  /** Token22 Metadata Extension compatible Metadata format */
+  metadata: {
+    name: string;
+    symbol?: string;
+    uri: string;
+    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
+    additionalMetadata: Array<{ label: string; value: string }>;
+  };
 };
 
-export function getCreateRecordInstructionDataSerializer(): Serializer<
-  CreateRecordInstructionDataArgs,
-  CreateRecordInstructionData
+export function getCreateRecordTokenizableInstructionDataSerializer(): Serializer<
+  CreateRecordTokenizableInstructionDataArgs,
+  CreateRecordTokenizableInstructionData
 > {
   return mapSerializer<
-    CreateRecordInstructionDataArgs,
+    CreateRecordTokenizableInstructionDataArgs,
     any,
-    CreateRecordInstructionData
+    CreateRecordTokenizableInstructionData
   >(
-    struct<CreateRecordInstructionData>(
+    struct<CreateRecordTokenizableInstructionData>(
       [
         ['discriminator', u8()],
         ['expiration', i64()],
         ['name', string({ size: u8() })],
-        ['data', bytes()],
+        [
+          'metadata',
+          mapSerializer<any, any, any>(
+            struct<any>([
+              ['name', string()],
+              ['symbol', string()],
+              ['uri', string()],
+              [
+                'additionalMetadata',
+                array(
+                  struct<any>([
+                    ['label', string()],
+                    ['value', string()],
+                  ])
+                ),
+              ],
+            ]),
+            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
+          ),
+        ],
       ],
-      { description: 'CreateRecordInstructionData' }
+      { description: 'CreateRecordTokenizableInstructionData' }
     ),
     (value) => ({ ...value, discriminator: 3 })
-  ) as Serializer<CreateRecordInstructionDataArgs, CreateRecordInstructionData>;
+  ) as Serializer<
+    CreateRecordTokenizableInstructionDataArgs,
+    CreateRecordTokenizableInstructionData
+  >;
 }
 
 // Args.
-export type CreateRecordInstructionArgs = CreateRecordInstructionDataArgs;
+export type CreateRecordTokenizableInstructionArgs =
+  CreateRecordTokenizableInstructionDataArgs;
 
 // Instruction.
-export function createRecord(
+export function createRecordTokenizable(
   context: Pick<Context, 'programs'>,
-  input: CreateRecordInstructionAccounts & CreateRecordInstructionArgs
+  input: CreateRecordTokenizableInstructionAccounts &
+    CreateRecordTokenizableInstructionArgs
 ): TransactionBuilder {
   // Program ID.
   const programId = context.programs.getPublicKey(
@@ -130,7 +168,7 @@ export function createRecord(
   } satisfies ResolvedAccountsWithIndices;
 
   // Arguments.
-  const resolvedArgs: CreateRecordInstructionArgs = { ...input };
+  const resolvedArgs: CreateRecordTokenizableInstructionArgs = { ...input };
 
   // Default values.
   if (!resolvedAccounts.systemProgram.value) {
@@ -154,8 +192,8 @@ export function createRecord(
   );
 
   // Data.
-  const data = getCreateRecordInstructionDataSerializer().serialize(
-    resolvedArgs as CreateRecordInstructionDataArgs
+  const data = getCreateRecordTokenizableInstructionDataSerializer().serialize(
+    resolvedArgs as CreateRecordTokenizableInstructionDataArgs
   );
 
   // Bytes Created On Chain.
