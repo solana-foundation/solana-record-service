@@ -8,13 +8,25 @@ use crate::{
     state::{OwnerType, Record, OWNER_OFFSET},
     token2022::{
         constants::{
-            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
-        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, UpdateMetadata
+            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN,
+            TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN,
+            TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN,
+            TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID,
+        },
+        InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember,
+        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked,
+        UpdateMetadata,
     },
     utils::Context,
 };
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::{find_program_address, try_find_program_address, Pubkey}, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{find_program_address, try_find_program_address, Pubkey},
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 use pinocchio_system::instructions::CreateAccount;
 
@@ -75,12 +87,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let seeds = [
-            owner.key(),
-            TOKEN_2022_PROGRAM_ID.as_ref(),
-            mint.key(),
-        ];
-        let (token_account_address, _) = find_program_address(&seeds, &pinocchio_associated_token_account::ID);
+        let seeds = [owner.key(), TOKEN_2022_PROGRAM_ID.as_ref(), mint.key()];
+        let (token_account_address, _) =
+            find_program_address(&seeds, &pinocchio_associated_token_account::ID);
 
         if token_account_address.ne(token_account.key()) {
             return Err(ProgramError::InvalidAccountData);
@@ -107,7 +116,7 @@ pub struct MintTokenizedRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
@@ -166,8 +175,9 @@ impl<'info> MintTokenizedRecord<'info> {
         unsafe { Record::update_is_frozen_unchecked(&mut record_data, true)? }
 
         // 2. Update the record_owner to be the mint
-        record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].clone_from_slice(self.accounts.mint.key());
-        
+        record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]
+            .clone_from_slice(self.accounts.mint.key());
+
         // 3. Update the record_type to be tokenized
         unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }
     }
@@ -190,13 +200,9 @@ impl<'info> MintTokenizedRecord<'info> {
 
     fn create_group_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         // Space of all our static extensions
-        let space = TOKEN_2022_MINT_LEN
-            + TOKEN_2022_MINT_BASE_LEN
-            + TOKEN_2022_GROUP_POINTER_LEN;
+        let space = TOKEN_2022_MINT_LEN + TOKEN_2022_MINT_BASE_LEN + TOKEN_2022_GROUP_POINTER_LEN;
 
-        let lamports = Rent::get()?.minimum_balance(
-            space + TOKEN_2022_GROUP_LEN
-        );
+        let lamports = Rent::get()?.minimum_balance(space + TOKEN_2022_GROUP_LEN);
 
         let seeds = [
             Seed::from(b"group"),
@@ -268,7 +274,11 @@ impl<'info> MintTokenizedRecord<'info> {
         // 2. `metadata_data.len()` - The full length of the metadata data
         // 3. `TOKEN_2022_MEMBER_LEN` - The length of the member extension
         let lamports = Rent::get()?.minimum_balance(
-            space + unsafe { Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)? } + TOKEN_2022_MEMBER_LEN
+            space
+                + unsafe {
+                    Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)?
+                }
+                + TOKEN_2022_MEMBER_LEN,
         );
 
         let seeds = [
@@ -336,8 +346,9 @@ impl<'info> MintTokenizedRecord<'info> {
 
     fn initialize_metadata(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
         let record_data = self.accounts.record.try_borrow_data()?;
-        let (metadata_data, additional_metadata_data) = unsafe { Record::get_metadata_data_unchecked(&record_data)? };
-        
+        let (metadata_data, additional_metadata_data) =
+            unsafe { Record::get_metadata_data_unchecked(&record_data)? };
+
         let seeds = [
             Seed::from(b"mint"),
             Seed::from(self.accounts.record.key()),
@@ -355,7 +366,11 @@ impl<'info> MintTokenizedRecord<'info> {
         .invoke_signed(&signers)?;
 
         if let Some(additional_metadata_data) = additional_metadata_data {
-            let additional_metadata_num = u32::from_le_bytes(additional_metadata_data[0..size_of::<u32>()].try_into().unwrap());
+            let additional_metadata_num = u32::from_le_bytes(
+                additional_metadata_data[0..size_of::<u32>()]
+                    .try_into()
+                    .unwrap(),
+            );
 
             let mut offset = size_of::<u32>();
 
@@ -363,9 +378,17 @@ impl<'info> MintTokenizedRecord<'info> {
             for _ in 0..additional_metadata_num {
                 let starting_value_offset = offset;
 
-                let field_len = u32::from_le_bytes(additional_metadata_data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+                let field_len = u32::from_le_bytes(
+                    additional_metadata_data[offset..offset + size_of::<u32>()]
+                        .try_into()
+                        .unwrap(),
+                ) as usize;
                 offset += size_of::<u32>() + field_len;
-                let value_len = u32::from_le_bytes(additional_metadata_data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+                let value_len = u32::from_le_bytes(
+                    additional_metadata_data[offset..offset + size_of::<u32>()]
+                        .try_into()
+                        .unwrap(),
+                ) as usize;
                 offset += size_of::<u32>() + value_len;
 
                 let entry_data = additional_metadata_data[starting_value_offset..offset].to_vec();
@@ -383,7 +406,11 @@ impl<'info> MintTokenizedRecord<'info> {
         Ok(())
     }
 
-    fn initialize_group_member(&self, group_bump: &[u8; 1], mint_bump: &[u8; 1]) -> Result<(), ProgramError> {
+    fn initialize_group_member(
+        &self,
+        group_bump: &[u8; 1],
+        mint_bump: &[u8; 1],
+    ) -> Result<(), ProgramError> {
         let group_seeds = [
             Seed::from(b"group"),
             Seed::from(self.accounts.class.key()),

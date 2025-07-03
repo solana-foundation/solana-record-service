@@ -1,7 +1,10 @@
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, ProgramResult
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    ProgramResult,
 };
 
 use crate::{
@@ -36,7 +39,7 @@ impl InitializeMember<'_> {
 
     const DISCRIMINATOR_OFFSET: usize = 0;
 
-    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {        
+    pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         // Account metadata
         let account_metas: [AccountMeta; 5] = [
             AccountMeta::writable(self.mint.key()),
@@ -61,6 +64,16 @@ impl InitializeMember<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
-        invoke_signed(&instruction, &[self.mint, self.member, self.mint_authority, self.group, self.group_update_authority], signers)
+        invoke_signed(
+            &instruction,
+            &[
+                self.mint,
+                self.member,
+                self.mint_authority,
+                self.group,
+                self.group_update_authority,
+            ],
+            signers,
+        )
     }
 }

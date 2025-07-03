@@ -2,9 +2,11 @@ use crate::{
     token2022::{Mint, Token},
     utils::{resize_account, ByteReader, ByteWriter},
 };
-use core::{mem::size_of, slice::from_raw_parts, str};
+use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey
+    account_info::{AccountInfo, Ref, RefMut},
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
@@ -81,8 +83,10 @@ impl<'info> Record<'info> {
         Ok(())
     }
 
-    /// Check if the owner is valid
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn check_owner_unchecked(
         data: &[u8],
         owner: &AccountInfo,
@@ -140,7 +144,7 @@ impl<'info> Record<'info> {
         record: &AccountInfo,
         class: Option<&AccountInfo>,
         authority: &AccountInfo,
-    ) -> Result<(), ProgramError> {        
+    ) -> Result<(), ProgramError> {
         // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
 
@@ -166,7 +170,7 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(&class, authority)
+        Self::validate_delegate(class, authority)
     }
 
     #[inline(always)]
@@ -196,7 +200,7 @@ impl<'info> Record<'info> {
         }
 
         let record_data = record.try_borrow_data()?;
-        
+
         // Check if the mint is the owner
         if mint
             .key()
@@ -224,10 +228,13 @@ impl<'info> Record<'info> {
         }
 
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
-        Self::validate_delegate(&class, authority)
+        Self::validate_delegate(class, authority)
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_owner_type_unchecked(
         data: &mut RefMut<'info, [u8]>,
         owner_type: OwnerType,
@@ -244,6 +251,9 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_is_frozen_unchecked(
         data: &mut RefMut<'info, [u8]>,
         is_frozen: bool,
@@ -260,6 +270,9 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_owner_unchecked(
         data: &mut RefMut<'info, [u8]>,
         new_owner: &Pubkey,
@@ -281,6 +294,9 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_data_unchecked(
         record: &'info AccountInfo,
         authority: &'info AccountInfo,
@@ -314,6 +330,9 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn delete_record_unchecked(
         record: &'info AccountInfo,
         authority: &'info AccountInfo,
@@ -327,26 +346,37 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn get_metadata_len_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<usize, ProgramError> {
         let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
-        
+
         // Read name_len and skip name
-        let name_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let name_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + name_len;
 
         // Read ticker_len and skip ticker
-        let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let ticker_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + ticker_len;
 
         // Read uri_len and skip uri
-        let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let uri_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + uri_len;
-        
+
         // Read additional_metadata_len and skip additional_metadata if present
-        let additional_metadata_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
-        
+        let additional_metadata_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
+
         if additional_metadata_len > 0 {
             offset += size_of::<u32>() + additional_metadata_len;
         }
@@ -355,35 +385,50 @@ impl<'info> Record<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn get_metadata_data_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<(&'info [u8], Option<&'info [u8]>), ProgramError> {
         let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
-        
+
         // Read name_len and skip name
-        let name_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let name_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + name_len;
-        
+
         // Read ticker_len and skip ticker
-        let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let ticker_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + ticker_len;
-        
+
         // Read uri_len and skip uri
-        let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
+        let uri_len =
+            u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                as usize;
         offset += size_of::<u32>() + uri_len;
-        
-        let metadata_data = &data[NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize..offset];
-        
-        let additional_metadata_data = if u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) != 0 {
-            Some(&data[offset..])
-        } else {
-            None
-        };
+
+        let metadata_data =
+            &data[NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize..offset];
+
+        let additional_metadata_data =
+            if u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) != 0
+            {
+                Some(&data[offset..])
+            } else {
+                None
+            };
 
         Ok((metadata_data, additional_metadata_data))
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn initialize_unchecked(
         &self,
         account_info: &'info AccountInfo,

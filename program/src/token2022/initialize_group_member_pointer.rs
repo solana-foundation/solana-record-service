@@ -23,7 +23,7 @@ pub struct InitializeGroupMemberPointer<'a> {
     /// Authority Account.
     pub authority: &'a Pubkey,
     /// Member Address.
-    pub member_address: &'a Pubkey, 
+    pub member_address: &'a Pubkey,
 }
 impl InitializeGroupMemberPointer<'_> {
     #[inline(always)]
@@ -33,7 +33,8 @@ impl InitializeGroupMemberPointer<'_> {
 
     const DISCRIMINATOR_OFFSET: usize = 0;
     const GROUP_POINTER_DISCRIMINATOR_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
-    const GROUP_AUTHORITY_OFFSET: usize = Self::GROUP_POINTER_DISCRIMINATOR_OFFSET + size_of::<u8>();
+    const GROUP_AUTHORITY_OFFSET: usize =
+        Self::GROUP_POINTER_DISCRIMINATOR_OFFSET + size_of::<u8>();
     const MEMBER_ADDRESS_OFFSET: usize = Self::GROUP_AUTHORITY_OFFSET + size_of::<Pubkey>();
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {

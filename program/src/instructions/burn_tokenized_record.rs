@@ -43,7 +43,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, mint, token_account, record, _token_2022_program, rest @ ..] = accounts else {
+        let [authority, mint, token_account, record, _token_2022_program, rest @ ..] = accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -88,15 +89,11 @@ impl<'info> BurnTokenizedRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let bump =
-            [
-                try_find_program_address(
-                    &[b"mint", self.accounts.record.key()],
-                    &crate::ID,
-                )
+        let bump = [
+            try_find_program_address(&[b"mint", self.accounts.record.key()], &crate::ID)
                 .ok_or(ProgramError::InvalidArgument)?
                 .1,
-            ];
+        ];
 
         let seeds = [
             Seed::from(b"mint"),

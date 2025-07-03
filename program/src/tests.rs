@@ -1,14 +1,19 @@
 use borsh::de::BorshDeserialize;
 use borsh::ser::BorshSerialize;
+use core::str::FromStr;
 use solana_account::{Account, WritableAccount};
 use solana_program::program_error::ProgramError;
-use core::str::FromStr;
 
 use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
-use solana_record_service_client::{accounts::*, instructions::*, programs::SOLANA_RECORD_SERVICE_ID, types::{Metadata, MetadataAdditionalMetadata}};
+use solana_record_service_client::{
+    accounts::*,
+    instructions::*,
+    programs::SOLANA_RECORD_SERVICE_ID,
+    types::{Metadata, MetadataAdditionalMetadata},
+};
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
@@ -49,8 +54,7 @@ impl U32PrefixString {
             return Err("Slice too short for string");
         }
         let string_data = &slice[4..4 + len];
-        let string = String::from_utf8(string_data.to_vec())
-            .map_err(|_| "Invalid utf8")?;
+        let string = String::from_utf8(string_data.to_vec()).map_err(|_| "Invalid utf8")?;
         Ok(Self(string))
     }
 }
@@ -82,7 +86,6 @@ fn make_remainder_vec(b: &[u8]) -> RemainderVec<u8> {
     RemainderVec::<u8>::try_from_slice(b).expect("Invalid slice")
 }
 
-
 fn make_remainder_str(s: &str) -> RemainderStr {
     RemainderStr::from_str(s).expect("Invalid metadata")
 }
@@ -101,7 +104,10 @@ fn keyed_account_for_random_authority() -> (Pubkey, Account) {
     )
 }
 fn keyed_account_for_owner() -> (Pubkey, Account) {
-    (OWNER, Account::new(100_000_000_000u64, 0, &Pubkey::default()))
+    (
+        OWNER,
+        Account::new(100_000_000_000u64, 0, &Pubkey::default()),
+    )
 }
 
 fn keyed_account_for_class_default() -> (Pubkey, Account) {
@@ -115,8 +121,10 @@ fn keyed_account_for_class(
     name: &str,
     metadata: &str,
 ) -> (Pubkey, Account) {
-    let (address, _bump) = 
-        Pubkey::find_program_address(&[b"class", &authority.as_ref(), name.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+    let (address, _bump) = Pubkey::find_program_address(
+        &[b"class", &authority.as_ref(), name.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
 
     let class_account_data = Class {
         discriminator: 1,
@@ -125,7 +133,9 @@ fn keyed_account_for_class(
         is_frozen,
         name: make_u8prefix_string(name),
         metadata: make_remainder_str(metadata),
-    }.try_to_vec().expect("Invalid class");
+    }
+    .try_to_vec()
+    .expect("Invalid class");
 
     let mut class_account = Account::new(
         100_000_000u64,
@@ -176,12 +186,15 @@ fn keyed_account_for_record(
     (address, record_account)
 }
 
-/// Fake Metadata that has 
+/// Fake Metadata that has
 /// - name: "test"
 /// - symbol: "SRS"
 /// - uri: "test"
 /// - additional_metadata: []
-const METADATA: &[u8; 27] = &[4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0, 0, 0];
+const METADATA: &[u8; 27] = &[
+    4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0,
+    0, 0,
+];
 
 fn keyed_account_for_record_with_metadata(
     class: Pubkey,
@@ -220,14 +233,17 @@ fn keyed_account_for_record_with_metadata(
     (address, record_account)
 }
 
-/// Fake Metadata that has 
+/// Fake Metadata that has
 /// - name: "test"
 /// - symbol: "SRS"
 /// - uri: "test"
 /// - additional_metadata: [
 ///     { label: "test", value: "test" }
 /// ]
-const METADATA_WITH_ADDITIONAL_METADATA: &[u8] = &[4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116];
+const METADATA_WITH_ADDITIONAL_METADATA: &[u8] = &[
+    4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1, 0,
+    0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116,
+];
 
 fn keyed_account_for_record_with_metadata_and_additional_metadata(
     class: Pubkey,
@@ -266,7 +282,12 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
     (address, record_account)
 }
 
-const METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA: &[u8] = &[4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 115, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116];
+const METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA: &[u8] = &[
+    4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0,
+    0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 115, 101,
+    115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116, 4, 0, 0, 0, 116, 101,
+    115, 116,
+];
 
 fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
     class: Pubkey,
@@ -288,7 +309,8 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
         is_frozen,
         expiry,
         name: make_u8prefix_string(name),
-        data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA).unwrap(),
+        data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA)
+            .unwrap(),
     }
     .try_to_vec()
     .expect("Invalid record");
@@ -305,193 +327,298 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
     (address, record_account)
 }
 
-const MINT_DATA_WITH_EXTENSIONS: &[u8] = &[1, 0, 0, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-const MINT_CLOSE_AUTHORITY_EXTENSION: &[u8] = &[3, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127];
-const MINT_PERMANENT_DELEGATE_EXTENSION: &[u8] = &[12, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127];
-const MINT_METADATA_POINTER_EXTENSION: &[u8] = &[18, 0, 64, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127];
-const MINT_GROUP_MEMBER_POINTER_EXTENSION: &[u8] = &[22, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127];
-const MINT_METADATA_EXTENSION: &[u8] = &[19, 0, 91, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0, 0, 0];
-const MINT_GROUP_MEMBER_EXTENSION: &[u8] = &[23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0];
+const MINT_DATA_WITH_EXTENSIONS: &[u8] = &[
+    1, 0, 0, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+    0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101,
+    42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 1,
+];
+const MINT_CLOSE_AUTHORITY_EXTENSION: &[u8] = &[
+    3, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+];
+const MINT_PERMANENT_DELEGATE_EXTENSION: &[u8] = &[
+    12, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+];
+const MINT_METADATA_POINTER_EXTENSION: &[u8] = &[
+    18, 0, 64, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
+    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+];
+const MINT_GROUP_MEMBER_POINTER_EXTENSION: &[u8] = &[
+    22, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
+    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 44, 183, 51, 50, 60, 76,
+    5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4,
+    96, 81, 27, 127,
+];
+const MINT_METADATA_EXTENSION: &[u8] = &[
+    19, 0, 91, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
+    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+    4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0,
+    0, 0,
+];
+const MINT_GROUP_MEMBER_EXTENSION: &[u8] = &[
+    23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 52, 137, 177, 136, 59, 205, 145, 103,
+    193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152,
+    136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0,
+];
 
-fn keyed_account_for_mint(
-    record: Pubkey,
-) -> (Pubkey, Account) {
+fn keyed_account_for_mint(record: Pubkey) -> (Pubkey, Account) {
     let (address, _bump) =
         Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
 
     // Base data (82) + 84 (padding + account_type) + Extensions (36 + 36 + 68) + Metadata (83 + name.len() + uri.len())
-    let total_size = MINT_DATA_WITH_EXTENSIONS.len() 
-        + MINT_CLOSE_AUTHORITY_EXTENSION.len() 
-        + MINT_PERMANENT_DELEGATE_EXTENSION.len() 
-        + MINT_METADATA_POINTER_EXTENSION.len() 
-        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len() 
-        + MINT_METADATA_EXTENSION.len() 
+    let total_size = MINT_DATA_WITH_EXTENSIONS.len()
+        + MINT_CLOSE_AUTHORITY_EXTENSION.len()
+        + MINT_PERMANENT_DELEGATE_EXTENSION.len()
+        + MINT_METADATA_POINTER_EXTENSION.len()
+        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()
+        + MINT_METADATA_EXTENSION.len()
         + MINT_GROUP_MEMBER_EXTENSION.len();
 
     let mut mint_account_data = vec![0u8; total_size];
 
     // Mint Data
-    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
+    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
     let mut offset = MINT_DATA_WITH_EXTENSIONS.len();
     // Close Authority Extension
-    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()].copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
+    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()]
+        .copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
     offset += MINT_CLOSE_AUTHORITY_EXTENSION.len();
     // Permanent Delegate Extension
-    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()].copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
+    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()]
+        .copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
     offset += MINT_PERMANENT_DELEGATE_EXTENSION.len();
     // Metadata Pointer Extension
-    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()].copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
     offset += MINT_METADATA_POINTER_EXTENSION.len();
     // Group Pointer Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
     offset += MINT_GROUP_MEMBER_POINTER_EXTENSION.len();
     // Metadata Extension
-    mint_account_data[offset..offset + MINT_METADATA_EXTENSION.len()].copy_from_slice(MINT_METADATA_EXTENSION);
+    mint_account_data[offset..offset + MINT_METADATA_EXTENSION.len()]
+        .copy_from_slice(MINT_METADATA_EXTENSION);
     offset += MINT_METADATA_EXTENSION.len();
     // Group Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
 
     // Create the mint account
-    let mut record_mint_account = Account::new(100_000_000u64, mint_account_data.len(), &TOKEN_2022_PROGRAM_ID);
-    record_mint_account.data_as_mut_slice().copy_from_slice(&mint_account_data);
+    let mut record_mint_account = Account::new(
+        100_000_000u64,
+        mint_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    record_mint_account
+        .data_as_mut_slice()
+        .copy_from_slice(&mint_account_data);
 
     (address, record_mint_account)
 }
 
-const MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA: &[u8; 111] = &[19, 0, 107, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116];
+const MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA: &[u8; 111] = &[
+    19, 0, 107, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19,
+    33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101,
+    31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27,
+    127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1,
+    0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116,
+];
 
-fn keyed_account_for_mint_with_additional_metadata(
-    record: Pubkey,
-) -> (Pubkey, Account) {
+fn keyed_account_for_mint_with_additional_metadata(record: Pubkey) -> (Pubkey, Account) {
     let (address, _bump) =
         Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
 
-    let total_size = MINT_DATA_WITH_EXTENSIONS.len() 
-        + MINT_CLOSE_AUTHORITY_EXTENSION.len() 
-        + MINT_PERMANENT_DELEGATE_EXTENSION.len() 
-        + MINT_METADATA_POINTER_EXTENSION.len() 
-        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len() 
-        + MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA.len() 
+    let total_size = MINT_DATA_WITH_EXTENSIONS.len()
+        + MINT_CLOSE_AUTHORITY_EXTENSION.len()
+        + MINT_PERMANENT_DELEGATE_EXTENSION.len()
+        + MINT_METADATA_POINTER_EXTENSION.len()
+        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()
+        + MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA.len()
         + MINT_GROUP_MEMBER_EXTENSION.len();
 
     let mut mint_account_data = vec![0u8; total_size];
 
     // Mint Data
-    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
+    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
     let mut offset = MINT_DATA_WITH_EXTENSIONS.len();
     // Close Authority Extension
-    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()].copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
+    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()]
+        .copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
     offset += MINT_CLOSE_AUTHORITY_EXTENSION.len();
     // Permanent Delegate Extension
-    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()].copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
+    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()]
+        .copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
     offset += MINT_PERMANENT_DELEGATE_EXTENSION.len();
     // Metadata Pointer Extension
-    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()].copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
     offset += MINT_METADATA_POINTER_EXTENSION.len();
     // Group Pointer Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
     offset += MINT_GROUP_MEMBER_POINTER_EXTENSION.len();
     // Metadata Extension
-    mint_account_data[offset..offset + MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA.len()].copy_from_slice(MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA);
+    mint_account_data[offset..offset + MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA.len()]
+        .copy_from_slice(MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA);
     offset += MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA.len();
     // Group Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
 
     // Create the mint account
-    let mut record_mint_account = Account::new(100_000_000u64, mint_account_data.len(), &TOKEN_2022_PROGRAM_ID);
-    record_mint_account.data_as_mut_slice().copy_from_slice(&mint_account_data);
+    let mut record_mint_account = Account::new(
+        100_000_000u64,
+        mint_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    record_mint_account
+        .data_as_mut_slice()
+        .copy_from_slice(&mint_account_data);
 
     (address, record_mint_account)
 }
 
-const MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA: &[u8; 143] = &[19, 0, 139, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 115, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116];
+const MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA: &[u8; 143] = &[
+    19, 0, 139, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19,
+    33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101,
+    31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27,
+    127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 3,
+    0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 115, 101,
+    115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116, 4, 0, 0, 0, 116, 101,
+    115, 116,
+];
 
-fn keyed_account_for_mint_with_multiple_additional_metadata(
-    record: Pubkey,
-) -> (Pubkey, Account) {
+fn keyed_account_for_mint_with_multiple_additional_metadata(record: Pubkey) -> (Pubkey, Account) {
     let (address, _bump) =
         Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
 
-    let total_size = MINT_DATA_WITH_EXTENSIONS.len() 
-        + MINT_CLOSE_AUTHORITY_EXTENSION.len() 
-        + MINT_PERMANENT_DELEGATE_EXTENSION.len() 
-        + MINT_METADATA_POINTER_EXTENSION.len() 
-        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len() 
-        + MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA.len() 
+    let total_size = MINT_DATA_WITH_EXTENSIONS.len()
+        + MINT_CLOSE_AUTHORITY_EXTENSION.len()
+        + MINT_PERMANENT_DELEGATE_EXTENSION.len()
+        + MINT_METADATA_POINTER_EXTENSION.len()
+        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()
+        + MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA.len()
         + MINT_GROUP_MEMBER_EXTENSION.len();
 
     let mut mint_account_data = vec![0u8; total_size];
 
     // Mint Data
-    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
+    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
     let mut offset = MINT_DATA_WITH_EXTENSIONS.len();
     // Close Authority Extension
-    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()].copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
+    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()]
+        .copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
     offset += MINT_CLOSE_AUTHORITY_EXTENSION.len();
     // Permanent Delegate Extension
-    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()].copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
+    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()]
+        .copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
     offset += MINT_PERMANENT_DELEGATE_EXTENSION.len();
     // Metadata Pointer Extension
-    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()].copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
     offset += MINT_METADATA_POINTER_EXTENSION.len();
     // Group Pointer Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
     offset += MINT_GROUP_MEMBER_POINTER_EXTENSION.len();
     // Metadata Extension
-    mint_account_data[offset..offset + MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA.len()].copy_from_slice(MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA);
+    mint_account_data
+        [offset..offset + MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA.len()]
+        .copy_from_slice(MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA);
     offset += MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA.len();
     // Group Extension
-    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()].copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_EXTENSION);
 
     // Create the mint account
-    let mut record_mint_account = Account::new(100_000_000u64, mint_account_data.len(), &TOKEN_2022_PROGRAM_ID);
-    record_mint_account.data_as_mut_slice().copy_from_slice(&mint_account_data);
+    let mut record_mint_account = Account::new(
+        100_000_000u64,
+        mint_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    record_mint_account
+        .data_as_mut_slice()
+        .copy_from_slice(&mint_account_data);
 
     (address, record_mint_account)
 }
 
-const GROUP_MINT_DATA_WITH_EXTENSIONS: &[u8] = &[1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-const MINT_GROUP_POINTER_EXTENSION: &[u8] = &[20, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92];
-const MINT_GROUP_EXTENSION: &[u8] = &[21, 0, 80, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0];
+const GROUP_MINT_DATA_WITH_EXTENSIONS: &[u8] = &[
+    1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188,
+    182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188,
+    182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+];
+const MINT_GROUP_POINTER_EXTENSION: &[u8] = &[
+    20, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
+    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59,
+    205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211,
+    23, 123, 152, 136, 141, 87, 92,
+];
+const MINT_GROUP_EXTENSION: &[u8] = &[
+    21, 0, 80, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
+    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59,
+    205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211,
+    23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0,
+];
 
-fn keyed_account_for_group(
-    class: Pubkey,
-) -> (Pubkey, Account) {
+fn keyed_account_for_group(class: Pubkey) -> (Pubkey, Account) {
     let (address, _bump) =
         Pubkey::find_program_address(&[b"group", &class.as_ref()], &SOLANA_RECORD_SERVICE_ID);
 
-    let total_size = GROUP_MINT_DATA_WITH_EXTENSIONS.len() 
-        + MINT_GROUP_POINTER_EXTENSION.len() 
+    let total_size = GROUP_MINT_DATA_WITH_EXTENSIONS.len()
+        + MINT_GROUP_POINTER_EXTENSION.len()
         + MINT_GROUP_EXTENSION.len();
-    
+
     let mut group_account_data = vec![0u8; total_size];
 
     // Mint Data
-    group_account_data[0..GROUP_MINT_DATA_WITH_EXTENSIONS.len()].copy_from_slice(GROUP_MINT_DATA_WITH_EXTENSIONS);
+    group_account_data[0..GROUP_MINT_DATA_WITH_EXTENSIONS.len()]
+        .copy_from_slice(GROUP_MINT_DATA_WITH_EXTENSIONS);
     let mut offset = GROUP_MINT_DATA_WITH_EXTENSIONS.len();
     // Group Pointer Extension
-    group_account_data[offset..offset + MINT_GROUP_POINTER_EXTENSION.len()].copy_from_slice(MINT_GROUP_POINTER_EXTENSION);
+    group_account_data[offset..offset + MINT_GROUP_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_POINTER_EXTENSION);
     offset += MINT_GROUP_POINTER_EXTENSION.len();
     // Group Extension
-    group_account_data[offset..offset + MINT_GROUP_EXTENSION.len()].copy_from_slice(MINT_GROUP_EXTENSION);
+    group_account_data[offset..offset + MINT_GROUP_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_EXTENSION);
 
-    let mut group_account = Account::new(100_000_000u64, group_account_data.len(), &TOKEN_2022_PROGRAM_ID);
-    group_account.data_as_mut_slice().copy_from_slice(&group_account_data);
+    let mut group_account = Account::new(
+        100_000_000u64,
+        group_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    group_account
+        .data_as_mut_slice()
+        .copy_from_slice(&group_account_data);
 
     (address, group_account)
 }
 
-fn keyed_account_for_token(
-    owner: Pubkey,
-    mint: Pubkey,
-    is_frozen: bool,
-) -> (Pubkey, Account) {
-    let (address, _bump) =
-        Pubkey::find_program_address(&[
+fn keyed_account_for_token(owner: Pubkey, mint: Pubkey, is_frozen: bool) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[
             owner.as_ref(),
             mollusk_svm_programs_token::token2022::ID.as_ref(),
-            mint.as_ref()
-        ], &mollusk_svm_programs_token::associated_token::ID);
+            mint.as_ref(),
+        ],
+        &mollusk_svm_programs_token::associated_token::ID,
+    );
 
     let mut token_account_data = [0u8; 170];
     // Mint
@@ -513,10 +640,15 @@ fn keyed_account_for_token(
     // Extension
     token_account_data[166..170].copy_from_slice(&[7, 0, 0, 0]);
 
-
     // Create the mint account
-    let mut token_account = Account::new(100_000_000u64, token_account_data.len(), &TOKEN_2022_PROGRAM_ID);
-    token_account.data_as_mut_slice().copy_from_slice(&token_account_data);
+    let mut token_account = Account::new(
+        100_000_000u64,
+        token_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    token_account
+        .data_as_mut_slice()
+        .copy_from_slice(&token_account_data);
 
     (address, token_account)
 }
@@ -638,9 +770,7 @@ fn update_class_metadata_incorrect_authority() {
             (class, class_data),
             (system_program, system_program_data),
         ],
-        &[
-            Check::err(ProgramError::MissingRequiredSignature),
-        ],
+        &[Check::err(ProgramError::MissingRequiredSignature)],
     );
 }
 
@@ -705,7 +835,8 @@ fn create_record() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -750,7 +881,8 @@ fn create_record_with_metadata() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+    let (record, record_data) =
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -800,7 +932,9 @@ fn create_record_with_metadata_and_additional_metadata() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record_with_metadata_and_additional_metadata(class, 0, owner, false, 0, "test");
+    let (record, record_data) = keyed_account_for_record_with_metadata_and_additional_metadata(
+        class, 0, owner, false, 0, "test",
+    );
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -819,12 +953,10 @@ fn create_record_with_metadata_and_additional_metadata() {
             name: make_u32prefix_string("test"),
             symbol: make_u32prefix_string("SRS"),
             uri: make_u32prefix_string("test"),
-            additional_metadata: vec![
-                MetadataAdditionalMetadata {
-                    label: make_u32prefix_string("test"),
-                    value: make_u32prefix_string("test"),
-                }
-            ],
+            additional_metadata: vec![MetadataAdditionalMetadata {
+                label: make_u32prefix_string("test"),
+                value: make_u32prefix_string("test"),
+            }],
         },
     });
 
@@ -857,7 +989,8 @@ fn create_permissioned_record() {
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -903,7 +1036,8 @@ fn update_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record(class, 0, owner, false, 0, "test", b"test2");
@@ -949,7 +1083,8 @@ fn update_record_with_metadata() {
     // Class
     let (class, _) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
@@ -1000,7 +1135,8 @@ fn update_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test2");
@@ -1048,7 +1184,8 @@ fn update_record_with_delegate_not_permissioned() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, false, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1076,9 +1213,7 @@ fn update_record_with_delegate_not_permissioned() {
             (system_program, system_program_data),
             (class, class_data),
         ],
-        &[
-            Check::err(ProgramError::InvalidAccountData)
-        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
     );
 }
 
@@ -1090,7 +1225,8 @@ fn update_record_with_delegate_incorrect_authority() {
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1118,9 +1254,7 @@ fn update_record_with_delegate_incorrect_authority() {
             (system_program, system_program_data),
             (class, class_data),
         ],
-        &[
-            Check::err(ProgramError::MissingRequiredSignature),
-        ],
+        &[Check::err(ProgramError::MissingRequiredSignature)],
     );
 }
 
@@ -1131,7 +1265,8 @@ fn transfer_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
@@ -1169,7 +1304,8 @@ fn transfer_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
@@ -1190,7 +1326,11 @@ fn transfer_record_with_delegate() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record)
@@ -1227,9 +1367,7 @@ fn fail_transfer_record_frozen() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[(owner, owner_data), (record, record_data)],
-        &[
-            Check::err(ProgramError::InvalidAccountData)
-        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
     );
 }
 
@@ -1240,7 +1378,8 @@ fn delete_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority: owner,
@@ -1271,7 +1410,8 @@ fn delete_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority,
@@ -1287,7 +1427,11 @@ fn delete_record_with_delegate() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record).data(&[0xff]).build(),
@@ -1302,9 +1446,11 @@ fn freeze_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    let (_, record_data_frozen) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority: owner,
@@ -1337,9 +1483,11 @@ fn freeze_record_with_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    let (_, record_data_frozen) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1355,7 +1503,11 @@ fn freeze_record_with_delegate() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record)
@@ -1374,7 +1526,8 @@ fn freeze_record_already_frozen() {
     // Record
     let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
     // Record frozen
-    let (_, record_data_frozen) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    let (_, record_data_frozen) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1390,7 +1543,11 @@ fn freeze_record_already_frozen() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record)
@@ -1461,7 +1618,10 @@ fn mint_record_token() {
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
             Check::account(&group).data(&group_data.data).build(),
-            Check::account(&token_account).data(&token_account_data.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data.data)
+                .build(),
+            Check::account(&group).rent_exempt().build(),
         ],
     );
 }
@@ -1473,8 +1633,9 @@ fn mint_record_token_with_additional_metadata() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) =
-        keyed_account_for_record_with_metadata_and_additional_metadata(class, 0, owner, false, 0, "test");
+    let (record, record_data) = keyed_account_for_record_with_metadata_and_additional_metadata(
+        class, 0, owner, false, 0, "test",
+    );
     // Mint
     let (mint, mint_data) = keyed_account_for_mint_with_additional_metadata(record);
     // Group
@@ -1527,7 +1688,9 @@ fn mint_record_token_with_additional_metadata() {
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
             Check::account(&group).data(&group_data.data).build(),
-            Check::account(&token_account).data(&token_account_data.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data.data)
+                .build(),
         ],
     );
 }
@@ -1540,7 +1703,9 @@ fn mint_record_token_with_multiple_additional_metadata() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata_and_multiple_additional_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
+            class, 0, owner, false, 0, "test",
+        );
     // Mint
     let (mint, mint_data) = keyed_account_for_mint_with_multiple_additional_metadata(record);
     // Group
@@ -1593,7 +1758,9 @@ fn mint_record_token_with_multiple_additional_metadata() {
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
             Check::account(&group).data(&group_data.data).build(),
-            Check::account(&token_account).data(&token_account_data.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data.data)
+                .build(),
         ],
     );
 }
@@ -1662,7 +1829,9 @@ fn mint_record_token_with_delegate() {
             Check::success(),
             Check::account(&mint).data(&mint_data.data).build(),
             Check::account(&group).data(&group_data.data).build(),
-            Check::account(&token_account).data(&token_account_data.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data.data)
+                .build(),
         ],
     );
 }
@@ -1680,8 +1849,7 @@ fn freeze_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // ATA updated
@@ -1718,7 +1886,9 @@ fn freeze_tokenized_record() {
         ],
         &[
             Check::success(),
-            Check::account(&token_account).data(&token_account_data_updated.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data_updated.data)
+                .build(),
         ],
     );
 }
@@ -1736,8 +1906,7 @@ fn freeze_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -1775,7 +1944,9 @@ fn freeze_tokenized_record_delegate() {
         ],
         &[
             Check::success(),
-            Check::account(&token_account).data(&token_account_data_updated.data).build(),
+            Check::account(&token_account)
+                .data(&token_account_data_updated.data)
+                .build(),
         ],
     );
 }
@@ -1793,12 +1964,12 @@ fn transfer_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
-    let (new_token_account, new_token_account_data) = keyed_account_for_token(RANDOM_PUBKEY, mint, false);
+    let (new_token_account, new_token_account_data) =
+        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
@@ -1831,9 +2002,7 @@ fn transfer_tokenized_record() {
             (new_token_account, new_token_account_data),
             (token2022, token2022_data),
         ],
-        &[
-            Check::success(),
-        ],
+        &[Check::success()],
     );
 }
 
@@ -1850,12 +2019,12 @@ fn transfer_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
-    let (new_token_account, new_token_account_data) = keyed_account_for_token(RANDOM_PUBKEY, mint, false);
+    let (new_token_account, new_token_account_data) =
+        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
@@ -1889,9 +2058,7 @@ fn transfer_tokenized_record_delegate() {
             (token2022, token2022_data),
             (class, class_data),
         ],
-        &[
-            Check::success(),
-        ],
+        &[Check::success()],
     );
 }
 
@@ -1908,12 +2075,12 @@ fn burn_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
-    let (new_token_account, new_token_account_data) = keyed_account_for_token(RANDOM_PUBKEY, mint, false);
+    let (new_token_account, new_token_account_data) =
+        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
@@ -1945,9 +2112,7 @@ fn burn_tokenized_record() {
             (new_token_account, new_token_account_data),
             (token2022, token2022_data),
         ],
-        &[
-            Check::success(),
-        ],
+        &[Check::success()],
     );
 }
 
@@ -1964,12 +2129,12 @@ fn burn_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
-    let (new_token_account, new_token_account_data) = keyed_account_for_token(RANDOM_PUBKEY, mint, false);
+    let (new_token_account, new_token_account_data) =
+        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
@@ -2002,8 +2167,6 @@ fn burn_tokenized_record_delegate() {
             (token2022, token2022_data),
             (class, class_data),
         ],
-        &[
-            Check::success(),
-        ],
+        &[Check::success()],
     );
 }

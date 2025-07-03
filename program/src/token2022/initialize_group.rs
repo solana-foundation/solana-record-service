@@ -2,7 +2,11 @@ use core::mem::size_of;
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, pubkey::Pubkey, ProgramResult
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    pubkey::Pubkey,
+    ProgramResult,
 };
 
 use crate::{

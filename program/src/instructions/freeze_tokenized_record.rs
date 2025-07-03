@@ -110,15 +110,11 @@ impl<'info> FreezeTokenizedRecord<'info> {
             return Ok(());
         }
 
-        let bump =
-            [
-                try_find_program_address(
-                    &[b"mint", self.accounts.record.key()],
-                    &crate::ID,
-                )
+        let bump = [
+            try_find_program_address(&[b"mint", self.accounts.record.key()], &crate::ID)
                 .ok_or(ProgramError::InvalidArgument)?
                 .1,
-            ];
+        ];
 
         let seeds = [
             Seed::from(b"mint"),

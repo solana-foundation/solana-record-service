@@ -16,17 +16,18 @@ use crate::{
 
 /// Accounts expected by this instruction:
 ///
-///   0. `[w]` Metadata account
-///   1. `[s]` Update authority
+/// 0. `[w]` Metadata account
+/// 1. `[s]` Update authority
 ///
 /// Data expected by this instruction:
 ///
-///  0. `UpdateField`
+/// 0. `UpdateField`
+///
 /// pub struct UpdateField {
-///     /// Field to update in the metadata (0 = Name, 1 = Symbol, 2 = Uri, 3 = Key(String))
-///     pub field: Field,
-///     /// Value to write for the field
-///     pub value: String,
+///    /// Field to update in the metadata (0 = Name, 1 = Symbol, 2 = Uri, 3 = Key(String))
+///    pub field: Field,
+///    /// Value to write for the field
+///    pub value: String,
 /// }
 pub struct UpdateMetadata<'a> {
     /// Metadata Account [writable]
@@ -70,15 +71,12 @@ impl UpdateMetadata<'_> {
         );
 
         // Write field at offset [8]
-        write_bytes(
-            &mut instruction_data[FIELD_OFFSET..],
-            &[3],
-        );
+        write_bytes(&mut instruction_data[FIELD_OFFSET..], &[3]);
 
         // Write new_uri length at offset [9..13]
         write_bytes(
             &mut instruction_data[ADDITIONAL_METADATA_LENGTH_OFFSET..],
-            &(self.additional_metadata),
+            self.additional_metadata,
         );
 
         let instruction_len = ADDITIONAL_METADATA_LENGTH_OFFSET + self.additional_metadata.len();
@@ -89,6 +87,10 @@ impl UpdateMetadata<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_len) },
         };
 
-        invoke_signed(&instruction, &[self.metadata, self.update_authority], signers)
+        invoke_signed(
+            &instruction,
+            &[self.metadata, self.update_authority],
+            signers,
+        )
     }
 }

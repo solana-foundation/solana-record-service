@@ -39,7 +39,7 @@ const DECIMALS_OFFSET: usize = AMOUNT_OFFSET + size_of::<u64>();
 
 impl TransferChecked<'_> {
     const DISCRIMINATOR: u8 = 0x0c;
-    
+
     #[inline(always)]
     pub fn invoke(&self) -> ProgramResult {
         self.invoke_signed(&[])
@@ -78,6 +78,10 @@ impl TransferChecked<'_> {
             data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
-        invoke_signed(&instruction, &[self.source, self.mint, self.destination, self.authority], signers)
+        invoke_signed(
+            &instruction,
+            &[self.source, self.mint, self.destination, self.authority],
+            signers,
+        )
     }
 }

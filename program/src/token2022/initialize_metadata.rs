@@ -2,7 +2,10 @@ use core::mem::size_of;
 use core::slice::from_raw_parts;
 
 use pinocchio::{
-    account_info::AccountInfo, instruction::{AccountMeta, Instruction, Signer}, program::invoke_signed, ProgramResult
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction, Signer},
+    program::invoke_signed,
+    ProgramResult,
 };
 
 use crate::{
@@ -58,7 +61,7 @@ impl InitializeMetadata<'_> {
         // - [8..]: metadata data
         let instruction_data_size = Self::DISCRIMINATOR.len() + self.metadata_data.len();
         let mut instruction_data = [UNINIT_BYTE; Self::DISCRIMINATOR.len() + MAX_METADATA_LEN];
-        
+
         write_bytes(
             &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
             &Self::DISCRIMINATOR,

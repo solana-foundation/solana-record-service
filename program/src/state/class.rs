@@ -39,6 +39,9 @@ impl<'info> Class<'info> {
     }
 
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
         if data[0].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
@@ -47,12 +50,14 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
-    /// Check if the authority is valid
     #[inline(always)]
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn check_authority_unchecked(
         data: &[u8],
         authority: &AccountInfo,
-    ) -> Result<(), ProgramError> {        
+    ) -> Result<(), ProgramError> {
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -103,13 +108,16 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_is_permissioned_unchecked(
         data: &'info mut [u8],
         authority: &'info AccountInfo,
         is_permissioned: bool,
     ) -> Result<(), ProgramError> {
         unsafe {
-            Self::check_authority_unchecked(&data, authority)?;
+            Self::check_authority_unchecked(data, authority)?;
         }
 
         if data[IS_PERMISSIONED_OFFSET] == is_permissioned as u8 {
@@ -121,6 +129,9 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_is_frozen_unchecked(
         class: &'info AccountInfo,
         authority: &'info AccountInfo,
@@ -141,6 +152,9 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn update_metadata_unchecked(
         class: &'info AccountInfo,
         authority: &'info AccountInfo,
@@ -174,6 +188,9 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
+    /// # Safety
+    ///
+    /// This function does not perform owner checks
     pub unsafe fn initialize_unchecked(
         &self,
         account_info: &'info AccountInfo,
