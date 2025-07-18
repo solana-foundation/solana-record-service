@@ -701,6 +701,8 @@ fn create_class() {
 fn update_class_metadata() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class_default();
 
@@ -711,6 +713,7 @@ fn update_class_metadata() {
 
     let instruction = UpdateClassMetadata {
         authority,
+        payer,
         class,
         system_program,
     }
@@ -727,6 +730,7 @@ fn update_class_metadata() {
         &instruction,
         &[
             (authority, authority_data),
+            (payer, payer_data),
             (class, class_data),
             (system_program, system_program_data),
         ],
@@ -751,6 +755,7 @@ fn update_class_metadata_incorrect_authority() {
 
     let instruction = UpdateClassMetadata {
         authority: random_authority,
+        payer: random_authority,
         class,
         system_program,
     }
@@ -1033,6 +1038,8 @@ fn create_permissioned_record() {
 fn update_record() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
@@ -1047,6 +1054,7 @@ fn update_record() {
 
     let instruction = UpdateRecord {
         authority: owner,
+        payer,
         record,
         system_program,
         class: None,
@@ -1064,6 +1072,7 @@ fn update_record() {
         &instruction,
         &[
             (owner, owner_data),
+            (payer, payer_data),
             (record, record_data),
             (system_program, system_program_data),
         ],
@@ -1100,9 +1109,9 @@ fn update_record_with_metadata() {
     }
     .instruction(UpdateRecordTokenizableInstructionArgs {
         metadata: Metadata {
-            name: make_u32prefix_string("test"),
+            name: make_u32prefix_string("test2"),
             symbol: make_u32prefix_string("SRS"),
-            uri: make_u32prefix_string("test"),
+            uri: make_u32prefix_string("test2"),
             additional_metadata: vec![],
         },
     });
@@ -1132,6 +1141,8 @@ fn update_record_with_metadata() {
 fn update_record_with_delegate() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
@@ -1146,6 +1157,7 @@ fn update_record_with_delegate() {
 
     let instruction = UpdateRecord {
         authority,
+        payer,
         record,
         system_program,
         class: Some(class),
@@ -1163,6 +1175,7 @@ fn update_record_with_delegate() {
         &instruction,
         &[
             (authority, authority_data),
+            (payer, payer_data),
             (record, record_data),
             (system_program, system_program_data),
             (class, class_data),
@@ -1181,6 +1194,8 @@ fn update_record_with_delegate() {
 fn update_record_with_delegate_not_permissioned() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(authority, false, false, "test", "test");
     // Record
@@ -1192,6 +1207,7 @@ fn update_record_with_delegate_not_permissioned() {
 
     let instruction = UpdateRecord {
         authority,
+        payer,
         record,
         system_program,
         class: Some(class),
@@ -1209,6 +1225,7 @@ fn update_record_with_delegate_not_permissioned() {
         &instruction,
         &[
             (authority, authority_data),
+            (payer, payer_data),
             (record, record_data),
             (system_program, system_program_data),
             (class, class_data),
@@ -1222,6 +1239,8 @@ fn update_record_with_delegate_not_permissioned() {
 fn update_record_with_delegate_incorrect_authority() {
     // Authority
     let (random_authority, random_authority_data) = keyed_account_for_random_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
@@ -1233,6 +1252,7 @@ fn update_record_with_delegate_incorrect_authority() {
 
     let instruction = UpdateRecord {
         authority: random_authority,
+        payer,
         record,
         system_program,
         class: Some(class),
@@ -1250,6 +1270,7 @@ fn update_record_with_delegate_incorrect_authority() {
         &instruction,
         &[
             (random_authority, random_authority_data),
+            (payer, payer_data),
             (record, record_data),
             (system_program, system_program_data),
             (class, class_data),
@@ -1375,6 +1396,8 @@ fn fail_transfer_record_frozen() {
 fn delete_record() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
@@ -1383,6 +1406,7 @@ fn delete_record() {
 
     let instruction = DeleteRecord {
         authority: owner,
+        payer,
         record,
         class: None,
     }
@@ -1395,7 +1419,11 @@ fn delete_record() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(owner, owner_data), (record, record_data)],
+        &[
+            (owner, owner_data),
+            (payer, payer_data),
+            (record, record_data),
+        ],
         &[
             Check::success(),
             Check::account(&record).data(&[0xff]).build(),
@@ -1407,6 +1435,8 @@ fn delete_record() {
 fn delete_record_with_delegate() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
@@ -1415,6 +1445,7 @@ fn delete_record_with_delegate() {
 
     let instruction = DeleteRecord {
         authority,
+        payer,
         record,
         class: Some(class),
     }
@@ -1429,6 +1460,7 @@ fn delete_record_with_delegate() {
         &instruction,
         &[
             (authority, authority_data),
+            (payer, payer_data),
             (record, record_data),
             (class, class_data),
         ],
@@ -2066,6 +2098,8 @@ fn transfer_tokenized_record_delegate() {
 fn burn_tokenized_record() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Mint
@@ -2078,14 +2112,12 @@ fn burn_tokenized_record() {
     let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
-    // New ATA
-    let (new_token_account, new_token_account_data) =
-        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
     let instruction = BurnTokenizedRecord {
         authority: owner,
+        payer,
         record,
         mint,
         token_account,
@@ -2106,10 +2138,10 @@ fn burn_tokenized_record() {
         &instruction,
         &[
             (owner, owner_data),
+            (payer, payer_data),
             (record, record_data),
             (mint, mint_data),
             (token_account, token_account_data),
-            (new_token_account, new_token_account_data),
             (token2022, token2022_data),
         ],
         &[Check::success()],
@@ -2120,6 +2152,8 @@ fn burn_tokenized_record() {
 fn burn_tokenized_record_delegate() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Mint
@@ -2132,14 +2166,12 @@ fn burn_tokenized_record_delegate() {
     let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
-    // New ATA
-    let (new_token_account, new_token_account_data) =
-        keyed_account_for_token(RANDOM_PUBKEY, mint, false);
 
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
 
     let instruction = BurnTokenizedRecord {
         authority,
+        payer,
         record,
         mint,
         token_account,
@@ -2160,10 +2192,10 @@ fn burn_tokenized_record_delegate() {
         &instruction,
         &[
             (authority, authority_data),
+            (payer, payer_data),
             (record, record_data),
             (mint, mint_data),
             (token_account, token_account_data),
-            (new_token_account, new_token_account_data),
             (token2022, token2022_data),
             (class, class_data),
         ],
@@ -2208,6 +2240,7 @@ fn mint_and_burn_tokenized_record() {
 
     let burn_instruction = BurnTokenizedRecord {
         authority: owner,
+        payer: owner,
         record,
         mint,
         token_account,
@@ -2247,6 +2280,8 @@ fn mint_and_burn_tokenized_record() {
 fn mint_and_burn_tokenized_record_delegate() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
     // Class
@@ -2281,8 +2316,9 @@ fn mint_and_burn_tokenized_record_delegate() {
     }
     .instruction();
 
-    let burn_instruction = BurnTokenizedRecord {
+    let burn_instruction = BurnTokenizedRecord {    
         authority,
+        payer: authority,
         record,
         mint,
         token_account,
@@ -2306,6 +2342,7 @@ fn mint_and_burn_tokenized_record_delegate() {
         ],
         &[
             (owner, owner_data),
+            (payer, payer_data),
             (authority, authority_data),
             (record, record_data),
             (mint, Account::default()),

@@ -7,8 +7,7 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-
-use crate::types::Metadata;
+use crate::types::{Metadata, MetadataAdditionalMetadata};
 
 /// Accounts.
 #[derive(Debug)]
@@ -97,21 +96,7 @@ pub struct UpdateRecordTokenizableInstructionArgs {
     pub metadata: Metadata,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordTokenizableInstructionDataMetadataAdditionalMetadata {
-    pub label: String,
-    pub value: String,
-}
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct UpdateRecordTokenizableInstructionDataMetadata {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    /// Additional metadata for Token22 Metadata Extension compatible Metadata format
-    pub additional_metadata: Vec<UpdateRecordTokenizableInstructionDataMetadataAdditionalMetadata>,
-}
+
 
 /// Instruction builder for `UpdateRecordTokenizable`.
 ///
@@ -194,7 +179,7 @@ impl UpdateRecordTokenizableBuilder {
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
             class: self.class,
         };
-        let args: UpdateRecordTokenizableInstructionArgs = UpdateRecordTokenizableInstructionArgs {
+        let args = UpdateRecordTokenizableInstructionArgs {
             metadata: self.metadata.clone().expect("metadata is not set"),
         };
 

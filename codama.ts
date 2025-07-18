@@ -156,6 +156,12 @@ const root = rootNode(
                         docs: ["Authority used to update a class"]
                     }),
                     instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay of get refunded for the class update"]
+                    }),
+                    instructionAccountNode({
                         name: "class",
                         isSigner: false,
                         isWritable: true,
@@ -339,6 +345,12 @@ const root = rootNode(
                         docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay of get refunded for the record update"]
+                    }),
+                    instructionAccountNode({
                         name: "record",
                         isSigner: false,
                         isWritable: true,
@@ -458,6 +470,12 @@ const root = rootNode(
                         isSigner: true,
                         isWritable: true,
                         docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will get refunded for the record deletion"]
                     }),
                     instructionAccountNode({
                         name: "record",
@@ -729,6 +747,12 @@ const root = rootNode(
                         isSigner: true,
                         isWritable: true,
                         docs: ["Record owner or class authority for permissioned classes"]
+                    }),
+                    instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will get refunded for the tokenized record burn"]
                     }),
                     instructionAccountNode({
                         name: "mint",

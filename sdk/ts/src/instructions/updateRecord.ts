@@ -31,6 +31,8 @@ import {
 export type UpdateRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
+  /** Account that will pay of get refunded for the record update */
+  payer: Signer;
   /** Record account to be updated */
   record: PublicKey | Pda;
   /** System Program used to extend our record account */
@@ -88,18 +90,23 @@ export function updateRecord(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
-    record: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    record: {
+      index: 2,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
     systemProgram: {
-      index: 2,
+      index: 3,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
     class: {
-      index: 3,
+      index: 4,
       isWritable: false as boolean,
       value: input.class ?? null,
     },

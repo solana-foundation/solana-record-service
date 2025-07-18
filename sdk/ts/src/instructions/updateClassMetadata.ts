@@ -31,6 +31,8 @@ import {
 export type UpdateClassMetadataInstructionAccounts = {
   /** Authority used to update a class */
   authority: Signer;
+  /** Account that will pay of get refunded for the class update */
+  payer: Signer;
   /** Class account to be updated */
   class: PublicKey | Pda;
   /** System Program used to extend our class account */
@@ -91,13 +93,18 @@ export function updateClassMetadata(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
-    class: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    class: {
+      index: 2,
       isWritable: true as boolean,
       value: input.class ?? null,
     },
     systemProgram: {
-      index: 2,
+      index: 3,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },

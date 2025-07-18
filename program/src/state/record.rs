@@ -299,7 +299,7 @@ impl<'info> Record<'info> {
     /// This function does not perform owner checks
     pub unsafe fn update_data_unchecked(
         record: &'info AccountInfo,
-        payer: &'info AccountInfo,
+        authority: &'info AccountInfo,
         data: &'info str,
     ) -> Result<(), ProgramError> {
         let name_len = {
@@ -312,12 +312,14 @@ impl<'info> Record<'info> {
         let new_len = offset + data.len();
 
         if new_len != current_len {
-            resize_account(record, payer, new_len, new_len < current_len)?;
+            resize_account(record, authority, new_len, new_len < current_len)?;
         }
 
         {
             let mut data_ref = record.try_borrow_mut_data()?;
-
+            if data_ref[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
+                return Err(ProgramError::InvalidAccountData);
+            }
             let data_buffer = unsafe {
                 core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), data.len())
             };
@@ -335,7 +337,7 @@ impl<'info> Record<'info> {
         record: &'info AccountInfo,
         authority: &'info AccountInfo,
     ) -> Result<(), ProgramError> {
-        resize_account(record, authority, 0, true)?;
+        resize_account(record, authority, 1, true)?;
         {
             let mut data_ref = record.try_borrow_mut_data()?;
             data_ref[DISCRIMINATOR_OFFSET] = 0xff;

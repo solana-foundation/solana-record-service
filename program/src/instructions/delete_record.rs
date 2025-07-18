@@ -1,4 +1,4 @@
-use crate::{state::Record, utils::Context};
+use crate::{constants::ONE_LAMPORT_RENT, state::Record, utils::Context};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
@@ -75,9 +75,12 @@ impl<'info> DeleteRecord<'info> {
             Record::delete_record_unchecked(self.accounts.record, self.accounts.authority)?;
 
             // Refund the payer of all the lamports
-            *self.accounts.payer.borrow_mut_lamports_unchecked() +=
-                *self.accounts.record.borrow_lamports_unchecked();
-            *self.accounts.record.borrow_mut_lamports_unchecked() = 0;
+            self.accounts.payer.borrow_mut_lamports_unchecked()
+                .checked_add(*self.accounts.record.borrow_lamports_unchecked())
+                .and_then(|x| x.checked_sub(ONE_LAMPORT_RENT))
+                .ok_or(ProgramError::InvalidAccountData)?;
+            
+            *self.accounts.record.borrow_mut_lamports_unchecked() = ONE_LAMPORT_RENT;
         }
 
         Ok(())

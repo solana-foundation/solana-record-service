@@ -30,6 +30,8 @@ import {
 export type BurnTokenizedRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
+  /** Account that will get refunded for the tokenized record burn */
+  payer: Signer;
   /** Mint account for the tokenized record */
   mint: PublicKey | Pda;
   /** Token Account for the tokenized record */
@@ -84,24 +86,29 @@ export function burnTokenizedRecord(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
-    mint: { index: 1, isWritable: true as boolean, value: input.mint ?? null },
+    payer: {
+      index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    mint: { index: 2, isWritable: true as boolean, value: input.mint ?? null },
     tokenAccount: {
-      index: 2,
+      index: 3,
       isWritable: true as boolean,
       value: input.tokenAccount ?? null,
     },
     record: {
-      index: 3,
+      index: 4,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
     token2022: {
-      index: 4,
+      index: 5,
       isWritable: false as boolean,
       value: input.token2022 ?? null,
     },
     class: {
-      index: 5,
+      index: 6,
       isWritable: false as boolean,
       value: input.class ?? null,
     },
