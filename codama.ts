@@ -394,6 +394,12 @@ const root = rootNode(
                         docs: ["Record owner or class authority for permissioned classes"]
                     }),
                     instructionAccountNode({
+                        name: "payer",
+                        isSigner: true,
+                        isWritable: true,
+                        docs: ["Account that will pay of get refunded for the record update"]
+                    }),
+                    instructionAccountNode({
                         name: "record",
                         isSigner: false,
                         isWritable: true,

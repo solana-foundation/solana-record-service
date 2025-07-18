@@ -8,7 +8,7 @@
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::U8PrefixString;
-use crate::types::{Metadata, MetadataAdditionalMetadata};
+use crate::types::Metadata;
 
 /// Accounts.
 #[derive(Debug)]
@@ -107,8 +107,6 @@ pub struct CreateRecordTokenizableInstructionArgs {
     pub name: U8PrefixString,
     pub metadata: Metadata,
 }
-
-
 
 /// Instruction builder for `CreateRecordTokenizable`.
 ///

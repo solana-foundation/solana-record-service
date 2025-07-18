@@ -203,6 +203,7 @@ fn keyed_account_for_record_with_metadata(
     is_frozen: bool,
     expiry: i64,
     name: &str,
+    metadata: Option<&[u8]>,
 ) -> (Pubkey, Account) {
     let (address, _bump) = Pubkey::find_program_address(
         &[b"record", &class.as_ref(), name.as_ref()],
@@ -216,7 +217,7 @@ fn keyed_account_for_record_with_metadata(
         is_frozen,
         expiry,
         name: make_u8prefix_string(name),
-        data: RemainderVec::<u8>::try_from_slice(METADATA).unwrap(),
+        data: RemainderVec::<u8>::try_from_slice(metadata.unwrap_or(METADATA)).unwrap(),
     }
     .try_to_vec()
     .expect("Invalid record");
@@ -887,7 +888,7 @@ fn create_record_with_metadata() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -1089,20 +1090,31 @@ fn update_record() {
 fn update_record_with_metadata() {
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
     // Class
     let (class, _) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
         keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+
+    // New metadata
+    let new_metadata = Metadata {
+        name: make_u32prefix_string("test2"),
+        symbol: make_u32prefix_string("SRS"),
+        uri: make_u32prefix_string("test"),
+        additional_metadata: vec![],
+    };
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", Some(&new_metadata.try_to_vec().unwrap()));
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
     let instruction = UpdateRecordTokenizable {
         authority: owner,
+        payer,
         record,
         system_program,
         class: None,
@@ -1111,7 +1123,7 @@ fn update_record_with_metadata() {
         metadata: Metadata {
             name: make_u32prefix_string("test2"),
             symbol: make_u32prefix_string("SRS"),
-            uri: make_u32prefix_string("test2"),
+            uri: make_u32prefix_string("test"),
             additional_metadata: vec![],
         },
     });
@@ -1125,6 +1137,7 @@ fn update_record_with_metadata() {
         &instruction,
         &[
             (owner, owner_data),
+            (payer, payer_data),
             (record, record_data),
             (system_program, system_program_data),
         ],
@@ -1597,7 +1610,7 @@ fn mint_record_token() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record);
     // Group
@@ -1807,7 +1820,7 @@ fn mint_record_token_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record);
     // Group
@@ -2211,7 +2224,7 @@ fn mint_and_burn_tokenized_record() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
     // Mint
     let (mint, _) = keyed_account_for_mint(record);
     // Group
@@ -2288,7 +2301,7 @@ fn mint_and_burn_tokenized_record_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
     // Mint
     let (mint, _) = keyed_account_for_mint(record);
     // Group

@@ -58,7 +58,7 @@ pub struct UpdateRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for UpdateRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
         // Deserialize our accounts array
         let accounts = UpdateRecordAccounts::try_from(ctx.accounts)?;
 
