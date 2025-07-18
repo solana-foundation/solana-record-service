@@ -14,8 +14,9 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
-/// 2. `record` - The record account to be deleted
-/// 3. `class` - [optional] The class of the record to be deleted
+/// 2. `payer` - The account that will pay for the record account
+/// 3. `record` - The record account to be deleted
+/// 4. `class` - [optional] The class of the record to be deleted
 ///
 /// # Security
 /// 1. The authority must be either:
@@ -23,6 +24,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct DeleteRecordAccounts<'info> {
     authority: &'info AccountInfo,
+    payer: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
@@ -30,14 +32,18 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, rest @ ..] = accounts else {
+        let [authority, payer, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        Ok(Self { authority, record })
+        Ok(Self {
+            authority,
+            payer,
+            record,
+        })
     }
 }
 
@@ -65,6 +71,15 @@ impl<'info> DeleteRecord<'info> {
 
     pub fn execute(&self) -> ProgramResult {
         // Safety: The account has already been validated
-        unsafe { Record::delete_record_unchecked(self.accounts.record, self.accounts.authority) }
+        unsafe {
+            Record::delete_record_unchecked(self.accounts.record, self.accounts.authority)?;
+
+            // Refund the payer of all the lamports
+            *self.accounts.payer.borrow_mut_lamports_unchecked() +=
+                *self.accounts.record.borrow_lamports_unchecked();
+            *self.accounts.record.borrow_mut_lamports_unchecked() = 0;
+        }
+
+        Ok(())
     }
 }
