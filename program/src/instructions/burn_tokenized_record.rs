@@ -126,6 +126,10 @@ impl<'info> BurnTokenizedRecord<'info> {
             unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
 
         unsafe {
+            Record::update_is_frozen_unchecked(
+                &mut self.accounts.record.try_borrow_mut_data()?,
+                false,
+            )?;
             Record::update_owner_unchecked(
                 &mut self.accounts.record.try_borrow_mut_data()?,
                 &record_owner,
