@@ -30,6 +30,8 @@ import {
 export type DeleteRecordInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
+  /** Account that will get refunded for the record deletion */
+  payer: Signer;
   /** Record account to be updated */
   record: PublicKey | Pda;
   /** Class account of the record */
@@ -75,13 +77,18 @@ export function deleteRecord(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
-    record: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    record: {
+      index: 2,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
     class: {
-      index: 2,
+      index: 3,
       isWritable: false as boolean,
       value: input.class ?? null,
     },

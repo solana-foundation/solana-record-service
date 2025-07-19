@@ -28,6 +28,7 @@ import {
   ResolvedAccountsWithIndices,
   getAccountMetasAndSigners,
 } from '../shared';
+import { Metadata, getMetadataSerializer } from '../types';
 
 // Accounts.
 export type CreateRecordTokenizableInstructionAccounts = {
@@ -51,26 +52,14 @@ export type CreateRecordTokenizableInstructionData = {
   expiration: bigint;
   name: string;
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: {
-    name: string;
-    symbol: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  metadata: Metadata;
 };
 
 export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
   name: string;
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: {
-    name: string;
-    symbol?: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  metadata: Metadata;
 };
 
 export function getCreateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -87,26 +76,7 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
         ['discriminator', u8()],
         ['expiration', i64()],
         ['name', string({ size: u8() })],
-        [
-          'metadata',
-          mapSerializer<any, any, any>(
-            struct<any>([
-              ['name', string()],
-              ['symbol', string()],
-              ['uri', string()],
-              [
-                'additionalMetadata',
-                array(
-                  struct<any>([
-                    ['label', string()],
-                    ['value', string()],
-                  ])
-                ),
-              ],
-            ]),
-            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
-          ),
-        ],
+        ['metadata', getMetadataSerializer()],
       ],
       { description: 'CreateRecordTokenizableInstructionData' }
     ),

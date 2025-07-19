@@ -14,6 +14,8 @@ use kaigan::types::RemainderStr;
 pub struct UpdateClassMetadata {
     /// Authority used to update a class
     pub authority: solana_program::pubkey::Pubkey,
+    /// Account that will pay of get refunded for the class update
+    pub payer: solana_program::pubkey::Pubkey,
     /// Class account to be updated
     pub class: solana_program::pubkey::Pubkey,
     /// System Program used to extend our class account
@@ -34,10 +36,13 @@ impl UpdateClassMetadata {
         args: UpdateClassMetadataInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.authority,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.payer, true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.class, false,
@@ -88,11 +93,13 @@ pub struct UpdateClassMetadataInstructionArgs {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` class
-///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   1. `[writable, signer]` payer
+///   2. `[writable]` class
+///   3. `[optional]` system_program (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct UpdateClassMetadataBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
+    payer: Option<solana_program::pubkey::Pubkey>,
     class: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     metadata: Option<RemainderStr>,
@@ -107,6 +114,12 @@ impl UpdateClassMetadataBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// Account that will pay of get refunded for the class update
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// Class account to be updated
@@ -149,6 +162,7 @@ impl UpdateClassMetadataBuilder {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = UpdateClassMetadata {
             authority: self.authority.expect("authority is not set"),
+            payer: self.payer.expect("payer is not set"),
             class: self.class.expect("class is not set"),
             system_program: self
                 .system_program
@@ -166,6 +180,8 @@ impl UpdateClassMetadataBuilder {
 pub struct UpdateClassMetadataCpiAccounts<'a, 'b> {
     /// Authority used to update a class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the class update
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Class account to be updated
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
     /// System Program used to extend our class account
@@ -178,6 +194,8 @@ pub struct UpdateClassMetadataCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Authority used to update a class
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the class update
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Class account to be updated
     pub class: &'b solana_program::account_info::AccountInfo<'a>,
     /// System Program used to extend our class account
@@ -195,6 +213,7 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
         Self {
             __program: program,
             authority: accounts.authority,
+            payer: accounts.payer,
             class: accounts.class,
             system_program: accounts.system_program,
             __args: args,
@@ -234,9 +253,13 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.payer.key,
             true,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
@@ -263,9 +286,10 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.class.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
@@ -285,8 +309,9 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` class
-///   2. `[]` system_program
+///   1. `[writable, signer]` payer
+///   2. `[writable]` class
+///   3. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct UpdateClassMetadataCpiBuilder<'a, 'b> {
     instruction: Box<UpdateClassMetadataCpiBuilderInstruction<'a, 'b>>,
@@ -297,6 +322,7 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         let instruction = Box::new(UpdateClassMetadataCpiBuilderInstruction {
             __program: program,
             authority: None,
+            payer: None,
             class: None,
             system_program: None,
             metadata: None,
@@ -311,6 +337,12 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
         authority: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// Account that will pay of get refunded for the class update
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     /// Class account to be updated
@@ -386,6 +418,8 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            payer: self.instruction.payer.expect("payer is not set"),
+
             class: self.instruction.class.expect("class is not set"),
 
             system_program: self
@@ -405,6 +439,7 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
 struct UpdateClassMetadataCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     metadata: Option<RemainderStr>,

@@ -8,7 +8,6 @@
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::U8PrefixString;
-
 use crate::types::Metadata;
 
 /// Accounts.
@@ -107,22 +106,6 @@ pub struct CreateRecordTokenizableInstructionArgs {
     pub expiration: i64,
     pub name: U8PrefixString,
     pub metadata: Metadata,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordTokenizableInstructionDataMetadataAdditionalMetadata {
-    pub label: String,
-    pub value: String,
-}
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordTokenizableInstructionDataMetadata {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    pub additional_metadata:
-        Option<Vec<CreateRecordTokenizableInstructionDataMetadataAdditionalMetadata>>,
 }
 
 /// Instruction builder for `CreateRecordTokenizable`.
