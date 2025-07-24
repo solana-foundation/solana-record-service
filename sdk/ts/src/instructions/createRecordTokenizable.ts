@@ -29,6 +29,7 @@ import {
   ResolvedAccountsWithIndices,
   getAccountMetasAndSigners,
 } from '../shared';
+import { Metadata, getMetadataSerializer } from '../types';
 
 // Accounts.
 export type CreateRecordTokenizableInstructionAccounts = {
@@ -50,26 +51,15 @@ export type CreateRecordTokenizableInstructionAccounts = {
 export type CreateRecordTokenizableInstructionData = {
   discriminator: number;
   expiration: bigint;
-  seed: Uint8Array;
-  metadata: {
-    name: string;
-    symbol: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  name: string;
+  /** Token22 Metadata Extension compatible Metadata format */
+  metadata: Metadata;
 };
 
 export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
   seed: Uint8Array;
-  metadata: {
-    name: string;
-    symbol?: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  metadata: Metadata;
 };
 
 export function getCreateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -85,7 +75,7 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
       [
         ['discriminator', u8()],
         ['expiration', i64()],
-        ['seed', bytes({ size: u8() })],
+        ['name', string({ size: u8() })],
         [
           'metadata',
           mapSerializer<any, any, any>(

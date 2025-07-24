@@ -13,7 +13,9 @@ use kaigan::types::RemainderVec;
 #[derive(Debug)]
 pub struct UpdateRecord {
     /// Record owner or class authority for permissioned classes
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_program::pubkey::Pubkey,
+    /// Account that will pay of get refunded for the record update
+    pub payer: solana_program::pubkey::Pubkey,
     /// Record account to be updated
     pub record: solana_pubkey::Pubkey,
     /// System Program used to extend our record account
@@ -34,12 +36,21 @@ impl UpdateRecord {
     pub fn instruction_with_remaining_accounts(
         &self,
         args: UpdateRecordInstructionArgs,
-        remaining_accounts: &[solana_instruction::AccountMeta],
-    ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(self.authority, true));
-        accounts.push(solana_instruction::AccountMeta::new(self.record, false));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+        remaining_accounts: &[solana_program::instruction::AccountMeta],
+    ) -> solana_program::instruction::Instruction {
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.authority,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.payer, true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.record,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
@@ -93,15 +104,17 @@ pub struct UpdateRecordInstructionArgs {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[optional]` system_program (default to `11111111111111111111111111111111`)
-///   3. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` record
+///   3. `[optional]` system_program (default to `11111111111111111111111111111111`)
+///   4. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct UpdateRecordBuilder {
-    authority: Option<solana_pubkey::Pubkey>,
-    record: Option<solana_pubkey::Pubkey>,
-    system_program: Option<solana_pubkey::Pubkey>,
-    class: Option<solana_pubkey::Pubkey>,
+    authority: Option<solana_program::pubkey::Pubkey>,
+    payer: Option<solana_program::pubkey::Pubkey>,
+    record: Option<solana_program::pubkey::Pubkey>,
+    system_program: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
     data: Option<RemainderVec<u8>>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -114,6 +127,12 @@ impl UpdateRecordBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// Account that will pay of get refunded for the record update
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// Record account to be updated
@@ -160,6 +179,7 @@ impl UpdateRecordBuilder {
     pub fn instruction(&self) -> solana_instruction::Instruction {
         let accounts = UpdateRecord {
             authority: self.authority.expect("authority is not set"),
+            payer: self.payer.expect("payer is not set"),
             record: self.record.expect("record is not set"),
             system_program: self
                 .system_program
@@ -177,7 +197,9 @@ impl UpdateRecordBuilder {
 /// `update_record` CPI accounts.
 pub struct UpdateRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the record update
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to extend our record account
@@ -191,7 +213,9 @@ pub struct UpdateRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the record update
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to extend our record account
@@ -211,6 +235,7 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
         Self {
             __program: program,
             authority: accounts.authority,
+            payer: accounts.payer,
             record: accounts.record,
             system_program: accounts.system_program,
             class: accounts.class,
@@ -241,14 +266,22 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
     pub fn invoke_signed_with_remaining_accounts(
         &self,
         signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(
+        remaining_accounts: &[(
+            &'b solana_program::account_info::AccountInfo<'a>,
+            bool,
+            bool,
+        )],
+    ) -> solana_program::entrypoint::ProgramResult {
+        let mut accounts = Vec::with_capacity(5 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.payer.key,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.record.key,
             false,
         ));
@@ -282,9 +315,10 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(6 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.record.clone());
         account_infos.push(self.system_program.clone());
         if let Some(class) = self.class {
@@ -307,9 +341,10 @@ impl<'a, 'b> UpdateRecordCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[]` system_program
-///   3. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` record
+///   3. `[]` system_program
+///   4. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct UpdateRecordCpiBuilder<'a, 'b> {
     instruction: Box<UpdateRecordCpiBuilderInstruction<'a, 'b>>,
@@ -320,6 +355,7 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
         let instruction = Box::new(UpdateRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
+            payer: None,
             record: None,
             system_program: None,
             class: None,
@@ -332,6 +368,12 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// Account that will pay of get refunded for the record update
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     /// Record account to be updated
@@ -406,6 +448,8 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            payer: self.instruction.payer.expect("payer is not set"),
+
             record: self.instruction.record.expect("record is not set"),
 
             system_program: self
@@ -425,11 +469,12 @@ impl<'a, 'b> UpdateRecordCpiBuilder<'a, 'b> {
 
 #[derive(Clone, Debug)]
 struct UpdateRecordCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_account_info::AccountInfo<'a>,
-    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    record: Option<&'b solana_account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_account_info::AccountInfo<'a>>,
+    __program: &'b solana_program::account_info::AccountInfo<'a>,
+    authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     data: Option<RemainderVec<u8>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,

@@ -12,7 +12,9 @@ use borsh::BorshSerialize;
 #[derive(Debug)]
 pub struct DeleteRecord {
     /// Record owner or class authority for permissioned classes
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_program::pubkey::Pubkey,
+    /// Account that will get refunded for the record deletion
+    pub payer: solana_program::pubkey::Pubkey,
     /// Record account to be updated
     pub record: solana_pubkey::Pubkey,
     /// Class account of the record
@@ -27,11 +29,20 @@ impl DeleteRecord {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        remaining_accounts: &[solana_instruction::AccountMeta],
-    ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(self.authority, true));
-        accounts.push(solana_instruction::AccountMeta::new(self.record, false));
+        remaining_accounts: &[solana_program::instruction::AccountMeta],
+    ) -> solana_program::instruction::Instruction {
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.authority,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.payer, true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.record,
+            false,
+        ));
         if let Some(class) = self.class {
             accounts.push(solana_instruction::AccountMeta::new_readonly(class, false));
         } else {
@@ -74,14 +85,16 @@ impl Default for DeleteRecordInstructionData {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` record
+///   3. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct DeleteRecordBuilder {
-    authority: Option<solana_pubkey::Pubkey>,
-    record: Option<solana_pubkey::Pubkey>,
-    class: Option<solana_pubkey::Pubkey>,
-    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
+    authority: Option<solana_program::pubkey::Pubkey>,
+    payer: Option<solana_program::pubkey::Pubkey>,
+    record: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
+    __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
 impl DeleteRecordBuilder {
@@ -92,6 +105,12 @@ impl DeleteRecordBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// Account that will get refunded for the record deletion
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// Record account to be updated
@@ -126,6 +145,7 @@ impl DeleteRecordBuilder {
     pub fn instruction(&self) -> solana_instruction::Instruction {
         let accounts = DeleteRecord {
             authority: self.authority.expect("authority is not set"),
+            payer: self.payer.expect("payer is not set"),
             record: self.record.expect("record is not set"),
             class: self.class,
         };
@@ -137,7 +157,9 @@ impl DeleteRecordBuilder {
 /// `delete_record` CPI accounts.
 pub struct DeleteRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will get refunded for the record deletion
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_account_info::AccountInfo<'a>,
     /// Class account of the record
@@ -149,7 +171,9 @@ pub struct DeleteRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will get refunded for the record deletion
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Record account to be updated
     pub record: &'b solana_account_info::AccountInfo<'a>,
     /// Class account of the record
@@ -164,6 +188,7 @@ impl<'a, 'b> DeleteRecordCpi<'a, 'b> {
         Self {
             __program: program,
             authority: accounts.authority,
+            payer: accounts.payer,
             record: accounts.record,
             class: accounts.class,
         }
@@ -192,14 +217,22 @@ impl<'a, 'b> DeleteRecordCpi<'a, 'b> {
     pub fn invoke_signed_with_remaining_accounts(
         &self,
         signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(
+        remaining_accounts: &[(
+            &'b solana_program::account_info::AccountInfo<'a>,
+            bool,
+            bool,
+        )],
+    ) -> solana_program::entrypoint::ProgramResult {
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.payer.key,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.record.key,
             false,
         ));
@@ -227,9 +260,10 @@ impl<'a, 'b> DeleteRecordCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.record.clone());
         if let Some(class) = self.class {
             account_infos.push(class.clone());
@@ -251,8 +285,9 @@ impl<'a, 'b> DeleteRecordCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` record
-///   2. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` record
+///   3. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct DeleteRecordCpiBuilder<'a, 'b> {
     instruction: Box<DeleteRecordCpiBuilderInstruction<'a, 'b>>,
@@ -263,6 +298,7 @@ impl<'a, 'b> DeleteRecordCpiBuilder<'a, 'b> {
         let instruction = Box::new(DeleteRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
+            payer: None,
             record: None,
             class: None,
             __remaining_accounts: Vec::new(),
@@ -273,6 +309,12 @@ impl<'a, 'b> DeleteRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// Account that will get refunded for the record deletion
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     /// Record account to be updated
@@ -330,6 +372,8 @@ impl<'a, 'b> DeleteRecordCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            payer: self.instruction.payer.expect("payer is not set"),
+
             record: self.instruction.record.expect("record is not set"),
 
             class: self.instruction.class,
@@ -343,10 +387,11 @@ impl<'a, 'b> DeleteRecordCpiBuilder<'a, 'b> {
 
 #[derive(Clone, Debug)]
 struct DeleteRecordCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_account_info::AccountInfo<'a>,
-    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    record: Option<&'b solana_account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_account_info::AccountInfo<'a>>,
+    __program: &'b solana_program::account_info::AccountInfo<'a>,
+    authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

@@ -27,11 +27,14 @@ import {
   ResolvedAccountsWithIndices,
   getAccountMetasAndSigners,
 } from '../shared';
+import { Metadata, getMetadataSerializer } from '../types';
 
 // Accounts.
 export type UpdateRecordTokenizableInstructionAccounts = {
   /** Record owner or class authority for permissioned classes */
   authority: Signer;
+  /** Account that will pay of get refunded for the record update */
+  payer: Signer;
   /** Record account to be updated */
   record: PublicKey | Pda;
   /** System Program used to extend our record account */
@@ -44,24 +47,12 @@ export type UpdateRecordTokenizableInstructionAccounts = {
 export type UpdateRecordTokenizableInstructionData = {
   discriminator: number;
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: {
-    name: string;
-    symbol: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  metadata: Metadata;
 };
 
 export type UpdateRecordTokenizableInstructionDataArgs = {
   /** Token22 Metadata Extension compatible Metadata format */
-  metadata: {
-    name: string;
-    symbol?: string;
-    uri: string;
-    /** Additional metadata for Token22 Metadata Extension compatible Metadata format */
-    additionalMetadata: Array<{ label: string; value: string }>;
-  };
+  metadata: Metadata;
 };
 
 export function getUpdateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -76,26 +67,7 @@ export function getUpdateRecordTokenizableInstructionDataSerializer(): Serialize
     struct<UpdateRecordTokenizableInstructionData>(
       [
         ['discriminator', u8()],
-        [
-          'metadata',
-          mapSerializer<any, any, any>(
-            struct<any>([
-              ['name', string()],
-              ['symbol', string()],
-              ['uri', string()],
-              [
-                'additionalMetadata',
-                array(
-                  struct<any>([
-                    ['label', string()],
-                    ['value', string()],
-                  ])
-                ),
-              ],
-            ]),
-            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
-          ),
-        ],
+        ['metadata', getMetadataSerializer()],
       ],
       { description: 'UpdateRecordTokenizableInstructionData' }
     ),
@@ -129,18 +101,23 @@ export function updateRecordTokenizable(
       isWritable: true as boolean,
       value: input.authority ?? null,
     },
-    record: {
+    payer: {
       index: 1,
+      isWritable: true as boolean,
+      value: input.payer ?? null,
+    },
+    record: {
+      index: 2,
       isWritable: true as boolean,
       value: input.record ?? null,
     },
     systemProgram: {
-      index: 2,
+      index: 3,
       isWritable: false as boolean,
       value: input.systemProgram ?? null,
     },
     class: {
-      index: 3,
+      index: 4,
       isWritable: false as boolean,
       value: input.class ?? null,
     },

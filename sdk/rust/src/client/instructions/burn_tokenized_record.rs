@@ -12,7 +12,9 @@ use borsh::BorshSerialize;
 #[derive(Debug)]
 pub struct BurnTokenizedRecord {
     /// Record owner or class authority for permissioned classes
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_program::pubkey::Pubkey,
+    /// Account that will get refunded for the tokenized record burn
+    pub payer: solana_program::pubkey::Pubkey,
     /// Mint account for the tokenized record
     pub mint: solana_pubkey::Pubkey,
     /// Token Account for the tokenized record
@@ -33,12 +35,20 @@ impl BurnTokenizedRecord {
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        remaining_accounts: &[solana_instruction::AccountMeta],
-    ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(self.authority, true));
-        accounts.push(solana_instruction::AccountMeta::new(self.mint, false));
-        accounts.push(solana_instruction::AccountMeta::new(
+        remaining_accounts: &[solana_program::instruction::AccountMeta],
+    ) -> solana_program::instruction::Instruction {
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.authority,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.payer, true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.mint, false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.token_account,
             false,
         ));
@@ -89,20 +99,22 @@ impl Default for BurnTokenizedRecordInstructionData {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` mint
-///   2. `[writable]` token_account
-///   3. `[writable]` record
-///   4. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
-///   5. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` mint
+///   3. `[writable]` token_account
+///   4. `[writable]` record
+///   5. `[optional]` token2022 (default to `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`)
+///   6. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct BurnTokenizedRecordBuilder {
-    authority: Option<solana_pubkey::Pubkey>,
-    mint: Option<solana_pubkey::Pubkey>,
-    token_account: Option<solana_pubkey::Pubkey>,
-    record: Option<solana_pubkey::Pubkey>,
-    token2022: Option<solana_pubkey::Pubkey>,
-    class: Option<solana_pubkey::Pubkey>,
-    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
+    authority: Option<solana_program::pubkey::Pubkey>,
+    payer: Option<solana_program::pubkey::Pubkey>,
+    mint: Option<solana_program::pubkey::Pubkey>,
+    token_account: Option<solana_program::pubkey::Pubkey>,
+    record: Option<solana_program::pubkey::Pubkey>,
+    token2022: Option<solana_program::pubkey::Pubkey>,
+    class: Option<solana_program::pubkey::Pubkey>,
+    __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
 impl BurnTokenizedRecordBuilder {
@@ -113,6 +125,12 @@ impl BurnTokenizedRecordBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// Account that will get refunded for the tokenized record burn
+    #[inline(always)]
+    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.payer = Some(payer);
         self
     }
     /// Mint account for the tokenized record
@@ -166,6 +184,7 @@ impl BurnTokenizedRecordBuilder {
     pub fn instruction(&self) -> solana_instruction::Instruction {
         let accounts = BurnTokenizedRecord {
             authority: self.authority.expect("authority is not set"),
+            payer: self.payer.expect("payer is not set"),
             mint: self.mint.expect("mint is not set"),
             token_account: self.token_account.expect("token_account is not set"),
             record: self.record.expect("record is not set"),
@@ -182,7 +201,9 @@ impl BurnTokenizedRecordBuilder {
 /// `burn_tokenized_record` CPI accounts.
 pub struct BurnTokenizedRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will get refunded for the tokenized record burn
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
     pub mint: &'b solana_account_info::AccountInfo<'a>,
     /// Token Account for the tokenized record
@@ -200,7 +221,9 @@ pub struct BurnTokenizedRecordCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
+    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Account that will get refunded for the tokenized record burn
+    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
     pub mint: &'b solana_account_info::AccountInfo<'a>,
     /// Token Account for the tokenized record
@@ -221,6 +244,7 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
         Self {
             __program: program,
             authority: accounts.authority,
+            payer: accounts.payer,
             mint: accounts.mint,
             token_account: accounts.token_account,
             record: accounts.record,
@@ -252,15 +276,26 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
     pub fn invoke_signed_with_remaining_accounts(
         &self,
         signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(
+        remaining_accounts: &[(
+            &'b solana_program::account_info::AccountInfo<'a>,
+            bool,
+            bool,
+        )],
+    ) -> solana_program::entrypoint::ProgramResult {
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_instruction::AccountMeta::new(*self.mint.key, false));
-        accounts.push(solana_instruction::AccountMeta::new(
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.payer.key,
+            true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.mint.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.token_account.key,
             false,
         ));
@@ -296,9 +331,10 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(8 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.authority.clone());
+        account_infos.push(self.payer.clone());
         account_infos.push(self.mint.clone());
         account_infos.push(self.token_account.clone());
         account_infos.push(self.record.clone());
@@ -323,11 +359,12 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable, signer]` authority
-///   1. `[writable]` mint
-///   2. `[writable]` token_account
-///   3. `[writable]` record
-///   4. `[]` token2022
-///   5. `[optional]` class
+///   1. `[writable, signer]` payer
+///   2. `[writable]` mint
+///   3. `[writable]` token_account
+///   4. `[writable]` record
+///   5. `[]` token2022
+///   6. `[optional]` class
 #[derive(Clone, Debug)]
 pub struct BurnTokenizedRecordCpiBuilder<'a, 'b> {
     instruction: Box<BurnTokenizedRecordCpiBuilderInstruction<'a, 'b>>,
@@ -338,6 +375,7 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
         let instruction = Box::new(BurnTokenizedRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
+            payer: None,
             mint: None,
             token_account: None,
             record: None,
@@ -351,6 +389,12 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// Account that will get refunded for the tokenized record burn
+    #[inline(always)]
+    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+        self.instruction.payer = Some(payer);
         self
     }
     /// Mint account for the tokenized record
@@ -429,6 +473,8 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
 
             authority: self.instruction.authority.expect("authority is not set"),
 
+            payer: self.instruction.payer.expect("payer is not set"),
+
             mint: self.instruction.mint.expect("mint is not set"),
 
             token_account: self
@@ -451,13 +497,14 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
 
 #[derive(Clone, Debug)]
 struct BurnTokenizedRecordCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_account_info::AccountInfo<'a>,
-    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    mint: Option<&'b solana_account_info::AccountInfo<'a>>,
-    token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    record: Option<&'b solana_account_info::AccountInfo<'a>>,
-    token2022: Option<&'b solana_account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_account_info::AccountInfo<'a>>,
+    __program: &'b solana_program::account_info::AccountInfo<'a>,
+    authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    token2022: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

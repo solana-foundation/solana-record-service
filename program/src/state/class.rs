@@ -157,7 +157,7 @@ impl<'info> Class<'info> {
     /// This function does not perform owner checks
     pub unsafe fn update_metadata_unchecked(
         class: &'info AccountInfo,
-        authority: &'info AccountInfo,
+        payer: &'info AccountInfo,
         metadata: &'info str,
     ) -> Result<(), ProgramError> {
         let name_len = {
@@ -170,14 +170,11 @@ impl<'info> Class<'info> {
         let new_len = offset + metadata.len();
 
         if new_len != current_len {
-            resize_account(class, authority, new_len, new_len < current_len)?;
+            resize_account(class, payer, new_len, new_len < current_len)?;
         }
 
         {
             let mut data_ref = class.try_borrow_mut_data()?;
-            unsafe {
-                Self::check_authority_unchecked(&data_ref, authority)?;
-            }
 
             let metadata_buffer = unsafe {
                 core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), metadata.len())

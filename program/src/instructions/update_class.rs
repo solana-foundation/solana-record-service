@@ -12,13 +12,14 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to update the class (must be a signer)
-/// 2. `class` - The class account to be updated
-/// 3. `system_program` - Required for account resizing operations
+/// 2. `payer` - The account that will pay for the class account
+/// 3. `class` - The class account to be updated
+/// 4. `system_program` - Required for account resizing operations
 ///
 /// # Security
 /// 1. The authority must be a signer and should be the owner of the class
 pub struct UpdateClassAccounts<'info> {
-    authority: &'info AccountInfo,
+    payer: &'info AccountInfo,
     class: &'info AccountInfo,
 }
 
@@ -26,13 +27,16 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, class, _system_program] = &accounts else {
+        let [authority, payer, class, _system_program] = &accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         Class::check_authority(class, authority)?;
 
-        Ok(Self { authority, class })
+        Ok(Self {
+            payer,
+            class,
+        })
     }
 }
 
@@ -74,7 +78,7 @@ impl<'info> UpdateClassMetadata<'info> {
         unsafe {
             Class::update_metadata_unchecked(
                 self.accounts.class,
-                self.accounts.authority,
+                self.accounts.payer,
                 self.metadata,
             )
         }

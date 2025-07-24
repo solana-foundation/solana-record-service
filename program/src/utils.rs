@@ -25,7 +25,7 @@ pub struct Context<'info> {
 /// * `zero_out` - Whether to zero out the new space (true if shrinking, false if expanding)
 pub fn resize_account(
     target_account: &AccountInfo,
-    authority: &AccountInfo,
+    payer: &AccountInfo,
     new_size: usize,
     zero_out: bool,
 ) -> ProgramResult {
@@ -44,7 +44,7 @@ pub fn resize_account(
             // Need more lamports for rent exemption
             let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
             Transfer {
-                from: authority,
+                from: payer,
                 to: target_account,
                 lamports: lamports_diff,
             }
@@ -55,8 +55,8 @@ pub fn resize_account(
             let lamports_diff = target_account
                 .lamports()
                 .saturating_sub(new_minimum_balance);
-            *authority.try_borrow_mut_lamports()? =
-                authority.lamports().saturating_add(lamports_diff);
+            *payer.try_borrow_mut_lamports()? =
+                payer.lamports().saturating_add(lamports_diff);
             *target_account.try_borrow_mut_lamports()? =
                 target_account.lamports().saturating_sub(lamports_diff);
         }

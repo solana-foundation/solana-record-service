@@ -15,15 +15,16 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to update the record (must be a signer)
-/// 2. `record` - The record account to be updated
-/// 3. `system_program` - Required for account resizing operations
-/// 4. `class` - [optional] The class of the record to be updated
+/// 2. `payer` - The account that will pay for the record account
+/// 3. `record` - The record account to be updated
+/// 4. `system_program` - Required for account resizing operations
+/// 5. `class` - [optional] The class of the record to be updated
 /// # Security
 /// 1. The authority must be:
 ///    a. The record's owner, or
 ///    b. if the class is permissioned, the authority can be the permissioned authority
 pub struct UpdateRecordAccounts<'info> {
-    authority: &'info AccountInfo,
+    payer: &'info AccountInfo,
     record: &'info AccountInfo,
 }
 
@@ -31,7 +32,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, record, _system_program, rest @ ..] = accounts else {
+        let [authority, payer, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -42,7 +43,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        Ok(Self { authority, record })
+        Ok(Self {
+            payer,
+            record,
+        })
     }
 }
 
@@ -54,7 +58,7 @@ pub struct UpdateRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for UpdateRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
         // Deserialize our accounts array
         let accounts = UpdateRecordAccounts::try_from(ctx.accounts)?;
 
@@ -78,7 +82,11 @@ impl<'info> UpdateRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
         unsafe {
-            Record::update_data_unchecked(self.accounts.record, self.accounts.authority, self.data)
+            Record::update_data_unchecked(
+                self.accounts.record,
+                self.accounts.payer,
+                self.data,
+            )
         }
     }
 }

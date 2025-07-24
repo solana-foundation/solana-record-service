@@ -22,6 +22,7 @@ use pinocchio::{
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to burn the record token (must be a signer)
+/// 2. `payer` - The account that will pay for the record account
 /// 2. `mint` - The mint account of the record token
 /// 3. `token_account` - The token account of the record token
 /// 4. `record` - The record account to be deleted
@@ -34,6 +35,7 @@ use pinocchio::{
 ///    b. if the class is permissioned, the authority must be the permissioned authority
 pub struct BurnTokenizedRecordAccounts<'info> {
     authority: &'info AccountInfo,
+    payer: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
     token_account: &'info AccountInfo,
@@ -43,7 +45,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, mint, token_account, record, _token_2022_program, rest @ ..] = accounts
+        let [authority, payer, mint, token_account, record, _token_2022_program, rest @ ..] = accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -59,6 +61,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
 
         Ok(Self {
             authority,
+            payer,
             record,
             mint,
             token_account,
@@ -116,7 +119,7 @@ impl<'info> BurnTokenizedRecord<'info> {
         // Close the mint account
         CloseAccount {
             account: self.accounts.mint,
-            destination: self.accounts.authority,
+            destination: self.accounts.payer,
             authority: self.accounts.mint,
         }
         .invoke_signed(&signers)?;
@@ -126,6 +129,10 @@ impl<'info> BurnTokenizedRecord<'info> {
             unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
 
         unsafe {
+            Record::update_is_frozen_unchecked(
+                &mut self.accounts.record.try_borrow_mut_data()?,
+                false,
+            )?;
             Record::update_owner_unchecked(
                 &mut self.accounts.record.try_borrow_mut_data()?,
                 &record_owner,
