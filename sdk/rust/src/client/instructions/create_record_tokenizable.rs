@@ -5,6 +5,7 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+use crate::types::Metadata;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::U8PrefixVec;
@@ -97,23 +98,7 @@ impl Default for CreateRecordTokenizableInstructionData {
 pub struct CreateRecordTokenizableInstructionArgs {
     pub expiration: i64,
     pub seed: U8PrefixVec<u8>,
-    pub metadata: CreateRecordTokenizableInstructionData,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordTokenizableInstructionDataMetadataAdditionalMetadata {
-    pub label: String,
-    pub value: String,
-}
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordTokenizableInstructionDataMetadata {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    /// Additional metadata for Token22 Metadata Extension compatible Metadata format
-    pub additional_metadata: Vec<CreateRecordTokenizableInstructionDataMetadataAdditionalMetadata>,
+    pub metadata: Metadata,
 }
 
 /// Instruction builder for `CreateRecordTokenizable`.
@@ -136,7 +121,7 @@ pub struct CreateRecordTokenizableBuilder {
     authority: Option<solana_pubkey::Pubkey>,
     expiration: Option<i64>,
     seed: Option<U8PrefixVec<u8>>,
-    metadata: Option<CreateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -193,7 +178,7 @@ impl CreateRecordTokenizableBuilder {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: CreateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.metadata = Some(metadata);
         self
     }
@@ -463,7 +448,7 @@ impl<'a, 'b> CreateRecordTokenizableCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: CreateRecordTokenizableInstructionData) -> &mut Self {
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
         self.instruction.metadata = Some(metadata);
         self
     }
@@ -554,7 +539,7 @@ struct CreateRecordTokenizableCpiBuilderInstruction<'a, 'b> {
     authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     expiration: Option<i64>,
     seed: Option<U8PrefixVec<u8>>,
-    metadata: Option<CreateRecordTokenizableInstructionData>,
+    metadata: Option<Metadata>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

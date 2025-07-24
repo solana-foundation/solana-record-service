@@ -105,8 +105,6 @@ impl<'info> ByteReader<'info> {
         let str_bytes = self.read_bytes(len)?;
         let str =
             core::str::from_utf8(str_bytes).map_err(|_| ProgramError::InvalidInstructionData)?;
-
-        self.offset += len;
         Ok(str)
     }
 

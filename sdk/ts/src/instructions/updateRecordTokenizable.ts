@@ -16,9 +16,7 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  array,
   mapSerializer,
-  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -27,7 +25,7 @@ import {
   ResolvedAccountsWithIndices,
   getAccountMetasAndSigners,
 } from '../shared';
-import { Metadata, getMetadataSerializer } from '../types';
+import { Metadata, MetadataArgs, getMetadataSerializer } from '../types';
 
 // Accounts.
 export type UpdateRecordTokenizableInstructionAccounts = {
@@ -46,13 +44,11 @@ export type UpdateRecordTokenizableInstructionAccounts = {
 // Data.
 export type UpdateRecordTokenizableInstructionData = {
   discriminator: number;
-  /** Token22 Metadata Extension compatible Metadata format */
   metadata: Metadata;
 };
 
 export type UpdateRecordTokenizableInstructionDataArgs = {
-  /** Token22 Metadata Extension compatible Metadata format */
-  metadata: Metadata;
+  metadata: MetadataArgs;
 };
 
 export function getUpdateRecordTokenizableInstructionDataSerializer(): Serializer<

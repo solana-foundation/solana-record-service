@@ -72,7 +72,7 @@ impl<'info> DeleteRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Safety: The account has already been validated
         unsafe {
-            Record::delete_record_unchecked(self.accounts.record, self.accounts.authority)?;
+            Record::delete_record_unchecked(self.accounts.record, self.accounts.payer)?;
 
             // Refund the payer of all the lamports
             self.accounts.payer.borrow_mut_lamports_unchecked()

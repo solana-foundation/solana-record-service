@@ -16,11 +16,9 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  array,
   bytes,
   i64,
   mapSerializer,
-  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -29,7 +27,7 @@ import {
   ResolvedAccountsWithIndices,
   getAccountMetasAndSigners,
 } from '../shared';
-import { Metadata, getMetadataSerializer } from '../types';
+import { Metadata, MetadataArgs, getMetadataSerializer } from '../types';
 
 // Accounts.
 export type CreateRecordTokenizableInstructionAccounts = {
@@ -51,15 +49,14 @@ export type CreateRecordTokenizableInstructionAccounts = {
 export type CreateRecordTokenizableInstructionData = {
   discriminator: number;
   expiration: bigint;
-  name: string;
-  /** Token22 Metadata Extension compatible Metadata format */
+  seed: Uint8Array;
   metadata: Metadata;
 };
 
 export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
   seed: Uint8Array;
-  metadata: Metadata;
+  metadata: MetadataArgs;
 };
 
 export function getCreateRecordTokenizableInstructionDataSerializer(): Serializer<
@@ -75,27 +72,8 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
       [
         ['discriminator', u8()],
         ['expiration', i64()],
-        ['name', string({ size: u8() })],
-        [
-          'metadata',
-          mapSerializer<any, any, any>(
-            struct<any>([
-              ['name', string()],
-              ['symbol', string()],
-              ['uri', string()],
-              [
-                'additionalMetadata',
-                array(
-                  struct<any>([
-                    ['label', string()],
-                    ['value', string()],
-                  ])
-                ),
-              ],
-            ]),
-            (value) => ({ ...value, symbol: value.symbol ?? 'SRS' })
-          ),
-        ],
+        ['seed', bytes({ size: u8() })],
+        ['metadata', getMetadataSerializer()],
       ],
       { description: 'CreateRecordTokenizableInstructionData' }
     ),

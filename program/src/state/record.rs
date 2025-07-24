@@ -335,9 +335,9 @@ impl<'info> Record<'info> {
     /// This function does not perform owner checks
     pub unsafe fn delete_record_unchecked(
         record: &'info AccountInfo,
-        authority: &'info AccountInfo,
+        payer: &'info AccountInfo,
     ) -> Result<(), ProgramError> {
-        resize_account(record, authority, 1, true)?;
+        resize_account(record, payer, 1, true)?;
         {
             let mut data_ref = record.try_borrow_mut_data()?;
             data_ref[DISCRIMINATOR_OFFSET] = 0xff;

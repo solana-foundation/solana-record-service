@@ -13,9 +13,9 @@ use kaigan::types::RemainderStr;
 #[derive(Debug)]
 pub struct UpdateClassMetadata {
     /// Authority used to update a class
-    pub authority: solana_program::pubkey::Pubkey,
+    pub authority: solana_pubkey::Pubkey,
     /// Account that will pay of get refunded for the class update
-    pub payer: solana_program::pubkey::Pubkey,
+    pub payer: solana_pubkey::Pubkey,
     /// Class account to be updated
     pub class: solana_pubkey::Pubkey,
     /// System Program used to extend our class account
@@ -34,20 +34,13 @@ impl UpdateClassMetadata {
     pub fn instruction_with_remaining_accounts(
         &self,
         args: UpdateClassMetadataInstructionArgs,
-        remaining_accounts: &[solana_program::instruction::AccountMeta],
-    ) -> solana_program::instruction::Instruction {
+        remaining_accounts: &[solana_instruction::AccountMeta],
+    ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.authority,
-            true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.payer, true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.class, false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new(self.authority, true));
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
+        accounts.push(solana_instruction::AccountMeta::new(self.class, false));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
@@ -99,6 +92,7 @@ pub struct UpdateClassMetadataInstructionArgs {
 #[derive(Clone, Debug, Default)]
 pub struct UpdateClassMetadataBuilder {
     authority: Option<solana_pubkey::Pubkey>,
+    payer: Option<solana_pubkey::Pubkey>,
     class: Option<solana_pubkey::Pubkey>,
     system_program: Option<solana_pubkey::Pubkey>,
     metadata: Option<RemainderStr>,
@@ -117,7 +111,7 @@ impl UpdateClassMetadataBuilder {
     }
     /// Account that will pay of get refunded for the class update
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
         self.payer = Some(payer);
         self
     }
@@ -176,6 +170,8 @@ impl UpdateClassMetadataBuilder {
 pub struct UpdateClassMetadataCpiAccounts<'a, 'b> {
     /// Authority used to update a class
     pub authority: &'b solana_account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the class update
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// Class account to be updated
     pub class: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to extend our class account
@@ -188,6 +184,8 @@ pub struct UpdateClassMetadataCpi<'a, 'b> {
     pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Authority used to update a class
     pub authority: &'b solana_account_info::AccountInfo<'a>,
+    /// Account that will pay of get refunded for the class update
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// Class account to be updated
     pub class: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to extend our class account
@@ -237,11 +235,12 @@ impl<'a, 'b> UpdateClassMetadataCpi<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
         remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> solana_program_entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
         accounts.push(solana_instruction::AccountMeta::new(*self.class.key, false));
         accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.system_program.key,
@@ -315,7 +314,7 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
     }
     /// Account that will pay of get refunded for the class update
     #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.payer = Some(payer);
         self
     }
@@ -409,6 +408,7 @@ impl<'a, 'b> UpdateClassMetadataCpiBuilder<'a, 'b> {
 struct UpdateClassMetadataCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_account_info::AccountInfo<'a>,
     authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
     class: Option<&'b solana_account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
     metadata: Option<RemainderStr>,

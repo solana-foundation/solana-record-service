@@ -1,5 +1,5 @@
 import { renderJavaScriptUmiVisitor, renderJavaScriptVisitor, renderRustVisitor } from '@codama/renderers';
-import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, bytesTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, stringValueNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
+import { accountNode, arrayTypeNode, arrayValueNode, booleanTypeNode, bytesTypeNode, constantDiscriminatorNode, constantValueNode, createFromRoot, definedTypeLinkNode, definedTypeNode, instructionAccountNode, instructionArgumentNode, instructionNode, numberTypeNode, numberValueNode, optionTypeNode, prefixedCountNode, programNode, publicKeyTypeNode, publicKeyValueNode, REGISTERED_COUNT_NODE_KINDS, rootNode, sizeDiscriminatorNode, sizePrefixTypeNode, stringTypeNode, stringValueNode, structFieldTypeNode, structTypeNode, tupleTypeNode, tupleValueNode } from "codama"
 import path from "path";
 import fs from "fs";
 
@@ -280,7 +280,7 @@ const root = rootNode(
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
                     instructionArgumentNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8")) }),
-                    instructionArgumentNode({ name: 'metadata', type: metadata.type })
+                    instructionArgumentNode({ name: 'metadata', type: definedTypeLinkNode('metadata')})
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -384,7 +384,7 @@ const root = rootNode(
                         defaultValue: numberValueNode(4),
                         defaultValueStrategy: 'omitted',
                     }),
-                    instructionArgumentNode(definedTypeNode(metadata))
+                    instructionArgumentNode({ name: 'metadata', type: definedTypeLinkNode('metadata')})
                 ],
                 accounts: [
                     instructionAccountNode({
