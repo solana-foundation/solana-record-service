@@ -21,8 +21,8 @@ const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
 pub const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
 const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
 const EXPIRY_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
-const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
-pub const NAME_OFFSET: usize = NAME_LEN_OFFSET + size_of::<u8>();
+const SEED_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
+pub const SEED_OFFSET: usize = SEED_LEN_OFFSET + size_of::<u8>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -37,7 +37,7 @@ pub struct Record<'info> {
     /// Optional expiration timestamp, if not set, the expiry is [0; 8]
     pub expiry: i64,
     /// The record name/key
-    pub name: &'info str,
+    pub seed: &'info [u8],
     /// The record's data content
     pub data: &'info str,
 }
@@ -302,12 +302,12 @@ impl<'info> Record<'info> {
         authority: &'info AccountInfo,
         data: &'info str,
     ) -> Result<(), ProgramError> {
-        let name_len = {
+        let seed_len = {
             let data_ref = record.try_borrow_data()?;
-            data_ref[NAME_LEN_OFFSET] as usize
+            data_ref[SEED_LEN_OFFSET] as usize
         };
 
-        let offset = name_len + NAME_LEN_OFFSET + size_of::<u8>();
+        let offset = seed_len + SEED_LEN_OFFSET + size_of::<u8>();
         let current_len = record.data_len();
         let new_len = offset + data.len();
 
@@ -352,13 +352,13 @@ impl<'info> Record<'info> {
     pub unsafe fn get_metadata_len_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<usize, ProgramError> {
-        let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
+        let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
 
-        // Read name_len and skip name
-        let name_len =
+        // Read seed_len and skip name
+        let seed_len =
             u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
                 as usize;
-        offset += size_of::<u32>() + name_len;
+        offset += size_of::<u32>() + seed_len;
 
         // Read ticker_len and skip ticker
         let ticker_len =
@@ -391,13 +391,13 @@ impl<'info> Record<'info> {
     pub unsafe fn get_metadata_data_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<(&'info [u8], Option<&'info [u8]>), ProgramError> {
-        let mut offset = NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize;
+        let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
 
-        // Read name_len and skip name
-        let name_len =
+        // Read seed_len and skip name
+        let seed_len =
             u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
                 as usize;
-        offset += size_of::<u32>() + name_len;
+        offset += size_of::<u32>() + seed_len;
 
         // Read ticker_len and skip ticker
         let ticker_len =
@@ -412,7 +412,7 @@ impl<'info> Record<'info> {
         offset += size_of::<u32>() + uri_len;
 
         let metadata_data =
-            &data[NAME_LEN_OFFSET + size_of::<u8>() + data[NAME_LEN_OFFSET] as usize..offset];
+            &data[SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize..offset];
 
         let additional_metadata_data =
             if u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) != 0
@@ -433,7 +433,7 @@ impl<'info> Record<'info> {
         &self,
         account_info: &'info AccountInfo,
     ) -> Result<(), ProgramError> {
-        let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
+        let required_space = Self::MINIMUM_CLASS_SIZE + self.seed.len() + self.data.len();
         if account_info.data_len() < required_space {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -450,8 +450,8 @@ impl<'info> Record<'info> {
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
         ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;
 
-        let mut variable_data = ByteWriter::new_with_offset(&mut data, NAME_LEN_OFFSET);
-        variable_data.write_str_with_length(self.name)?;
+        let mut variable_data = ByteWriter::new_with_offset(&mut data, SEED_LEN_OFFSET);
+        variable_data.write_bytes_with_length(self.seed)?;
         variable_data.write_str(self.data)?;
 
         Ok(())
@@ -461,7 +461,7 @@ impl<'info> Record<'info> {
     /// SRS Program ID is not checked
     #[inline(always)]
     pub unsafe fn from_bytes_unchecked(data: &'info [u8]) -> Result<Self, ProgramError> {
-        let mut variable = ByteReader::new_with_offset(data, NAME_LEN_OFFSET);
+        let mut variable = ByteReader::new_with_offset(data, SEED_LEN_OFFSET);
 
         Ok(Self {
             class: ByteReader::read_with_offset(data, CLASS_OFFSET)?,
@@ -469,7 +469,7 @@ impl<'info> Record<'info> {
             owner: ByteReader::read_with_offset(data, OWNER_OFFSET)?,
             is_frozen: ByteReader::read_with_offset(data, IS_FROZEN_OFFSET)?,
             expiry: ByteReader::read_with_offset(data, EXPIRY_OFFSET)?,
-            name: variable.read_str_with_length()?,
+            seed: variable.read_bytes_with_length()?,
             data: variable.read_str(variable.remaining_bytes())?,
         })
     }

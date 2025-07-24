@@ -4,7 +4,7 @@ use core::str::FromStr;
 use solana_account::{Account, WritableAccount};
 use solana_program::program_error::ProgramError;
 
-use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString};
+use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString, U8PrefixVec};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
@@ -69,6 +69,11 @@ impl From<U32PrefixString> for String {
 fn make_u8prefix_string(s: &str) -> U8PrefixString {
     U8PrefixString::try_from_slice(&[&[s.len() as u8], s.as_bytes()].concat())
         .expect("Invalid name")
+}
+
+fn make_u8prefix_vec_u8(s: &[u8]) -> U8PrefixVec<u8> {
+    U8PrefixVec::try_from_slice(&[&[s.len() as u8], s].concat())
+        .expect("Invalid seed")
 }
 
 fn make_u32prefix_string(s: &str) -> String {
@@ -154,11 +159,11 @@ fn keyed_account_for_record(
     owner: Pubkey,
     is_frozen: bool,
     expiry: i64,
-    name: &str,
+    seed: &[u8],
     data: &[u8],
 ) -> (Pubkey, Account) {
     let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), name.as_ref()],
+        &[b"record", &class.as_ref(), seed.as_ref()],
         &SOLANA_RECORD_SERVICE_ID,
     );
     let record_account_data = Record {
@@ -168,7 +173,7 @@ fn keyed_account_for_record(
         owner,
         is_frozen,
         expiry,
-        name: make_u8prefix_string(name),
+        seed: make_u8prefix_vec_u8(seed),
         data: RemainderVec::<u8>::try_from_slice(data).unwrap(),
     }
     .try_to_vec()
@@ -215,7 +220,7 @@ fn keyed_account_for_record_with_metadata(
         owner,
         is_frozen,
         expiry,
-        name: make_u8prefix_string(name),
+        seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(METADATA).unwrap(),
     }
     .try_to_vec()
@@ -264,7 +269,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
         owner,
         is_frozen,
         expiry,
-        name: make_u8prefix_string(name),
+        seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_ADDITIONAL_METADATA).unwrap(),
     }
     .try_to_vec()
@@ -308,7 +313,7 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
         owner,
         is_frozen,
         expiry,
-        name: make_u8prefix_string(name),
+        seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA)
             .unwrap(),
     }
@@ -836,7 +841,7 @@ fn create_record() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -850,7 +855,7 @@ fn create_record() {
     }
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
-        name: make_u8prefix_string("test"),
+        seed: make_u8prefix_vec_u8(b"test"),
         data: make_remainder_vec(b"test"),
     });
 
@@ -896,7 +901,7 @@ fn create_record_with_metadata() {
     }
     .instruction(CreateRecordTokenizableInstructionArgs {
         expiration: 0,
-        name: make_u8prefix_string("test"),
+        seed: make_u8prefix_vec_u8(b"test"),
         metadata: Metadata {
             name: make_u32prefix_string("test"),
             symbol: make_u32prefix_string("SRS"),
@@ -948,7 +953,7 @@ fn create_record_with_metadata_and_additional_metadata() {
     }
     .instruction(CreateRecordTokenizableInstructionArgs {
         expiration: 0,
-        name: make_u8prefix_string("test"),
+        seed: make_u8prefix_vec_u8(b"test"),
         metadata: Metadata {
             name: make_u32prefix_string("test"),
             symbol: make_u32prefix_string("SRS"),
@@ -990,7 +995,7 @@ fn create_permissioned_record() {
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -1004,7 +1009,7 @@ fn create_permissioned_record() {
     }
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
-        name: make_u8prefix_string("test"),
+        seed: make_u8prefix_vec_u8(b"test"),
         data: make_remainder_vec(b"test"),
     });
 
@@ -1037,10 +1042,10 @@ fn update_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test2");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1084,7 +1089,7 @@ fn update_record_with_metadata() {
     let (class, _) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
     // Record updated
     let (_, record_data_updated) =
         keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test");
@@ -1136,10 +1141,10 @@ fn update_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test2");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1185,7 +1190,7 @@ fn update_record_with_delegate_not_permissioned() {
     let (class, class_data) = keyed_account_for_class(authority, false, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1226,7 +1231,7 @@ fn update_record_with_delegate_incorrect_authority() {
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1266,10 +1271,10 @@ fn transfer_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, b"test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -1305,10 +1310,10 @@ fn transfer_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, b"test", b"test");
 
     let instruction = TransferRecord {
         authority,
@@ -1348,7 +1353,7 @@ fn fail_transfer_record_frozen() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -1379,7 +1384,7 @@ fn delete_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
 
     let instruction = DeleteRecord {
         authority: owner,
@@ -1411,7 +1416,7 @@ fn delete_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
 
     let instruction = DeleteRecord {
         authority,
@@ -1447,10 +1452,10 @@ fn freeze_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
     // Record frozen
     let (_, record_data_frozen) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
 
     let instruction = FreezeRecord {
         authority: owner,
@@ -1484,10 +1489,10 @@ fn freeze_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
     // Record frozen
     let (_, record_data_frozen) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1524,10 +1529,10 @@ fn freeze_record_already_frozen() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
     // Record frozen
     let (_, record_data_frozen) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1849,7 +1854,7 @@ fn freeze_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // ATA updated
@@ -1906,7 +1911,7 @@ fn freeze_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -1964,7 +1969,7 @@ fn transfer_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -2019,7 +2024,7 @@ fn transfer_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
@@ -2075,7 +2080,7 @@ fn burn_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -2129,7 +2134,7 @@ fn burn_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA

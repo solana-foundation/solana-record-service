@@ -102,11 +102,7 @@ impl<'info> ByteReader<'info> {
     }
 
     pub fn read_str(&mut self, len: usize) -> Result<&'info str, ProgramError> {
-        if self.offset + len > self.data.len() {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let str_bytes = &self.data[self.offset..self.offset + len];
+        let str_bytes = self.read_bytes(len)?;
         let str =
             core::str::from_utf8(str_bytes).map_err(|_| ProgramError::InvalidInstructionData)?;
 
@@ -114,10 +110,26 @@ impl<'info> ByteReader<'info> {
         Ok(str)
     }
 
+    pub fn read_bytes(&mut self, len: usize) -> Result<&'info [u8], ProgramError> {
+        if self.offset + len > self.data.len() {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        let bytes = &self.data[self.offset..self.offset + len];
+        self.offset += len;
+        Ok(bytes)
+    }
+
     pub fn read_str_with_length(&mut self) -> Result<&'info str, ProgramError> {
         let len: u8 = self.read()?;
 
         self.read_str(len as usize)
+    }
+
+    pub fn read_bytes_with_length(&mut self) -> Result<&'info [u8], ProgramError> {
+        let len: u8 = self.read()?;
+
+        self.read_bytes(len as usize)
     }
 
     pub fn read_with_offset<T: Sized + Copy>(
@@ -190,22 +202,30 @@ impl<'info> ByteWriter<'info> {
     }
 
     pub fn write_str(&mut self, str: &str) -> Result<(), ProgramError> {
-        if self.offset + str.len() > self.data.len() {
+        self.write_bytes(str.as_bytes())
+    }
+
+    pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), ProgramError> {
+        if self.offset + bytes.len() > self.data.len() {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        self.data[self.offset..self.offset + str.len()].copy_from_slice(str.as_bytes());
-        self.offset += str.len();
+        self.data[self.offset..self.offset + bytes.len()].copy_from_slice(bytes);
+        self.offset += bytes.len();
         Ok(())
     }
 
     pub fn write_str_with_length(&mut self, str: &str) -> Result<(), ProgramError> {
-        let len: u8 = str
+        self.write_bytes_with_length(str.as_bytes())
+    }
+
+    pub fn write_bytes_with_length(&mut self, bytes: &[u8]) -> Result<(), ProgramError> {
+        let len: u8 = bytes
             .len()
             .try_into()
             .map_err(|_| ProgramError::ArithmeticOverflow)?;
         self.write(len)?;
-        self.write_str(str)
+        self.write_bytes(bytes)
     }
 
     pub fn write_with_offset<T: Sized + Copy>(

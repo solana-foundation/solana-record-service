@@ -12,55 +12,45 @@ use borsh::BorshSerialize;
 #[derive(Debug)]
 pub struct BurnTokenizedRecord {
     /// Record owner or class authority for permissioned classes
-    pub authority: solana_program::pubkey::Pubkey,
+    pub authority: solana_pubkey::Pubkey,
     /// Mint account for the tokenized record
-    pub mint: solana_program::pubkey::Pubkey,
+    pub mint: solana_pubkey::Pubkey,
     /// Token Account for the tokenized record
-    pub token_account: solana_program::pubkey::Pubkey,
+    pub token_account: solana_pubkey::Pubkey,
     /// Record account associated with the tokenized record
-    pub record: solana_program::pubkey::Pubkey,
+    pub record: solana_pubkey::Pubkey,
     /// Token2022 Program used to burn the tokenized record
-    pub token2022: solana_program::pubkey::Pubkey,
+    pub token2022: solana_pubkey::Pubkey,
     /// Class account of the record
-    pub class: Option<solana_program::pubkey::Pubkey>,
+    pub class: Option<solana_pubkey::Pubkey>,
 }
 
 impl BurnTokenizedRecord {
-    pub fn instruction(&self) -> solana_program::instruction::Instruction {
+    pub fn instruction(&self) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
     #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        remaining_accounts: &[solana_program::instruction::AccountMeta],
-    ) -> solana_program::instruction::Instruction {
+        remaining_accounts: &[solana_instruction::AccountMeta],
+    ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.authority,
-            true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.mint, false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new(self.authority, true));
+        accounts.push(solana_instruction::AccountMeta::new(self.mint, false));
+        accounts.push(solana_instruction::AccountMeta::new(
             self.token_account,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.record,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new(self.record, false));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.token2022,
             false,
         ));
         if let Some(class) = self.class {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-                class, false,
-            ));
+            accounts.push(solana_instruction::AccountMeta::new_readonly(class, false));
         } else {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::SOLANA_RECORD_SERVICE_ID,
                 false,
             ));
@@ -68,7 +58,7 @@ impl BurnTokenizedRecord {
         accounts.extend_from_slice(remaining_accounts);
         let data = borsh::to_vec(&BurnTokenizedRecordInstructionData::new()).unwrap();
 
-        solana_program::instruction::Instruction {
+        solana_instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
             accounts,
             data,
@@ -106,13 +96,13 @@ impl Default for BurnTokenizedRecordInstructionData {
 ///   5. `[optional]` class
 #[derive(Clone, Debug, Default)]
 pub struct BurnTokenizedRecordBuilder {
-    authority: Option<solana_program::pubkey::Pubkey>,
-    mint: Option<solana_program::pubkey::Pubkey>,
-    token_account: Option<solana_program::pubkey::Pubkey>,
-    record: Option<solana_program::pubkey::Pubkey>,
-    token2022: Option<solana_program::pubkey::Pubkey>,
-    class: Option<solana_program::pubkey::Pubkey>,
-    __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
+    authority: Option<solana_pubkey::Pubkey>,
+    mint: Option<solana_pubkey::Pubkey>,
+    token_account: Option<solana_pubkey::Pubkey>,
+    record: Option<solana_pubkey::Pubkey>,
+    token2022: Option<solana_pubkey::Pubkey>,
+    class: Option<solana_pubkey::Pubkey>,
+    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
 impl BurnTokenizedRecordBuilder {
@@ -121,48 +111,45 @@ impl BurnTokenizedRecordBuilder {
     }
     /// Record owner or class authority for permissioned classes
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// Mint account for the tokenized record
     #[inline(always)]
-    pub fn mint(&mut self, mint: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn mint(&mut self, mint: solana_pubkey::Pubkey) -> &mut Self {
         self.mint = Some(mint);
         self
     }
     /// Token Account for the tokenized record
     #[inline(always)]
-    pub fn token_account(&mut self, token_account: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn token_account(&mut self, token_account: solana_pubkey::Pubkey) -> &mut Self {
         self.token_account = Some(token_account);
         self
     }
     /// Record account associated with the tokenized record
     #[inline(always)]
-    pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn record(&mut self, record: solana_pubkey::Pubkey) -> &mut Self {
         self.record = Some(record);
         self
     }
     /// `[optional account, default to 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb']`
     /// Token2022 Program used to burn the tokenized record
     #[inline(always)]
-    pub fn token2022(&mut self, token2022: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn token2022(&mut self, token2022: solana_pubkey::Pubkey) -> &mut Self {
         self.token2022 = Some(token2022);
         self
     }
     /// `[optional account]`
     /// Class account of the record
     #[inline(always)]
-    pub fn class(&mut self, class: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+    pub fn class(&mut self, class: Option<solana_pubkey::Pubkey>) -> &mut Self {
         self.class = class;
         self
     }
     /// Add an additional account to the instruction.
     #[inline(always)]
-    pub fn add_remaining_account(
-        &mut self,
-        account: solana_program::instruction::AccountMeta,
-    ) -> &mut Self {
+    pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
         self.__remaining_accounts.push(account);
         self
     }
@@ -170,19 +157,19 @@ impl BurnTokenizedRecordBuilder {
     #[inline(always)]
     pub fn add_remaining_accounts(
         &mut self,
-        accounts: &[solana_program::instruction::AccountMeta],
+        accounts: &[solana_instruction::AccountMeta],
     ) -> &mut Self {
         self.__remaining_accounts.extend_from_slice(accounts);
         self
     }
     #[allow(clippy::clone_on_copy)]
-    pub fn instruction(&self) -> solana_program::instruction::Instruction {
+    pub fn instruction(&self) -> solana_instruction::Instruction {
         let accounts = BurnTokenizedRecord {
             authority: self.authority.expect("authority is not set"),
             mint: self.mint.expect("mint is not set"),
             token_account: self.token_account.expect("token_account is not set"),
             record: self.record.expect("record is not set"),
-            token2022: self.token2022.unwrap_or(solana_program::pubkey!(
+            token2022: self.token2022.unwrap_or(solana_pubkey::pubkey!(
                 "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
             )),
             class: self.class,
@@ -195,40 +182,40 @@ impl BurnTokenizedRecordBuilder {
 /// `burn_tokenized_record` CPI accounts.
 pub struct BurnTokenizedRecordCpiAccounts<'a, 'b> {
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    pub authority: &'b solana_account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
-    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    pub mint: &'b solana_account_info::AccountInfo<'a>,
     /// Token Account for the tokenized record
-    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token_account: &'b solana_account_info::AccountInfo<'a>,
     /// Record account associated with the tokenized record
-    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    pub record: &'b solana_account_info::AccountInfo<'a>,
     /// Token2022 Program used to burn the tokenized record
-    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token2022: &'b solana_account_info::AccountInfo<'a>,
     /// Class account of the record
-    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    pub class: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 /// `burn_tokenized_record` CPI instruction.
 pub struct BurnTokenizedRecordCpi<'a, 'b> {
     /// The program to invoke.
-    pub __program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Record owner or class authority for permissioned classes
-    pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    pub authority: &'b solana_account_info::AccountInfo<'a>,
     /// Mint account for the tokenized record
-    pub mint: &'b solana_program::account_info::AccountInfo<'a>,
+    pub mint: &'b solana_account_info::AccountInfo<'a>,
     /// Token Account for the tokenized record
-    pub token_account: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token_account: &'b solana_account_info::AccountInfo<'a>,
     /// Record account associated with the tokenized record
-    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    pub record: &'b solana_account_info::AccountInfo<'a>,
     /// Token2022 Program used to burn the tokenized record
-    pub token2022: &'b solana_program::account_info::AccountInfo<'a>,
+    pub token2022: &'b solana_account_info::AccountInfo<'a>,
     /// Class account of the record
-    pub class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    pub class: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
 impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
     pub fn new(
-        program: &'b solana_program::account_info::AccountInfo<'a>,
+        program: &'b solana_account_info::AccountInfo<'a>,
         accounts: BurnTokenizedRecordCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
@@ -242,25 +229,21 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
         }
     }
     #[inline(always)]
-    pub fn invoke(&self) -> solana_program::entrypoint::ProgramResult {
+    pub fn invoke(&self) -> solana_program_entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(&[], &[])
     }
     #[inline(always)]
     pub fn invoke_with_remaining_accounts(
         &self,
-        remaining_accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
-    ) -> solana_program::entrypoint::ProgramResult {
+        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
+    ) -> solana_program_entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
     }
     #[inline(always)]
     pub fn invoke_signed(
         &self,
         signers_seeds: &[&[&[u8]]],
-    ) -> solana_program::entrypoint::ProgramResult {
+    ) -> solana_program_entrypoint::ProgramResult {
         self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
     }
     #[allow(clippy::arithmetic_side_effects)]
@@ -269,45 +252,38 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
     pub fn invoke_signed_with_remaining_accounts(
         &self,
         signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
-    ) -> solana_program::entrypoint::ProgramResult {
+        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
+    ) -> solana_program_entrypoint::ProgramResult {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new(
             *self.authority.key,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.mint.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new(*self.mint.key, false));
+        accounts.push(solana_instruction::AccountMeta::new(
             *self.token_account.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new(
             *self.record.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.token2022.key,
             false,
         ));
         if let Some(class) = self.class {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 *class.key, false,
             ));
         } else {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::SOLANA_RECORD_SERVICE_ID,
                 false,
             ));
         }
         remaining_accounts.iter().for_each(|remaining_account| {
-            accounts.push(solana_program::instruction::AccountMeta {
+            accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
                 is_signer: remaining_account.1,
                 is_writable: remaining_account.2,
@@ -315,7 +291,7 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
         });
         let data = borsh::to_vec(&BurnTokenizedRecordInstructionData::new()).unwrap();
 
-        let instruction = solana_program::instruction::Instruction {
+        let instruction = solana_instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
             accounts,
             data,
@@ -335,9 +311,9 @@ impl<'a, 'b> BurnTokenizedRecordCpi<'a, 'b> {
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
         if signers_seeds.is_empty() {
-            solana_program::program::invoke(&instruction, &account_infos)
+            solana_cpi::invoke(&instruction, &account_infos)
         } else {
-            solana_program::program::invoke_signed(&instruction, &account_infos, signers_seeds)
+            solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
         }
     }
 }
@@ -358,7 +334,7 @@ pub struct BurnTokenizedRecordCpiBuilder<'a, 'b> {
 }
 
 impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
-    pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
+    pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
         let instruction = Box::new(BurnTokenizedRecordCpiBuilderInstruction {
             __program: program,
             authority: None,
@@ -373,16 +349,13 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     }
     /// Record owner or class authority for permissioned classes
     #[inline(always)]
-    pub fn authority(
-        &mut self,
-        authority: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
+    pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.authority = Some(authority);
         self
     }
     /// Mint account for the tokenized record
     #[inline(always)]
-    pub fn mint(&mut self, mint: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+    pub fn mint(&mut self, mint: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.mint = Some(mint);
         self
     }
@@ -390,36 +363,27 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn token_account(
         &mut self,
-        token_account: &'b solana_program::account_info::AccountInfo<'a>,
+        token_account: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.token_account = Some(token_account);
         self
     }
     /// Record account associated with the tokenized record
     #[inline(always)]
-    pub fn record(
-        &mut self,
-        record: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
+    pub fn record(&mut self, record: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.record = Some(record);
         self
     }
     /// Token2022 Program used to burn the tokenized record
     #[inline(always)]
-    pub fn token2022(
-        &mut self,
-        token2022: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
+    pub fn token2022(&mut self, token2022: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.token2022 = Some(token2022);
         self
     }
     /// `[optional account]`
     /// Class account of the record
     #[inline(always)]
-    pub fn class(
-        &mut self,
-        class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    ) -> &mut Self {
+    pub fn class(&mut self, class: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
         self.instruction.class = class;
         self
     }
@@ -427,7 +391,7 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn add_remaining_account(
         &mut self,
-        account: &'b solana_program::account_info::AccountInfo<'a>,
+        account: &'b solana_account_info::AccountInfo<'a>,
         is_writable: bool,
         is_signer: bool,
     ) -> &mut Self {
@@ -443,11 +407,7 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn add_remaining_accounts(
         &mut self,
-        accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
+        accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> &mut Self {
         self.instruction
             .__remaining_accounts
@@ -455,7 +415,7 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn invoke(&self) -> solana_program::entrypoint::ProgramResult {
+    pub fn invoke(&self) -> solana_program_entrypoint::ProgramResult {
         self.invoke_signed(&[])
     }
     #[allow(clippy::clone_on_copy)]
@@ -463,7 +423,7 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
     pub fn invoke_signed(
         &self,
         signers_seeds: &[&[&[u8]]],
-    ) -> solana_program::entrypoint::ProgramResult {
+    ) -> solana_program_entrypoint::ProgramResult {
         let instruction = BurnTokenizedRecordCpi {
             __program: self.instruction.__program,
 
@@ -491,17 +451,13 @@ impl<'a, 'b> BurnTokenizedRecordCpiBuilder<'a, 'b> {
 
 #[derive(Clone, Debug)]
 struct BurnTokenizedRecordCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_program::account_info::AccountInfo<'a>,
-    authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    mint: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    token_account: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    token2022: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    __program: &'b solana_account_info::AccountInfo<'a>,
+    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+    mint: Option<&'b solana_account_info::AccountInfo<'a>>,
+    token_account: Option<&'b solana_account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_account_info::AccountInfo<'a>>,
+    token2022: Option<&'b solana_account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
-    __remaining_accounts: Vec<(
-        &'b solana_program::account_info::AccountInfo<'a>,
-        bool,
-        bool,
-    )>,
+    __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

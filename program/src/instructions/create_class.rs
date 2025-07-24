@@ -1,5 +1,5 @@
 #[cfg(not(feature = "perf"))]
-use crate::constants::{MAX_METADATA_LEN, MAX_NAME_LEN};
+use crate::constants::{MAX_METADATA_LEN, MAX_SEED_LEN};
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 
@@ -104,7 +104,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         let name: &'info str = variable_data.read_str_with_length()?;
 
         #[cfg(not(feature = "perf"))]
-        if name.len() > MAX_NAME_LEN {
+        if name.len() > MAX_SEED_LEN {
             return Err(ProgramError::InvalidArgument);
         }
 

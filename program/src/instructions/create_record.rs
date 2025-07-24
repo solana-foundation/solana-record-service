@@ -1,5 +1,5 @@
 #[cfg(not(feature = "perf"))]
-use crate::constants::MAX_NAME_LEN;
+use crate::constants::MAX_SEED_LEN;
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 
@@ -71,7 +71,7 @@ const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
 pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
     expiry: i64,
-    name: &'info str,
+    seed: &'info [u8],
     data: &'info str,
 }
 
@@ -99,10 +99,10 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
             ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
 
         // Deserialize `name`
-        let name: &str = variable_data.read_str_with_length()?;
+        let seed: &[u8] = variable_data.read_bytes_with_length()?;
 
         #[cfg(not(feature = "perf"))]
-        if name.len() > MAX_NAME_LEN {
+        if seed.len() > MAX_SEED_LEN {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -112,7 +112,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         Ok(Self {
             accounts,
             expiry,
-            name,
+            seed,
             data,
         })
     }
@@ -126,14 +126,14 @@ impl<'info> CreateRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let space = Record::MINIMUM_CLASS_SIZE + self.name.len() + self.data.len();
+        let space = Record::MINIMUM_CLASS_SIZE + self.seed.len() + self.data.len();
         let rent = Rent::get()?.minimum_balance(space);
         let lamports = rent.saturating_sub(self.accounts.record.lamports());
 
         let seeds = [
             b"record",
             self.accounts.class.key().as_ref(),
-            self.name.as_bytes(),
+            self.seed.as_ref(),
         ];
 
         let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
@@ -143,7 +143,7 @@ impl<'info> CreateRecord<'info> {
         let seeds = [
             Seed::from(b"record"),
             Seed::from(self.accounts.class.key()),
-            Seed::from(self.name.as_bytes()),
+            Seed::from(self.seed.as_ref()),
             Seed::from(&bump),
         ];
 
@@ -164,7 +164,7 @@ impl<'info> CreateRecord<'info> {
             owner: *self.accounts.owner.key(),
             is_frozen: false,
             expiry: self.expiry,
-            name: self.name,
+            seed: self.seed,
             data: self.data,
         };
 

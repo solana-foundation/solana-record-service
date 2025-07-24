@@ -19,7 +19,6 @@ import {
   bytes,
   i64,
   mapSerializer,
-  string,
   struct,
   u8,
 } from '@metaplex-foundation/umi/serializers';
@@ -49,13 +48,13 @@ export type CreateRecordInstructionAccounts = {
 export type CreateRecordInstructionData = {
   discriminator: number;
   expiration: bigint;
-  name: string;
+  seed: Uint8Array;
   data: Uint8Array;
 };
 
 export type CreateRecordInstructionDataArgs = {
   expiration: number | bigint;
-  name: string;
+  seed: Uint8Array;
   data: Uint8Array;
 };
 
@@ -72,7 +71,7 @@ export function getCreateRecordInstructionDataSerializer(): Serializer<
       [
         ['discriminator', u8()],
         ['expiration', i64()],
-        ['name', string({ size: u8() })],
+        ['seed', bytes({ size: u8() })],
         ['data', bytes()],
       ],
       { description: 'CreateRecordInstructionData' }

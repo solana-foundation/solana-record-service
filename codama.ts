@@ -83,7 +83,7 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'owner', type: publicKeyTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
-                    structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
+                    structFieldTypeNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8")) }),
                     structFieldTypeNode({ name: 'data', type: bytesTypeNode() }),
                 ])
             }),
@@ -214,7 +214,7 @@ const root = rootNode(
                     instructionArgumentNode({ 
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
-                    instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
+                    instructionArgumentNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8"))}),
                     instructionArgumentNode({ name: 'data', type: bytesTypeNode() }),
                 ],
                 accounts: [
@@ -273,8 +273,8 @@ const root = rootNode(
                     instructionArgumentNode({ 
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
-                    instructionArgumentNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u8")) }),
-                    instructionArgumentNode(definedTypeNode(metadata))
+                    instructionArgumentNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8")) }),
+                    instructionArgumentNode({ name: 'metadata', type: metadata.type })
                 ],
                 accounts: [
                     instructionAccountNode({
@@ -766,9 +766,7 @@ const root = rootNode(
             })
         ],
         definedTypes: [
-            definedTypeNode(
-                metadata
-            )
+            metadata
         ]
     })
 )

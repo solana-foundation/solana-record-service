@@ -17,6 +17,7 @@ import {
 import {
   Serializer,
   array,
+  bytes,
   i64,
   mapSerializer,
   string,
@@ -49,8 +50,7 @@ export type CreateRecordTokenizableInstructionAccounts = {
 export type CreateRecordTokenizableInstructionData = {
   discriminator: number;
   expiration: bigint;
-  name: string;
-  /** Token22 Metadata Extension compatible Metadata format */
+  seed: Uint8Array;
   metadata: {
     name: string;
     symbol: string;
@@ -62,8 +62,7 @@ export type CreateRecordTokenizableInstructionData = {
 
 export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
-  name: string;
-  /** Token22 Metadata Extension compatible Metadata format */
+  seed: Uint8Array;
   metadata: {
     name: string;
     symbol?: string;
@@ -86,7 +85,7 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
       [
         ['discriminator', u8()],
         ['expiration', i64()],
-        ['name', string({ size: u8() })],
+        ['seed', bytes({ size: u8() })],
         [
           'metadata',
           mapSerializer<any, any, any>(

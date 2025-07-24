@@ -11,7 +11,7 @@
     "test": "mocha --import=tsx ./tests/test.spec.ts"
   },
   "dependencies": {
-    "@codama/renderers": "^1.0.19",
+    "@codama/renderers": "1.0.24",
     "@types/mocha": "^10.0.10",
     "codama": "^1.2.11",
     "litesvm": "^0.2.0",
