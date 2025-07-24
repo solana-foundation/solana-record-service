@@ -1,6 +1,6 @@
 use crate::utils::{resize_account, ByteWriter};
 use core::{mem::size_of, str};
-use pinocchio::{account_info::AccountInfo, log::sol_log, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 const DISCRIMINATOR_OFFSET: usize = 0;
 const AUTHORITY_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();

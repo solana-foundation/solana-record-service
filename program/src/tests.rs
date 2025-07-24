@@ -72,8 +72,7 @@ fn make_u8prefix_string(s: &str) -> U8PrefixString {
 }
 
 fn make_u8prefix_vec_u8(s: &[u8]) -> U8PrefixVec<u8> {
-    U8PrefixVec::try_from_slice(&[&[s.len() as u8], s].concat())
-        .expect("Invalid seed")
+    U8PrefixVec::try_from_slice(&[&[s.len() as u8], s].concat()).expect("Invalid seed")
 }
 
 fn make_u32prefix_string(s: &str) -> String {
@@ -699,7 +698,6 @@ fn create_class() {
         &[
             Check::success(),
             Check::account(&class).data(&class_data.data).build(),
-            
         ],
     );
 }
@@ -746,7 +744,6 @@ fn update_class_metadata() {
             Check::account(&class)
                 .data(&class_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -810,7 +807,6 @@ fn update_class_frozen() {
         &[
             Check::success(),
             Check::account(&class).data(&class_data_frozen.data).build(),
-            
         ],
     );
 }
@@ -838,7 +834,6 @@ fn update_class_frozen_already_frozen() {
         &[
             Check::success(),
             Check::account(&class).data(&class_data_frozen.data).build(),
-            
         ],
     );
 }
@@ -885,7 +880,6 @@ fn create_record() {
         &[
             Check::success(),
             Check::account(&record).data(&record_data.data).build(),
-            
         ],
     );
 }
@@ -937,7 +931,6 @@ fn create_record_with_metadata() {
         &[
             Check::success(),
             Check::account(&record).data(&record_data.data).build(),
-            
         ],
     );
 }
@@ -993,7 +986,6 @@ fn create_record_with_metadata_and_additional_metadata() {
         &[
             Check::success(),
             Check::account(&record).data(&record_data.data).build(),
-            
         ],
     );
 }
@@ -1043,7 +1035,6 @@ fn create_permissioned_record() {
         &[
             Check::success(),
             Check::account(&record).data(&record_data.data).build(),
-            
         ],
     );
 }
@@ -1095,7 +1086,6 @@ fn update_record() {
             Check::account(&record)
                 .data(&record_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1120,8 +1110,15 @@ fn update_record_with_metadata() {
         additional_metadata: vec![],
     };
     // Record updated
-    let (_, record_data_updated) =
-        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", Some(&new_metadata.try_to_vec().unwrap()));
+    let (_, record_data_updated) = keyed_account_for_record_with_metadata(
+        class,
+        0,
+        owner,
+        false,
+        0,
+        "test",
+        Some(&new_metadata.try_to_vec().unwrap()),
+    );
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1160,7 +1157,6 @@ fn update_record_with_metadata() {
             Check::account(&record)
                 .data(&record_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1213,7 +1209,6 @@ fn update_record_with_delegate() {
             Check::account(&record)
                 .data(&record_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1343,7 +1338,6 @@ fn transfer_record() {
             Check::account(&record)
                 .data(&record_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1387,7 +1381,6 @@ fn transfer_record_with_delegate() {
             Check::account(&record)
                 .data(&record_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1400,7 +1393,8 @@ fn fail_transfer_record_frozen() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -1458,7 +1452,6 @@ fn delete_record() {
         &[
             Check::success(),
             Check::account(&record).data(&[0xff]).build(),
-            
         ],
     );
 }
@@ -1499,7 +1492,6 @@ fn delete_record_with_delegate() {
         &[
             Check::success(),
             Check::account(&record).data(&[0xff]).build(),
-            
         ],
     );
 }
@@ -1537,7 +1529,6 @@ fn freeze_record() {
             Check::account(&record)
                 .data(&record_data_frozen.data)
                 .build(),
-            
         ],
     );
 }
@@ -1579,7 +1570,6 @@ fn freeze_record_with_delegate() {
             Check::account(&record)
                 .data(&record_data_frozen.data)
                 .build(),
-            
         ],
     );
 }
@@ -1591,7 +1581,8 @@ fn freeze_record_already_frozen() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
     // Record frozen
     let (_, record_data_frozen) =
         keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
@@ -1620,7 +1611,6 @@ fn freeze_record_already_frozen() {
             Check::account(&record)
                 .data(&record_data_frozen.data)
                 .build(),
-            
         ],
     );
 }
@@ -1690,7 +1680,6 @@ fn mint_record_token() {
                 .data(&token_account_data.data)
                 .build(),
             Check::account(&group).rent_exempt().build(),
-            
         ],
     );
 }
@@ -1760,8 +1749,7 @@ fn mint_record_token_with_additional_metadata() {
             Check::account(&token_account)
                 .data(&token_account_data.data)
                 .build(),
-            Check::account(&mint).rent_exempt().build()
-            
+            Check::account(&mint).rent_exempt().build(),
         ],
     );
 }
@@ -1832,7 +1820,7 @@ fn mint_record_token_with_multiple_additional_metadata() {
             Check::account(&token_account)
                 .data(&token_account_data.data)
                 .build(),
-            Check::account(&mint).rent_exempt().build()
+            Check::account(&mint).rent_exempt().build(),
         ],
     );
 }
@@ -1904,7 +1892,6 @@ fn mint_record_token_with_delegate() {
             Check::account(&token_account)
                 .data(&token_account_data.data)
                 .build(),
-            
         ],
     );
 }
@@ -1922,7 +1909,8 @@ fn freeze_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // ATA updated
@@ -1962,7 +1950,6 @@ fn freeze_tokenized_record() {
             Check::account(&token_account)
                 .data(&token_account_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -1980,7 +1967,8 @@ fn freeze_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -2021,7 +2009,6 @@ fn freeze_tokenized_record_delegate() {
             Check::account(&token_account)
                 .data(&token_account_data_updated.data)
                 .build(),
-            
         ],
     );
 }
@@ -2039,7 +2026,8 @@ fn transfer_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -2077,10 +2065,7 @@ fn transfer_tokenized_record() {
             (new_token_account, new_token_account_data),
             (token2022, token2022_data),
         ],
-        &[
-            Check::success(),
-            
-        ],
+        &[Check::success()],
     );
 }
 
@@ -2097,7 +2082,8 @@ fn transfer_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
@@ -2136,10 +2122,7 @@ fn transfer_tokenized_record_delegate() {
             (token2022, token2022_data),
             (class, class_data),
         ],
-        &[
-            Check::success(),
-            
-        ],
+        &[Check::success()],
     );
 }
 
@@ -2158,7 +2141,8 @@ fn burn_tokenized_record() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
 
@@ -2193,10 +2177,7 @@ fn burn_tokenized_record() {
             (token_account, token_account_data),
             (token2022, token2022_data),
         ],
-        &[
-            Check::success(),
-            
-        ],
+        &[Check::success()],
     );
 }
 
@@ -2215,7 +2196,8 @@ fn burn_tokenized_record_delegate() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
 
@@ -2251,10 +2233,7 @@ fn burn_tokenized_record_delegate() {
             (token2022, token2022_data),
             (class, class_data),
         ],
-        &[
-            Check::success(),
-            
-        ],
+        &[Check::success()],
     );
 }
 
@@ -2314,8 +2293,8 @@ fn mint_and_burn_tokenized_record() {
 
     mollusk.process_and_validate_instruction_chain(
         &[
-            (&mint_instruction, &[Check::success(), ]),
-            (&burn_instruction, &[Check::success(), ]),
+            (&mint_instruction, &[Check::success()]),
+            (&burn_instruction, &[Check::success()]),
         ],
         &[
             (owner, owner_data),
@@ -2371,7 +2350,7 @@ fn mint_and_burn_tokenized_record_delegate() {
     }
     .instruction();
 
-    let burn_instruction = BurnTokenizedRecord {    
+    let burn_instruction = BurnTokenizedRecord {
         authority,
         payer: authority,
         record,
@@ -2392,8 +2371,8 @@ fn mint_and_burn_tokenized_record_delegate() {
 
     mollusk.process_and_validate_instruction_chain(
         &[
-            (&mint_instruction, &[Check::success(), ]),
-            (&burn_instruction, &[Check::success(), ]),
+            (&mint_instruction, &[Check::success()]),
+            (&burn_instruction, &[Check::success()]),
         ],
         &[
             (owner, owner_data),

@@ -133,7 +133,7 @@ impl<'info> CreateRecord<'info> {
         let seeds = [
             b"record",
             self.accounts.class.key().as_ref(),
-            self.seed.as_ref(),
+            self.seed,
         ];
 
         let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
@@ -143,7 +143,7 @@ impl<'info> CreateRecord<'info> {
         let seeds = [
             Seed::from(b"record"),
             Seed::from(self.accounts.class.key()),
-            Seed::from(self.seed.as_ref()),
+            Seed::from(self.seed),
             Seed::from(&bump),
         ];
 

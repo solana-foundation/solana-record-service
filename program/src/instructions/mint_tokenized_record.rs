@@ -269,7 +269,7 @@ impl<'info> MintTokenizedRecord<'info> {
             + TOKEN_2022_METADATA_POINTER_LEN
             + TOKEN_2022_MEMBER_POINTER_LEN;
 
-        // To avoid resizing the ming, we calculate the correct lamports for our token AOT with:
+        // To avoid resizing the mint, we calculate the correct lamports for our token AOT with:
         // 1. `space` - The sum of the above static extension lengths
         // 2. `metadata_data.len()` - The full length of the metadata data
         // 3. `TOKEN_2022_MEMBER_LEN` - The length of the member extension

@@ -33,10 +33,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateClassAccounts<'info> {
 
         Class::check_authority(class, authority)?;
 
-        Ok(Self {
-            payer,
-            class,
-        })
+        Ok(Self { payer, class })
     }
 }
 

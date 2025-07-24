@@ -55,8 +55,7 @@ pub fn resize_account(
             let lamports_diff = target_account
                 .lamports()
                 .saturating_sub(new_minimum_balance);
-            *payer.try_borrow_mut_lamports()? =
-                payer.lamports().saturating_add(lamports_diff);
+            *payer.try_borrow_mut_lamports()? = payer.lamports().saturating_add(lamports_diff);
             *target_account.try_borrow_mut_lamports()? =
                 target_account.lamports().saturating_sub(lamports_diff);
         }

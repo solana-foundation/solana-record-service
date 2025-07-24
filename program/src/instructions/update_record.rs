@@ -43,10 +43,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        Ok(Self {
-            payer,
-            record,
-        })
+        Ok(Self { payer, record })
     }
 }
 
@@ -58,7 +55,7 @@ pub struct UpdateRecord<'info> {
 impl<'info> TryFrom<Context<'info>> for UpdateRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = UpdateRecordAccounts::try_from(ctx.accounts)?;
 
@@ -82,11 +79,7 @@ impl<'info> UpdateRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
         unsafe {
-            Record::update_data_unchecked(
-                self.accounts.record,
-                self.accounts.payer,
-                self.data,
-            )
+            Record::update_data_unchecked(self.accounts.record, self.accounts.payer, self.data)
         }
     }
 }

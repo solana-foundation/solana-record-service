@@ -34,7 +34,7 @@ use pinocchio::{
 ///    a. The record owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
 pub struct BurnTokenizedRecordAccounts<'info> {
-    authority: &'info AccountInfo,
+    _authority: &'info AccountInfo,
     payer: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -45,7 +45,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [authority, payer, mint, token_account, record, _token_2022_program, rest @ ..] = accounts
+        let [_authority, payer, mint, token_account, record, _token_2022_program, rest @ ..] =
+            accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -54,13 +55,13 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
         Record::check_owner_or_delegate_tokenized(
             record,
             rest.first(),
-            authority,
+            _authority,
             mint,
             token_account,
         )?;
 
         Ok(Self {
-            authority,
+            _authority,
             payer,
             record,
             mint,
