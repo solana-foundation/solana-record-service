@@ -278,7 +278,7 @@ impl<'info> MintTokenizedRecord<'info> {
                 + unsafe {
                     Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)?
                 }
-                + TOKEN_2022_MEMBER_LEN,
+                + TOKEN_2022_MEMBER_LEN
         );
 
         let seeds = [
