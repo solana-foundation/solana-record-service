@@ -8,7 +8,10 @@ use pinocchio::{
     ProgramResult,
 };
 
-use crate::{constants::TOKEN_2022_PROGRAM_ID, utils::{write_bytes, UNINIT_BYTE}};
+use crate::{
+    token2022::constants::TOKEN_2022_PROGRAM_ID,
+    utils::{write_bytes, UNINIT_BYTE},
+};
 
 /// Initialize a new Token Account.
 ///
@@ -30,7 +33,12 @@ impl InitializeAccount3<'_> {
         self.invoke_signed(&[])
     }
 
+    const DISCRIMINATOR_OFFSET: usize = 0;
+    const OWNER_OFFSET: usize = Self::DISCRIMINATOR_OFFSET + size_of::<u8>();
+
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
+        const DISCRIMINATOR: u8 = 0x12;
+
         // account metadata
         let account_metas: [AccountMeta; 2] = [
             AccountMeta::writable(self.account.key()),
@@ -43,14 +51,17 @@ impl InitializeAccount3<'_> {
         let mut instruction_data = [UNINIT_BYTE; 33];
 
         // Set discriminator as u8 at offset [0]
-        write_bytes(&mut instruction_data, &[18]);
+        write_bytes(
+            &mut instruction_data[Self::DISCRIMINATOR_OFFSET..],
+            &[DISCRIMINATOR],
+        );
         // Set owner as [u8; 32] at offset [1..33]
-        write_bytes(&mut instruction_data[1..], self.owner);
+        write_bytes(&mut instruction_data[Self::OWNER_OFFSET..], self.owner);
 
         let instruction = Instruction {
             program_id: &TOKEN_2022_PROGRAM_ID,
             accounts: &account_metas,
-            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, 33) },
+            data: unsafe { from_raw_parts(instruction_data.as_ptr() as _, instruction_data.len()) },
         };
 
         invoke_signed(&instruction, &[self.account, self.mint], signers)
