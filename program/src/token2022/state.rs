@@ -48,7 +48,7 @@ impl<'info> Mint<'info> {
 const TOKEN_MINT_OFFSET: usize = 0;
 const TOKEN_OWNER_OFFSET: usize = TOKEN_MINT_OFFSET + size_of::<Pubkey>();
 const TOKEN_IS_FROZEN_OFFSET: usize =
-    TOKEN_OWNER_OFFSET + size_of::<u64>() + size_of::<u32>() + size_of::<Pubkey>();
+    TOKEN_OWNER_OFFSET + size_of::<Pubkey>() + size_of::<u64>() + size_of::<u32>() + size_of::<Pubkey>();
 
 #[repr(C)]
 pub struct Token<'info> {
