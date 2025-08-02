@@ -4,7 +4,9 @@ use crate::{
 };
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, program_error::ProgramError, pubkey::Pubkey
+    account_info::{AccountInfo, Ref, RefMut},
+    program_error::ProgramError,
+    pubkey::Pubkey,
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
@@ -378,11 +380,13 @@ impl<'info> Record<'info> {
         offset += size_of::<u32>();
 
         for _ in 0..additional_metadata_len {
-            let key_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
-                as usize;
+            let key_len =
+                u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                    as usize;
             offset += size_of::<u32>() + key_len;
-            let value_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
-                as usize;
+            let value_len =
+                u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
+                    as usize;
             offset += size_of::<u32>() + value_len;
         }
 

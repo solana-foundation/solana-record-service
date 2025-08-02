@@ -130,11 +130,7 @@ impl<'info> CreateRecord<'info> {
         let rent = Rent::get()?.minimum_balance(space);
         let lamports = rent.saturating_sub(self.accounts.record.lamports());
 
-        let seeds = [
-            b"record",
-            self.accounts.class.key().as_ref(),
-            self.seed,
-        ];
+        let seeds = [b"record", self.accounts.class.key().as_ref(), self.seed];
 
         let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
             .ok_or(ProgramError::InvalidArgument)?

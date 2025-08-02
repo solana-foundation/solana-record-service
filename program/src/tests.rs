@@ -434,8 +434,8 @@ const MINT_METADATA_EXTENSION_UPDATED: &[u8] = &[
     19, 0, 92, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
     142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
     190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
-    5, 0, 0, 0, 116, 101, 115, 116, 50, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0,
-    0, 0,
+    5, 0, 0, 0, 116, 101, 115, 116, 50, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0,
+    0, 0, 0,
 ];
 const MINT_GROUP_MEMBER_EXTENSION_UPDATED: &[u8] = &[
     23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
@@ -2539,7 +2539,7 @@ fn update_tokenized_record() {
     let (associated_token_program, associated_token_program_data) =
         mollusk_svm_programs_token::associated_token::keyed_account();
 
-    // New Mint 
+    // New Mint
     let (_, new_mint_data) = keyed_account_for_updated_mint(record);
 
     let mint_instruction = MintTokenizedRecord {
@@ -2569,18 +2569,20 @@ fn update_tokenized_record() {
         &[
             (&burn_instruction, &[Check::success()]),
             (
-                &update_instruction, 
+                &update_instruction,
                 &[
                     Check::success(),
-                    Check::account(&record).data(&record_data_updated.data).build()
-                ]
+                    Check::account(&record)
+                        .data(&record_data_updated.data)
+                        .build(),
+                ],
             ),
             (
-                &mint_instruction, 
+                &mint_instruction,
                 &[
                     Check::success(),
-                    Check::account(&mint).data(&new_mint_data.data).build()
-                ]
+                    Check::account(&mint).data(&new_mint_data.data).build(),
+                ],
             ),
         ],
         &[

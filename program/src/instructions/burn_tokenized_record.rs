@@ -6,7 +6,11 @@ use crate::{
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    ProgramResult,
 };
 
 /// BurnTokenizedRecord instruction.
@@ -117,7 +121,7 @@ impl<'info> BurnTokenizedRecord<'info> {
             destination: self.accounts.payer,
             authority: self.accounts.mint,
         }
-        .invoke_signed(&signers)?;        
+        .invoke_signed(&signers)?;
 
         // Set the record owner, to the owner of the token account and the owner type to pubkey
         let record_owner =

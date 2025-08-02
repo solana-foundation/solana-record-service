@@ -12,7 +12,11 @@ use crate::{
             TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN,
             TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN,
             TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID,
-        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, Token, UpdateMetadata
+        },
+        InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember,
+        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, Token,
+        UpdateMetadata,
     },
     utils::Context,
 };
@@ -274,7 +278,7 @@ impl<'info> MintTokenizedRecord<'info> {
                 + unsafe {
                     Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)?
                 }
-                + TOKEN_2022_MEMBER_LEN
+                + TOKEN_2022_MEMBER_LEN,
         );
 
         let seeds = [
@@ -433,7 +437,11 @@ impl<'info> MintTokenizedRecord<'info> {
 
     fn initialize_token_account(&self) -> Result<(), ProgramError> {
         // Check if the token account already exists
-        if self.accounts.token_account.is_owned_by(&TOKEN_2022_PROGRAM_ID) {
+        if self
+            .accounts
+            .token_account
+            .is_owned_by(&TOKEN_2022_PROGRAM_ID)
+        {
             // Check Discriminator
             let data = self.accounts.token_account.try_borrow_data()?;
             unsafe { Token::check_discriminator_unchecked(&data)? };
