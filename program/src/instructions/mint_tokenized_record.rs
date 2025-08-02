@@ -12,11 +12,7 @@ use crate::{
             TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN,
             TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN,
             TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID,
-        },
-        InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember,
-        InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
-        InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked,
-        UpdateMetadata,
+        }, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, Token, UpdateMetadata
     },
     utils::Context,
 };
@@ -436,6 +432,20 @@ impl<'info> MintTokenizedRecord<'info> {
     }
 
     fn initialize_token_account(&self) -> Result<(), ProgramError> {
+        // Check if the token account already exists
+        if self.accounts.token_account.is_owned_by(&TOKEN_2022_PROGRAM_ID) {
+            // Check Discriminator
+            let data = self.accounts.token_account.try_borrow_data()?;
+            unsafe { Token::check_discriminator_unchecked(&data)? };
+
+            // Check Ownership
+            if unsafe { Token::get_owner_unchecked(&data)? }.ne(self.accounts.owner.key()) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            return Ok(());
+        }
+
         Create {
             funding_account: self.accounts.payer,
             account: self.accounts.token_account,

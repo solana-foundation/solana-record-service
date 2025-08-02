@@ -226,6 +226,7 @@ impl<'info> Record<'info> {
         }
 
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
+
         Self::validate_delegate(class, authority)
     }
 

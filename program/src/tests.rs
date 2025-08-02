@@ -430,6 +430,76 @@ fn keyed_account_for_mint(record: Pubkey) -> (Pubkey, Account) {
     (address, record_mint_account)
 }
 
+const MINT_METADATA_EXTENSION_UPDATED: &[u8] = &[
+    19, 0, 92, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
+    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+    5, 0, 0, 0, 116, 101, 115, 116, 50, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0,
+    0, 0,
+];
+const MINT_GROUP_MEMBER_EXTENSION_UPDATED: &[u8] = &[
+    23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
+    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 52, 137, 177, 136, 59, 205, 145, 103,
+    193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152,
+    136, 141, 87, 92, 2, 0, 0, 0, 0, 0, 0, 0,
+];
+
+fn keyed_account_for_updated_mint(record: Pubkey) -> (Pubkey, Account) {
+    let (address, _bump) =
+        Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+
+    // Base data (82) + 84 (padding + account_type) + Extensions (36 + 36 + 68) + Metadata (83 + name.len() + uri.len())
+    let total_size = MINT_DATA_WITH_EXTENSIONS.len()
+        + MINT_CLOSE_AUTHORITY_EXTENSION.len()
+        + MINT_PERMANENT_DELEGATE_EXTENSION.len()
+        + MINT_METADATA_POINTER_EXTENSION.len()
+        + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()
+        + MINT_METADATA_EXTENSION_UPDATED.len()
+        + MINT_GROUP_MEMBER_EXTENSION_UPDATED.len();
+
+    let mut mint_account_data = vec![0u8; total_size];
+
+    // Mint Data
+    mint_account_data[0..MINT_DATA_WITH_EXTENSIONS.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS);
+    let mut offset = MINT_DATA_WITH_EXTENSIONS.len();
+    // Close Authority Extension
+    mint_account_data[offset..offset + MINT_CLOSE_AUTHORITY_EXTENSION.len()]
+        .copy_from_slice(MINT_CLOSE_AUTHORITY_EXTENSION);
+    offset += MINT_CLOSE_AUTHORITY_EXTENSION.len();
+    // Permanent Delegate Extension
+    mint_account_data[offset..offset + MINT_PERMANENT_DELEGATE_EXTENSION.len()]
+        .copy_from_slice(MINT_PERMANENT_DELEGATE_EXTENSION);
+    offset += MINT_PERMANENT_DELEGATE_EXTENSION.len();
+    // Metadata Pointer Extension
+    mint_account_data[offset..offset + MINT_METADATA_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_METADATA_POINTER_EXTENSION);
+    offset += MINT_METADATA_POINTER_EXTENSION.len();
+    // Group Pointer Extension
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_POINTER_EXTENSION.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_POINTER_EXTENSION);
+    offset += MINT_GROUP_MEMBER_POINTER_EXTENSION.len();
+    // Metadata Extension
+    mint_account_data[offset..offset + MINT_METADATA_EXTENSION_UPDATED.len()]
+        .copy_from_slice(MINT_METADATA_EXTENSION_UPDATED);
+    offset += MINT_METADATA_EXTENSION_UPDATED.len();
+    // Group Extension
+    mint_account_data[offset..offset + MINT_GROUP_MEMBER_EXTENSION_UPDATED.len()]
+        .copy_from_slice(MINT_GROUP_MEMBER_EXTENSION_UPDATED);
+
+    // Create the mint account
+    let mut record_mint_account = Account::new(
+        100_000_000u64,
+        mint_account_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    record_mint_account
+        .data_as_mut_slice()
+        .copy_from_slice(&mint_account_data);
+
+    (address, record_mint_account)
+}
+
 const MINT_METADATA_EXTENSIONE_WITH_ADDITIONAL_METADATA: &[u8; 111] = &[
     19, 0, 107, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19,
     33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101,
@@ -2383,6 +2453,145 @@ fn mint_and_burn_tokenized_record_delegate() {
             (class, class_data),
             (group, Account::default()),
             (token_account, Account::default()),
+            (associated_token_program, associated_token_program_data),
+            (token2022, token2022_data),
+            (system_program, system_program_data),
+        ],
+    );
+}
+
+#[test]
+fn update_tokenized_record() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class
+    let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
+    // Mint
+    let (record_address, _) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    let (mint, mint_data) = keyed_account_for_mint(record_address);
+    // Record
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    // ATA
+    let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    let burn_instruction = BurnTokenizedRecord {
+        authority,
+        payer,
+        record,
+        mint,
+        token_account,
+        token2022,
+        class: Some(class),
+    }
+    .instruction();
+
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+
+    // New metadata
+    let new_metadata = Metadata {
+        name: make_u32prefix_string("test2"),
+        symbol: make_u32prefix_string("SRS"),
+        uri: make_u32prefix_string("test"),
+        additional_metadata: vec![],
+    };
+
+    // Record updated
+    let (_, record_data_updated) = keyed_account_for_record_with_metadata(
+        class,
+        0,
+        owner,
+        false,
+        0,
+        "test",
+        Some(&new_metadata.try_to_vec().unwrap()),
+    );
+
+    //System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let update_instruction = UpdateRecordTokenizable {
+        authority: owner,
+        payer,
+        record,
+        system_program,
+        class: None,
+    }
+    .instruction(UpdateRecordTokenizableInstructionArgs {
+        metadata: Metadata {
+            name: make_u32prefix_string("test2"),
+            symbol: make_u32prefix_string("SRS"),
+            uri: make_u32prefix_string("test"),
+            additional_metadata: vec![],
+        },
+    });
+
+    // Group
+    let (group, group_data) = keyed_account_for_group(class);
+    // Associated Token Program
+    let (associated_token_program, associated_token_program_data) =
+        mollusk_svm_programs_token::associated_token::keyed_account();
+
+    // New Mint 
+    let (_, new_mint_data) = keyed_account_for_updated_mint(record);
+
+    let mint_instruction = MintTokenizedRecord {
+        owner,
+        payer: authority,
+        authority,
+        record,
+        mint,
+        class,
+        group,
+        token_account,
+        associated_token_program,
+        token2022,
+        system_program,
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    mollusk.process_and_validate_instruction_chain(
+        &[
+            (&burn_instruction, &[Check::success()]),
+            (
+                &update_instruction, 
+                &[
+                    Check::success(),
+                    Check::account(&record).data(&record_data_updated.data).build()
+                ]
+            ),
+            (
+                &mint_instruction, 
+                &[
+                    Check::success(),
+                    Check::account(&mint).data(&new_mint_data.data).build()
+                ]
+            ),
+        ],
+        &[
+            (owner, owner_data),
+            (payer, payer_data),
+            (authority, authority_data),
+            (record, record_data),
+            (mint, mint_data),
+            (class, class_data),
+            (group, group_data),
+            (token_account, token_account_data),
             (associated_token_program, associated_token_program_data),
             (token2022, token2022_data),
             (system_program, system_program_data),

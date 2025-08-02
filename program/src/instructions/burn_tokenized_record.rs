@@ -6,11 +6,7 @@ use crate::{
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    ProgramResult,
+    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::try_find_program_address, ProgramResult
 };
 
 /// BurnTokenizedRecord instruction.
@@ -34,7 +30,6 @@ use pinocchio::{
 ///    a. The record owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
 pub struct BurnTokenizedRecordAccounts<'info> {
-    _authority: &'info AccountInfo,
     payer: &'info AccountInfo,
     record: &'info AccountInfo,
     mint: &'info AccountInfo,
@@ -45,7 +40,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
     type Error = ProgramError;
 
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        let [_authority, payer, mint, token_account, record, _token_2022_program, rest @ ..] =
+        let [authority, payer, mint, token_account, record, _token_2022_program, rest @ ..] =
             accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
@@ -55,13 +50,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
         Record::check_owner_or_delegate_tokenized(
             record,
             rest.first(),
-            _authority,
+            authority,
             mint,
             token_account,
         )?;
 
         Ok(Self {
-            _authority,
             payer,
             record,
             mint,
@@ -123,7 +117,7 @@ impl<'info> BurnTokenizedRecord<'info> {
             destination: self.accounts.payer,
             authority: self.accounts.mint,
         }
-        .invoke_signed(&signers)?;
+        .invoke_signed(&signers)?;        
 
         // Set the record owner, to the owner of the token account and the owner type to pubkey
         let record_owner =
