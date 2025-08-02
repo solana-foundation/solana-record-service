@@ -1,3 +1,6 @@
+pub mod initialize_account_3;
+pub use initialize_account_3::*;
+
 pub mod initialize_mint_close_authority;
 pub use initialize_mint_close_authority::*;
 
