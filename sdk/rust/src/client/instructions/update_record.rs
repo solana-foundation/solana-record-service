@@ -120,32 +120,32 @@ impl UpdateRecordBuilder {
     }
     /// Record owner or class authority for permissioned classes
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// Account that will pay of get refunded for the record update
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn payer(&mut self, payer: solana_pubkey::Pubkey) -> &mut Self {
         self.payer = Some(payer);
         self
     }
     /// Record account to be updated
     #[inline(always)]
-    pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn record(&mut self, record: solana_pubkey::Pubkey) -> &mut Self {
         self.record = Some(record);
         self
     }
     /// Class account of the record
     #[inline(always)]
-    pub fn class(&mut self, class: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn class(&mut self, class: solana_pubkey::Pubkey) -> &mut Self {
         self.class = Some(class);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
     /// System Program used to extend our record account
     #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn system_program(&mut self, system_program: solana_pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
         self
     }
