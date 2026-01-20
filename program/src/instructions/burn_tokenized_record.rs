@@ -1,15 +1,19 @@
+use core::mem::size_of;
+
 use crate::{
-    state::{OwnerType, Record},
+    state::{OwnerType, Record, OWNER_OFFSET, IS_FROZEN_OFFSET},
     token2022::{BurnChecked, CloseAccount, ThawAccount, Token},
     utils::Context,
 };
+
+const OWNER_TYPE_OFFSET: usize = OWNER_OFFSET - size_of::<u8>();
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::try_find_program_address,
+    pubkey::{try_find_program_address, Pubkey},
     ProgramResult,
 };
 
@@ -136,24 +140,15 @@ impl<'info> BurnTokenizedRecord<'info> {
         }
         .invoke_signed(&signers)?;
 
-        // Set the record owner, to the owner of the token account and the owner type to pubkey
+        // Set the record owner to the owner of the token account and the owner type to pubkey
         let record_owner =
             unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
 
-        unsafe {
-            Record::update_is_frozen_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                is_frozen,
-            )?;
-            Record::update_owner_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                &record_owner,
-            )?;
-            Record::update_owner_type_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                OwnerType::Pubkey,
-            )?;
-        };
+        // Direct byte writes - bypasses frozen check since we're de-tokenizing
+        let mut data = self.accounts.record.try_borrow_mut_data()?;
+        data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()].copy_from_slice(&record_owner);
+        data[OWNER_TYPE_OFFSET] = OwnerType::Pubkey as u8;
+        data[IS_FROZEN_OFFSET] = is_frozen as u8;
 
         Ok(())
     }

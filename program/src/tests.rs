@@ -3152,3 +3152,59 @@ fn test_delete_tokenized_record_succeeds_for_class_authority_after_external_burn
         ],
     );
 }
+
+#[test]
+fn test_burn_frozen_tokenized_record_succeeds() {
+
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Mint
+    let (record_address, _) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    let (mint, mint_data) = keyed_account_for_mint(record_address);
+    // Record - frozen (is_frozen = true)
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, true, 0, b"test", b"test");
+    // ATA - frozen (is_frozen = true)
+    let (token_account, token_account_data) = keyed_account_for_token(owner, mint, true);
+
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    let instruction = BurnTokenizedRecord {
+        authority: owner,
+        payer,
+        record,
+        mint,
+        token_account,
+        token2022,
+        class: None,
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (payer, payer_data),
+            (record, record_data),
+            (mint, mint_data),
+            (token_account, token_account_data),
+            (token2022, token2022_data),
+        ],
+        &[Check::success()],
+    );
+}
