@@ -1577,10 +1577,10 @@ fn delete_record_with_delegate() {
 
 #[test]
 fn delete_tokenized_record_with_no_supply() {
-    // Owner
-    let (owner, owner_data) = keyed_account_for_owner();
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
     // Class
-    let (class, _) = keyed_account_for_class_default();
+    let (class, class_data) = keyed_account_for_class_default();
     // Mint
     let (record, _bump) = Pubkey::find_program_address(
         &[b"record", &class.as_ref(), b"test"],
@@ -1593,12 +1593,12 @@ fn delete_tokenized_record_with_no_supply() {
         keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // Token2022 Program
     let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
-   
+
     let instruction = DeleteRecord {
-        authority: owner,
-        payer: owner,
+        authority,
+        payer: authority,
         record,
-        class: None,
+        class: Some(class),
         token2022_program: Some(token2022_program),
         mint: Some(mint),
     }
@@ -1614,8 +1614,9 @@ fn delete_tokenized_record_with_no_supply() {
     mollusk.process_and_validate_instruction(
         &instruction,
         &[
-            (owner, owner_data),
+            (authority, authority_data),
             (record, record_data),
+            (class, class_data),
             (mint, mint_data),
             (token2022_program, token2022_program_data),
         ],
@@ -3029,4 +3030,125 @@ fn test_create_class_with_prefunded_account_calculates_lamports_correctly() {
     // Verify the class was created with correct rent
     let class_account = result.get_account(&class).unwrap();
     assert!(class_account.lamports > prefund_amount, "Class should have more lamports than pre-funded amount");
+}
+
+#[test]
+fn test_delete_tokenized_record_requires_class_authority_after_external_burn() {
+    // Use a random attacker as authority (not the class authority)
+    let attacker = Pubkey::new_from_array([0xee; 32]);
+    let attacker_data = Account::new(100_000_000_000u64, 0, &Pubkey::default());
+
+    // Class
+    let (class, class_data) = keyed_account_for_class_default();
+
+    // Record - use b"test" seed to match keyed_account_for_mint
+    let (record, _bump) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    // Mint (with 0 supply - externally burned)
+    let (mint, mut mint_data) = keyed_account_for_mint(record);
+    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
+
+    // Record with Token owner type (owner_type = 1)
+    let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+
+    // Token2022 Program
+    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    // Build instruction as attacker (not class authority)
+    let instruction = DeleteRecord {
+        authority: attacker,
+        payer: attacker,
+        record,
+        class: Some(class),
+        token2022_program: Some(token2022_program),
+        mint: Some(mint),
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    // Should fail because attacker is not the class authority
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (attacker, attacker_data),
+            (record, record_data),
+            (class, class_data),
+            (token2022_program, token2022_program_data),
+            (mint, mint_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}
+
+#[test]
+fn test_delete_tokenized_record_succeeds_for_class_authority_after_external_burn() {
+    // This test verifies that the class authority CAN delete tokenized records after external burn.
+
+    // Authority (class authority)
+    let (authority, authority_data) = keyed_account_for_authority();
+
+    // Class
+    let (class, class_data) = keyed_account_for_class_default();
+
+    // Record - use b"test" seed to match keyed_account_for_mint
+    let (record, _bump) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    // Mint (with 0 supply - externally burned)
+    let (mint, mut mint_data) = keyed_account_for_mint(record);
+    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
+
+    // Record with Token owner type (owner_type = 1)
+    let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+
+    // Token2022 Program
+    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    // Build instruction as class authority
+    let instruction = DeleteRecord {
+        authority,
+        payer: authority,
+        record,
+        class: Some(class),
+        token2022_program: Some(token2022_program),
+        mint: Some(mint),
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    // The instruction should succeed because authority IS the class authority
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+            (token2022_program, token2022_program_data),
+            (mint, mint_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record).data(&[0xff]).build(),
+            Check::account(&mint).data(&[]).build(),
+        ],
+    );
 }

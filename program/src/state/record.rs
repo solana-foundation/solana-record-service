@@ -120,6 +120,13 @@ impl<'info> Record<'info> {
                 return Err(ProgramError::InvalidAccountData);
             }
 
+            // Require class authority to clean up externally burned tokenized records
+            let class = class.ok_or(ProgramError::InvalidAccountData)?;
+            if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            Class::check_authority(class, authority)?;
+
             // Close the Mint and get back the rent
             let bump = [
             try_find_program_address(&[b"mint", record.key()], &crate::ID)
@@ -132,9 +139,9 @@ impl<'info> Record<'info> {
                 Seed::from(record.key()),
                 Seed::from(&bump),
             ];
-    
+
             let signers = [Signer::from(&seeds)];
-    
+
             // Close the mint account
             CloseAccount {
                 account: mint,
