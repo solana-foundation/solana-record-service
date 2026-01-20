@@ -7,6 +7,7 @@ const TOKEN_IS_FROZEN_FLAG: u8 = 2;
 const MINT_DISCRIMINATOR: u8 = 0x01;
 const TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 0x02;
 const TOKEN_ACCOUNT_SUPPLY_OFFSET: usize = 36;
+const TOKEN_2022_MULTISIG_SIZE: usize = 355;
 
 #[repr(C)]
 pub struct Mint<'info> {
@@ -25,6 +26,10 @@ impl<'info> Mint<'info> {
     /// # Safety
     /// Token Program ID is not checked
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
+        // Reject Multisig accounts (fixed size of 355 bytes)
+        if data.len() == TOKEN_2022_MULTISIG_SIZE {
+            return Err(ProgramError::InvalidAccountData);
+        }
         if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -38,6 +43,11 @@ impl<'info> Mint<'info> {
         }
 
         let data = account_info.try_borrow_data()?;
+
+        // Reject Multisig accounts (fixed size of 355 bytes)
+        if data.len() == TOKEN_2022_MULTISIG_SIZE {
+            return Ok(false);
+        }
 
         if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&MINT_DISCRIMINATOR) {
             return Ok(false);
@@ -88,6 +98,10 @@ impl<'info> Token<'info> {
     /// # Safety
     /// Token Program ID is not checked
     pub unsafe fn check_discriminator_unchecked(data: &[u8]) -> Result<(), ProgramError> {
+        // Reject Multisig accounts (fixed size of 355 bytes)
+        if data.len() == TOKEN_2022_MULTISIG_SIZE {
+            return Err(ProgramError::InvalidAccountData);
+        }
         if data[TOKEN_2022_ACCOUNT_DISCRIMINATOR_OFFSET].ne(&TOKEN_ACCOUNT_DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
         }

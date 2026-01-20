@@ -3208,3 +3208,167 @@ fn test_burn_frozen_tokenized_record_succeeds() {
         &[Check::success()],
     );
 }
+
+/// Creates a fake Multisig account with 355 bytes (Token22 Multisig size)
+/// This account could potentially pass the discriminator check at offset 165
+/// if not properly validated
+fn keyed_account_for_multisig_as_mint(record: Pubkey) -> (Pubkey, Account) {
+    let (address, _bump) =
+        Pubkey::find_program_address(&[b"mint", &record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+
+    // Multisig accounts have a fixed size of 355 bytes
+    let mut multisig_data = vec![0u8; 355];
+    // Set byte at offset 165 to match MINT_DISCRIMINATOR (0x01)
+    multisig_data[165] = 0x01;
+
+    let mut multisig_account = Account::new(
+        100_000_000u64,
+        multisig_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    multisig_account
+        .data_as_mut_slice()
+        .copy_from_slice(&multisig_data);
+
+    (address, multisig_account)
+}
+
+fn keyed_account_for_multisig_as_token(owner: Pubkey, mint: Pubkey) -> (Pubkey, Account) {
+    let (address, _bump) = Pubkey::find_program_address(
+        &[
+            owner.as_ref(),
+            mollusk_svm_programs_token::token2022::ID.as_ref(),
+            mint.as_ref(),
+        ],
+        &mollusk_svm_programs_token::associated_token::ID,
+    );
+
+    // Multisig accounts have a fixed size of 355 bytes
+    let mut multisig_data = vec![0u8; 355];
+    // Set byte at offset 165 to match TOKEN_ACCOUNT_DISCRIMINATOR (0x02)
+    multisig_data[165] = 0x02;
+    // Set the mint at offset 0
+    multisig_data[0..32].copy_from_slice(&mint.to_bytes());
+    // Set the owner at offset 32
+    multisig_data[32..64].copy_from_slice(&owner.to_bytes());
+    // Set amount to 1 at offset 64
+    multisig_data[64..72].copy_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0]);
+
+    let mut multisig_account = Account::new(
+        100_000_000u64,
+        multisig_data.len(),
+        &TOKEN_2022_PROGRAM_ID,
+    );
+    multisig_account
+        .data_as_mut_slice()
+        .copy_from_slice(&multisig_data);
+
+    (address, multisig_account)
+}
+
+#[test]
+fn test_multisig_account_rejected_as_mint() {
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, 1, RANDOM_PUBKEY, false, 0, b"test", b"test");
+    // Fake mint using Multisig size (355 bytes)
+    let (mint, mint_data) = keyed_account_for_multisig_as_mint(record);
+    // Token account
+    let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
+
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    let instruction = BurnTokenizedRecord {
+        authority: owner,
+        payer,
+        record,
+        mint,
+        token_account,
+        token2022,
+        class: None,
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    // Should fail because Multisig accounts are rejected
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (payer, payer_data),
+            (record, record_data),
+            (mint, mint_data),
+            (token_account, token_account_data),
+            (token2022, token2022_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}
+
+#[test]
+fn test_multisig_account_rejected_as_token_account() {
+    // Owner
+    let (owner, owner_data) = keyed_account_for_owner();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class
+    let (class, _class_data) = keyed_account_for_class_default();
+    // Record
+    let (record_address, _) = Pubkey::find_program_address(
+        &[b"record", &class.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    // Mint
+    let (mint, mint_data) = keyed_account_for_mint(record_address);
+    // Record - owner_type = Token (1), owner = mint
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    // Fake token account using Multisig size (355 bytes)
+    let (token_account, token_account_data) = keyed_account_for_multisig_as_token(owner, mint);
+
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+
+    let instruction = BurnTokenizedRecord {
+        authority: owner,
+        payer,
+        record,
+        mint,
+        token_account,
+        token2022,
+        class: None,
+    }
+    .instruction();
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    // Should fail because Multisig accounts are rejected
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (payer, payer_data),
+            (record, record_data),
+            (mint, mint_data),
+            (token_account, token_account_data),
+            (token2022, token2022_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}
