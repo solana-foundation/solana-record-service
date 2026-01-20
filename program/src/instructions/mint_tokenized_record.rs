@@ -17,7 +17,7 @@ use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program_error::ProgramError,
-    pubkey::{find_program_address, try_find_program_address, Pubkey},
+    pubkey::{find_program_address, Pubkey},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
@@ -58,6 +58,8 @@ pub struct MintTokenizedRecordAccounts<'info> {
     token_account: &'info AccountInfo,
     token_2022_program: &'info AccountInfo,
     system_program: &'info AccountInfo,
+    mint_bump: u8,
+    group_bump: u8,
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info> {
@@ -93,9 +95,14 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let group_key = find_program_address(&[b"group", class.key()], &ID).0;
+        let (group_key, group_bump) = find_program_address(&[b"group", class.key()], &ID);
         if group_key.ne(group.key()) {
             return Err(ProgramError::InvalidAccountData);
+        }
+
+        let (mint_key, mint_bump) = find_program_address(&[b"mint", record.key()], &ID);
+        if mint_key.ne(mint.key()) {
+            return Err(ProgramError::InvalidSeeds);
         }
 
         Ok(Self {
@@ -108,6 +115,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
             token_account,
             token_2022_program,
             system_program,
+            mint_bump,
+            group_bump,
         })
     }
 }
@@ -135,9 +144,8 @@ impl<'info> MintTokenizedRecord<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        // Get Mint length
-        let mint_bump = self.derive_mint_address_bump()?;
-        let group_bump = self.derive_group_address_bump()?;
+        let mint_bump = [self.accounts.mint_bump];
+        let group_bump = [self.accounts.group_bump];
 
         // Check if the group already exists
         if !Mint::check_discriminator(self.accounts.group)? {
@@ -196,22 +204,6 @@ impl<'info> MintTokenizedRecord<'info> {
 
         // 3. Update the record_type to be tokenized
         unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }
-    }
-
-    fn derive_mint_address_bump(&self) -> Result<[u8; 1], ProgramError> {
-        let seeds = [b"mint", self.accounts.record.key().as_ref()];
-
-        Ok([try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1])
-    }
-
-    fn derive_group_address_bump(&self) -> Result<[u8; 1], ProgramError> {
-        let seeds = [b"group", self.accounts.class.key().as_ref()];
-
-        Ok([try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1])
     }
 
     fn create_group_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {

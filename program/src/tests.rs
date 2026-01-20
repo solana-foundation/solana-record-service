@@ -2627,3 +2627,277 @@ fn update_tokenized_record() {
         ],
     );
 }
+
+#[test]
+fn test_create_record_rejects_non_canonical_pda() {
+    let (class, class_data) = keyed_account_for_class_default();
+    let (owner, owner_data) = keyed_account_for_owner();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    // Use an arbitrary keypair instead of the correct PDA
+    let arbitrary_record_key = Pubkey::new_from_array([0xef; 32]);
+
+    let seed = b"test";
+
+    // Verify this is NOT the correct PDA
+    let (correct_pda, _bump) = Pubkey::find_program_address(
+        &[b"record", class.as_ref(), seed],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    assert_ne!(arbitrary_record_key, correct_pda, "Test setup error: arbitrary key should not match PDA");
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new_readonly(owner, true),    // owner
+        AccountMeta::new(owner, true),             // payer
+        AccountMeta::new(class, false),            // class
+        AccountMeta::new(arbitrary_record_key, true), // record - arbitrary key instead of PDA
+        AccountMeta::new_readonly(system_program, false), // system_program
+    ];
+
+    let expiration: i64 = 0;
+    let data = b"test";
+
+    // Build instruction data: discriminator (4) + expiry (i64) + seed_len (u8) + seed + data
+    let mut instruction_data = vec![4u8]; // CreateRecord discriminator
+    instruction_data.extend_from_slice(&expiration.to_le_bytes());
+    instruction_data.push(seed.len() as u8);
+    instruction_data.extend_from_slice(seed);
+    instruction_data.extend_from_slice(data);
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // The instruction should FAIL with InvalidSeeds because the record account
+    // does not match the expected PDA
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (arbitrary_record_key, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidSeeds)],
+    );
+}
+
+#[test]
+fn test_create_record_rejects_wrong_pda_different_seed() {
+    // Test that using a PDA derived with a different seed fails
+
+    let (class, class_data) = keyed_account_for_class_default();
+    let (owner, owner_data) = keyed_account_for_owner();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    // Derive a PDA with a different seed
+    let wrong_seed = b"wrong_seed";
+    let correct_seed = b"test";
+
+    let (wrong_pda, _bump) = Pubkey::find_program_address(
+        &[b"record", class.as_ref(), wrong_seed],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    let (correct_pda, _bump) = Pubkey::find_program_address(
+        &[b"record", class.as_ref(), correct_seed],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    assert_ne!(wrong_pda, correct_pda, "Test setup error: PDAs should differ");
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new_readonly(owner, true),
+        AccountMeta::new(owner, true),
+        AccountMeta::new(class, false),
+        AccountMeta::new(wrong_pda, true), // Wrong PDA (derived with different seed)
+        AccountMeta::new_readonly(system_program, false),
+    ];
+
+    let expiration: i64 = 0;
+    let data = b"test";
+
+    // Instruction data uses correct_seed, but account is wrong_pda
+    let mut instruction_data = vec![4u8];
+    instruction_data.extend_from_slice(&expiration.to_le_bytes());
+    instruction_data.push(correct_seed.len() as u8);
+    instruction_data.extend_from_slice(correct_seed);
+    instruction_data.extend_from_slice(data);
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // Should fail because the provided PDA doesn't match the expected PDA for the given seed
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (wrong_pda, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidSeeds)],
+    );
+}
+
+#[test]
+fn test_create_class_rejects_non_canonical_pda() {
+    let (authority, authority_data) = keyed_account_for_authority();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    // Use an arbitrary keypair instead of the correct PDA
+    let arbitrary_class_key = Pubkey::new_from_array([0xef; 32]);
+
+    let name = "test";
+
+    // Verify this is NOT the correct PDA
+    let (correct_pda, _bump) = Pubkey::find_program_address(
+        &[b"class", authority.as_ref(), name.as_bytes()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    assert_ne!(arbitrary_class_key, correct_pda, "Test setup error: arbitrary key should not match PDA");
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new(authority, true),         // authority
+        AccountMeta::new(authority, true),         // payer
+        AccountMeta::new(arbitrary_class_key, true), // class - arbitrary key instead of PDA
+        AccountMeta::new_readonly(system_program, false), // system_program
+    ];
+
+    let metadata = "test";
+
+    // Build instruction data: discriminator (0) + is_permissioned (bool) + is_frozen (bool) + name_len (u8) + name + metadata
+    let mut instruction_data = vec![0u8]; // CreateClass discriminator
+    instruction_data.push(0u8); // is_permissioned = false
+    instruction_data.push(0u8); // is_frozen = false
+    instruction_data.push(name.len() as u8);
+    instruction_data.extend_from_slice(name.as_bytes());
+    instruction_data.extend_from_slice(metadata.as_bytes());
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // The instruction should FAIL with InvalidSeeds because the class account
+    // does not match the expected PDA
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (arbitrary_class_key, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidSeeds)],
+    );
+}
+
+#[test]
+fn test_mint_tokenized_record_rejects_non_canonical_mint_pda() {
+    let (owner, owner_data) = keyed_account_for_owner();
+    let (class, class_data) = keyed_account_for_class_default();
+    let (record, record_data) =
+        keyed_account_for_record_with_metadata(class, 0, owner, false, 0, "test", None);
+
+    // Use an arbitrary keypair instead of the correct mint PDA
+    let arbitrary_mint_key = Pubkey::new_from_array([0xef; 32]);
+
+    // Verify this is NOT the correct mint PDA
+    let (correct_mint_pda, _bump) = Pubkey::find_program_address(
+        &[b"mint", record.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+    assert_ne!(arbitrary_mint_key, correct_mint_pda, "Test setup error: arbitrary key should not match mint PDA");
+
+    // Group - use correct PDA
+    let (group, _) = keyed_account_for_group(class);
+
+    // ATA - need to derive based on the arbitrary mint
+    let (token_account, _) = Pubkey::find_program_address(
+        &[owner.as_ref(), TOKEN_2022_PROGRAM_ID.as_ref(), arbitrary_mint_key.as_ref()],
+        &mollusk_svm_programs_token::associated_token::ID,
+    );
+
+    let (associated_token_program, associated_token_program_data) =
+        mollusk_svm_programs_token::associated_token::keyed_account();
+    let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new_readonly(owner, false),     // owner
+        AccountMeta::new(owner, true),               // payer
+        AccountMeta::new_readonly(owner, true),      // authority
+        AccountMeta::new(record, false),             // record
+        AccountMeta::new(arbitrary_mint_key, true),  // mint - arbitrary key instead of PDA
+        AccountMeta::new(class, false),              // class
+        AccountMeta::new(group, false),              // group
+        AccountMeta::new(token_account, false),      // token_account
+        AccountMeta::new_readonly(associated_token_program, false),
+        AccountMeta::new_readonly(token2022, false),
+        AccountMeta::new_readonly(system_program, false),
+    ];
+
+    // Discriminator 10 = MintTokenizedRecord (no additional data needed)
+    let instruction_data = vec![10u8];
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mut mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
+    mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
+
+    // The instruction should FAIL with InvalidSeeds because the mint account
+    // does not match the expected PDA
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (record, record_data),
+            (arbitrary_mint_key, Account::default()),
+            (class, class_data),
+            (group, Account::default()),
+            (token_account, Account::default()),
+            (associated_token_program, associated_token_program_data),
+            (token2022, token2022_data),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidSeeds)],
+    );
+}

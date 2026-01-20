@@ -144,9 +144,15 @@ impl<'info> CreateClass<'info> {
             self.name.as_bytes(),
         ];
 
-        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1];
+        let (expected_pda, bump) = try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?;
+
+        // Verify the provided class account matches the expected PDA
+        if self.accounts.class.key().ne(&expected_pda) {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let bump: [u8; 1] = [bump];
 
         let seeds = [
             Seed::from(b"class"),

@@ -133,9 +133,15 @@ impl<'info> CreateRecord<'info> {
 
         let seeds = [b"record", self.accounts.class.key().as_ref(), self.seed];
 
-        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1];
+        let (expected_pda, bump) = try_find_program_address(&seeds, &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?;
+
+        // Verify the provided record account matches the expected PDA
+        if self.accounts.record.key().ne(&expected_pda) {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let bump: [u8; 1] = [bump];
 
         let seeds = [
             Seed::from(b"record"),
