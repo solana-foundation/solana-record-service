@@ -3417,3 +3417,78 @@ fn test_update_record_data_fails_when_frozen() {
         &[Check::err(ProgramError::InvalidAccountData)],
     );
 }
+
+#[test]
+fn test_update_class_metadata_fails_when_frozen() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class - frozen (is_frozen = true)
+    let (class, class_data) = keyed_account_for_class(AUTHORITY, false, true, "test", "test");
+    // System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = UpdateClassMetadata {
+        authority,
+        payer,
+        class,
+        system_program,
+    }
+    .instruction(UpdateClassMetadataInstructionArgs {
+        metadata: RemainderStr::from_str("modified").unwrap(),
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // Should fail because class is frozen
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (payer, payer_data),
+            (class, class_data),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}
+
+#[test]
+fn test_update_class_authority_fails_when_frozen() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // New Authority
+    let (new_authority, _) = keyed_account_for_random_authority();
+    // Class - frozen (is_frozen = true)
+    let (class, class_data) = keyed_account_for_class(AUTHORITY, false, true, "test", "test");
+    // System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = UpdateClassAuthority {
+        authority,
+        payer: authority,
+        class,
+        system_program,
+    }
+    .instruction(UpdateClassAuthorityInstructionArgs { new_authority });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // Should fail because class is frozen
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (class, class_data),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}

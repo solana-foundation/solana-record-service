@@ -136,6 +136,10 @@ impl<'info> Class<'info> {
     ) -> Result<(), ProgramError> {
         let mut data = class.try_borrow_mut_data()?;
 
+        if data[IS_FROZEN_OFFSET].eq(&1u8) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()].clone_from_slice(&authority);
 
         Ok(())
@@ -152,6 +156,9 @@ impl<'info> Class<'info> {
     ) -> Result<(), ProgramError> {
         let name_len = {
             let data_ref = class.try_borrow_data()?;
+            if data_ref[IS_FROZEN_OFFSET].eq(&1u8) {
+                return Err(ProgramError::InvalidAccountData);
+            }
             data_ref[NAME_LEN_OFFSET] as usize
         };
 
