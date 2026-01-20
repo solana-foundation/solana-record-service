@@ -136,7 +136,6 @@ impl<'info> CreateClass<'info> {
     pub fn execute(&self) -> ProgramResult {
         let space = Class::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
         let rent = Rent::get()?.minimum_balance(space);
-        let lamports = rent.saturating_sub(self.accounts.class.lamports());
 
         let seeds = [
             b"class",
@@ -164,7 +163,8 @@ impl<'info> CreateClass<'info> {
         let signers = [Signer::from(&seeds)];
 
         // Create the account with our program as owner
-        if self.accounts.class.lamports() > 0 {
+        let current_lamports = self.accounts.class.lamports();
+        if current_lamports > 0 {
             Allocate {
                 account: self.accounts.class,
                 space: space as u64,
@@ -177,11 +177,12 @@ impl<'info> CreateClass<'info> {
             }
             .invoke_signed(&signers)?;
 
-            if self.accounts.class.lamports() < lamports {
+            // Transfer only the delta needed to reach rent-exemption
+            if current_lamports < rent {
                 Transfer {
                     from: self.accounts.payer,
                     to: self.accounts.class,
-                    lamports: lamports - self.accounts.class.lamports(),
+                    lamports: rent - current_lamports,
                 }
                 .invoke()?;
             }
@@ -189,7 +190,7 @@ impl<'info> CreateClass<'info> {
             CreateAccount {
                 from: self.accounts.payer,
                 to: self.accounts.class,
-                lamports,
+                lamports: rent,
                 space: space as u64,
                 owner: &crate::ID,
             }

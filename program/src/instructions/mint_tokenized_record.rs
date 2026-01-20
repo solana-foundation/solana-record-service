@@ -210,7 +210,7 @@ impl<'info> MintTokenizedRecord<'info> {
         // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN + TOKEN_2022_MINT_BASE_LEN + TOKEN_2022_GROUP_POINTER_LEN;
 
-        let lamports = Rent::get()?.minimum_balance(space + TOKEN_2022_GROUP_LEN);
+        let rent = Rent::get()?.minimum_balance(space + TOKEN_2022_GROUP_LEN);
 
         let seeds = [
             Seed::from(b"group"),
@@ -220,7 +220,8 @@ impl<'info> MintTokenizedRecord<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        if self.accounts.group.lamports() > 0 {
+        let current_lamports = self.accounts.group.lamports();
+        if current_lamports > 0 {
             Allocate {
                 account: self.accounts.group,
                 space: space as u64,
@@ -233,11 +234,12 @@ impl<'info> MintTokenizedRecord<'info> {
             }
             .invoke_signed(&signers)?;
 
-            if self.accounts.group.lamports() < lamports {
+            // Transfer only the delta needed to reach rent-exemption
+            if current_lamports < rent {
                 Transfer {
                     from: self.accounts.payer,
                     to: self.accounts.group,
-                    lamports: lamports - self.accounts.group.lamports(),
+                    lamports: rent - current_lamports,
                 }
                 .invoke()?;
             }
@@ -245,7 +247,7 @@ impl<'info> MintTokenizedRecord<'info> {
             CreateAccount {
                 from: self.accounts.payer,
                 to: self.accounts.group,
-                lamports,
+                lamports: rent,
                 space: space as u64,
                 owner: &TOKEN_2022_PROGRAM_ID,
             }
@@ -306,7 +308,7 @@ impl<'info> MintTokenizedRecord<'info> {
         // To avoid resizing the mint, we calculate the correct lamports for our token AOT with:
         // 1. `space` - The sum of the above static extension lengths
         // 2. `metadata_data.len()` - The full length of the metadata data
-        let lamports = Rent::get()?.minimum_balance(
+        let rent = Rent::get()?.minimum_balance(
             space
                 + unsafe {
                     Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)?
@@ -323,7 +325,8 @@ impl<'info> MintTokenizedRecord<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        if self.accounts.mint.lamports() > 0 {
+        let current_lamports = self.accounts.mint.lamports();
+        if current_lamports > 0 {
             Allocate {
                 account: self.accounts.mint,
                 space: space as u64,
@@ -336,11 +339,12 @@ impl<'info> MintTokenizedRecord<'info> {
             }
             .invoke_signed(&signers)?;
 
-            if self.accounts.mint.lamports() < lamports {
+            // Transfer only the delta needed to reach rent-exemption
+            if current_lamports < rent {
                 Transfer {
                     from: self.accounts.payer,
                     to: self.accounts.mint,
-                    lamports: lamports - self.accounts.mint.lamports(),
+                    lamports: rent - current_lamports,
                 }
                 .invoke()?;
             }
@@ -348,7 +352,7 @@ impl<'info> MintTokenizedRecord<'info> {
             CreateAccount {
                 from: self.accounts.payer,
                 to: self.accounts.mint,
-                lamports,
+                lamports: rent,
                 space: space as u64,
                 owner: &TOKEN_2022_PROGRAM_ID,
             }

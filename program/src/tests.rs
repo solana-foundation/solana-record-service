@@ -2901,3 +2901,132 @@ fn test_mint_tokenized_record_rejects_non_canonical_mint_pda() {
         &[Check::err(ProgramError::InvalidSeeds)],
     );
 }
+
+#[test]
+fn test_create_record_with_prefunded_account_calculates_lamports_correctly() {
+    let (class, class_data) = keyed_account_for_class_default();
+    let (owner, owner_data) = keyed_account_for_owner();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let seed = b"prefunded-test";
+    let data = b"test data";
+    let expiry: i64 = 0;
+
+    let (record, _) = Pubkey::find_program_address(
+        &[b"record", class.as_ref(), seed],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    // Pre-fund the record PDA with some lamports (simulating a partially funded account)
+    let prefund_amount = 50_000u64;
+    let mut prefunded_record_account = Account::default();
+    prefunded_record_account.lamports = prefund_amount;
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new_readonly(owner, true),    // owner
+        AccountMeta::new(owner, true),             // payer
+        AccountMeta::new(class, false),            // class
+        AccountMeta::new(record, false),           // record - correct PDA
+        AccountMeta::new_readonly(system_program, false), // system_program
+    ];
+
+    // Build instruction data: discriminator (4) + expiry (i64) + seed_len (u8) + seed + data
+    let mut instruction_data = vec![4u8]; // CreateRecord discriminator
+    instruction_data.extend_from_slice(&expiry.to_le_bytes());
+    instruction_data.push(seed.len() as u8);
+    instruction_data.extend_from_slice(seed);
+    instruction_data.extend_from_slice(data);
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // The instruction should succeed - the fix ensures the correct lamports delta is calculated
+    let result = mollusk.process_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (record, prefunded_record_account),
+            (system_program, system_program_data),
+        ],
+    );
+
+    assert!(!result.program_result.is_err(), "Record creation with pre-funded account should succeed");
+
+    // Verify the record was created with correct rent
+    let record_account = result.get_account(&record).unwrap();
+    assert!(record_account.lamports > prefund_amount, "Record should have more lamports than pre-funded amount");
+}
+
+#[test]
+fn test_create_class_with_prefunded_account_calculates_lamports_correctly() {
+    let name = "prefunded-class-test";
+    let metadata = "test metadata";
+
+    let (authority, authority_data) = keyed_account_for_authority();
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let (class, _) = Pubkey::find_program_address(
+        &[b"class", authority.as_ref(), name.as_bytes()],
+        &SOLANA_RECORD_SERVICE_ID,
+    );
+
+    // Pre-fund the class PDA with some lamports
+    let prefund_amount = 100_000u64;
+    let mut prefunded_class_account = Account::default();
+    prefunded_class_account.lamports = prefund_amount;
+
+    use solana_program::instruction::{AccountMeta, Instruction};
+
+    let accounts = vec![
+        AccountMeta::new_readonly(authority, true),  // authority
+        AccountMeta::new(authority, true),           // payer
+        AccountMeta::new(class, false),              // class - correct PDA
+        AccountMeta::new_readonly(system_program, false), // system_program
+    ];
+
+    // Build instruction data: discriminator (0) + is_permissioned (bool) + is_frozen (bool) + name_len (u8) + name + metadata
+    let mut instruction_data = vec![0u8]; // CreateClass discriminator
+    instruction_data.push(0u8); // is_permissioned = false
+    instruction_data.push(0u8); // is_frozen = false
+    instruction_data.push(name.len() as u8);
+    instruction_data.extend_from_slice(name.as_bytes());
+    instruction_data.extend_from_slice(metadata.as_bytes());
+
+    let instruction = Instruction {
+        program_id: SOLANA_RECORD_SERVICE_ID,
+        accounts,
+        data: instruction_data,
+    };
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // The instruction should succeed with the fix
+    let result = mollusk.process_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (class, prefunded_class_account),
+            (system_program, system_program_data),
+        ],
+    );
+
+    assert!(!result.program_result.is_err(), "Class creation with pre-funded account should succeed");
+
+    // Verify the class was created with correct rent
+    let class_account = result.get_account(&class).unwrap();
+    assert!(class_account.lamports > prefund_amount, "Class should have more lamports than pre-funded amount");
+}

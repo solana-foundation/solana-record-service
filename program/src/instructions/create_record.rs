@@ -129,7 +129,6 @@ impl<'info> CreateRecord<'info> {
     pub fn execute(&self) -> ProgramResult {
         let space = Record::MINIMUM_RECORD_SIZE + self.seed.len() + self.data.len();
         let rent = Rent::get()?.minimum_balance(space);
-        let lamports = rent.saturating_sub(self.accounts.record.lamports());
 
         let seeds = [b"record", self.accounts.class.key().as_ref(), self.seed];
 
@@ -153,7 +152,8 @@ impl<'info> CreateRecord<'info> {
         let signers = [Signer::from(&seeds)];
 
         // Create the account with our program as owner
-        if self.accounts.record.lamports() > 0 {
+        let current_lamports = self.accounts.record.lamports();
+        if current_lamports > 0 {
             Allocate {
                 account: self.accounts.record,
                 space: space as u64,
@@ -166,11 +166,12 @@ impl<'info> CreateRecord<'info> {
             }
             .invoke_signed(&signers)?;
 
-            if self.accounts.record.lamports() < lamports {
+            // Transfer only the delta needed to reach rent-exemption
+            if current_lamports < rent {
                 Transfer {
                     from: self.accounts.payer,
                     to: self.accounts.record,
-                    lamports: lamports - self.accounts.record.lamports(),
+                    lamports: rent - current_lamports,
                 }
                 .invoke()?;
             }
@@ -178,7 +179,7 @@ impl<'info> CreateRecord<'info> {
             CreateAccount {
                 from: self.accounts.payer,
                 to: self.accounts.record,
-                lamports,
+                lamports: rent,
                 space: space as u64,
                 owner: &crate::ID,
             }
