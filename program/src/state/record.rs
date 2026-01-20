@@ -368,6 +368,9 @@ impl<'info> Record<'info> {
     ) -> Result<(), ProgramError> {
         let seed_len = {
             let data_ref = record.try_borrow_data()?;
+            if data_ref[IS_FROZEN_OFFSET].eq(&1u8) {
+                return Err(ProgramError::InvalidAccountData);
+            }
             data_ref[SEED_LEN_OFFSET] as usize
         };
 

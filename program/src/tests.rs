@@ -3372,3 +3372,48 @@ fn test_multisig_account_rejected_as_token_account() {
         &[Check::err(ProgramError::InvalidAccountData)],
     );
 }
+
+#[test]
+fn test_update_record_data_fails_when_frozen() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Payer
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    // Class
+    let (class, class_data) = keyed_account_for_class_default();
+    // Record - frozen (is_frozen = true)
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
+
+    // System Program
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = UpdateRecord {
+        authority,
+        payer,
+        record,
+        class,
+        system_program,
+    }
+    .instruction(UpdateRecordInstructionArgs {
+        data: make_remainder_vec(b"modified"),
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/solana_record_service",
+    );
+
+    // Should fail because record is frozen
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (payer, payer_data),
+            (record, record_data),
+            (class, class_data),
+            (system_program, system_program_data),
+        ],
+        &[Check::err(ProgramError::InvalidAccountData)],
+    );
+}
