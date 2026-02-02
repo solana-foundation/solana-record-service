@@ -1,6 +1,6 @@
 use core::mem::size_of;
 use crate::{
-    state::{Class, Record, CLASS_OFFSET},
+    state::{Class, Record, CLASS_OFFSET, IS_PERMISSIONED_OFFSET},
     utils::{ByteReader, Context},
 };
 #[cfg(not(feature = "perf"))]
@@ -40,15 +40,29 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Check if authority is the record owner or has a delegate
-        Class::check_authority(class, authority)?;
-
-        // Check if the Record is correct
+        // Check class + record are valid
+        Class::check_program_id(class)?;
         Record::check_program_id_and_discriminator(record)?;
 
         // Check if the class is the correct class
-        if class.key().ne(&record.try_borrow_data()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&record.try_borrow_data()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Permissioned classes: only class authority can update
+        let class_data = class.try_borrow_data()?;
+        unsafe { Class::check_discriminator_unchecked(&class_data)? };
+
+        if class_data[IS_PERMISSIONED_OFFSET].eq(&1u8) {
+            unsafe { Class::check_authority_unchecked(&class_data, authority)? };
+        } else {
+            // Permissionless: allow class authority or record owner
+            if unsafe { Class::check_authority_unchecked(&class_data, authority) }.is_err() {
+                Record::check_owner_or_delegate(record, Some(class), authority)?;
+            }
         }
 
         Ok(Self { payer, record })
