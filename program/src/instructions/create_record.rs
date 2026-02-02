@@ -48,12 +48,8 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateRecordAccounts<'info> {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        sol_log_64(0, 0, 0, 0, 0);
-
         // Check class permission
         Class::check_permission(class, rest.first())?;
-
-        sol_log_64(0, 0, 0, 0, 0);
 
         Ok(Self {
             owner,
@@ -81,8 +77,6 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        sol_log_64(0, 0, 0, 0, 0);
-
         // Deserialize our accounts array
         let accounts = CreateRecordAccounts::try_from(ctx.accounts)?;
 
