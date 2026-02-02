@@ -145,7 +145,6 @@ impl<'info> Class<'info> {
         Ok(())
     }
 
-
     /// # Safety
     ///
     /// This function does not perform owner checks

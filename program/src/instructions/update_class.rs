@@ -1,7 +1,7 @@
-use core::mem::size_of;
 use crate::constants::MAX_METADATA_LEN;
 use crate::state::Class;
 use crate::utils::{ByteReader, Context};
+use core::mem::size_of;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
@@ -103,9 +103,14 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassAuthority<'info> {
         }
 
         // Deserialize authority
-        let authority = ctx.data[0..size_of::<Pubkey>()].try_into().map_err(|_| ProgramError::InvalidInstructionData)?;
+        let authority = ctx.data[0..size_of::<Pubkey>()]
+            .try_into()
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        Ok(UpdateClassAuthority { accounts, authority })
+        Ok(UpdateClassAuthority {
+            accounts,
+            authority,
+        })
     }
 }
 
@@ -117,11 +122,6 @@ impl<'info> UpdateClassAuthority<'info> {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        unsafe {
-            Class::update_authority_unchecked(
-                self.accounts.class,
-                self.authority,
-            )
-        }
+        unsafe { Class::update_authority_unchecked(self.accounts.class, self.authority) }
     }
 }

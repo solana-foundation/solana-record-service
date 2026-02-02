@@ -8,10 +8,18 @@ use crate::{
     state::{OwnerType, Record, CLASS_OFFSET, IS_FROZEN_OFFSET, OWNER_OFFSET},
     token2022::{
         constants::{
-            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN, TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN, TOKEN_2022_METADATA_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN, TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID
-        }, FreezeAccount, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer, InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2, InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, Token, UpdateMetadata
+            TOKEN_2022_CLOSE_MINT_AUTHORITY_LEN, TOKEN_2022_GROUP_LEN,
+            TOKEN_2022_GROUP_POINTER_LEN, TOKEN_2022_MEMBER_LEN, TOKEN_2022_MEMBER_POINTER_LEN,
+            TOKEN_2022_METADATA_LEN, TOKEN_2022_METADATA_POINTER_LEN, TOKEN_2022_MINT_BASE_LEN,
+            TOKEN_2022_MINT_LEN, TOKEN_2022_PERMANENT_DELEGATE_LEN, TOKEN_2022_PROGRAM_ID,
+        },
+        FreezeAccount, InitializeGroup, InitializeGroupMemberPointer, InitializeGroupPointer,
+        InitializeMember, InitializeMetadata, InitializeMetadataPointer, InitializeMint2,
+        InitializeMintCloseAuthority, InitializePermanentDelegate, Mint, MintToChecked, Token,
+        UpdateMetadata,
     },
-    utils::Context, ID,
+    utils::Context,
+    ID,
 };
 use pinocchio::{
     account_info::AccountInfo,
@@ -82,7 +90,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for MintTokenizedRecordAccounts<'info>
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check that the class of the record is the same as the class passed in 
+        // Check that the class of the record is the same as the class passed in
         if record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()].ne(class.key()) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -304,7 +312,6 @@ impl<'info> MintTokenizedRecord<'info> {
             + TOKEN_2022_METADATA_POINTER_LEN
             + TOKEN_2022_MEMBER_POINTER_LEN;
 
-
         // To avoid resizing the mint, we calculate the correct lamports for our token AOT with:
         // 1. `space` - The sum of the above static extension lengths
         // 2. `metadata_data.len()` - The full length of the metadata data
@@ -314,7 +321,7 @@ impl<'info> MintTokenizedRecord<'info> {
                     Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow_data()?)?
                 }
                 + TOKEN_2022_MEMBER_LEN
-                + TOKEN_2022_METADATA_LEN
+                + TOKEN_2022_METADATA_LEN,
         );
 
         let seeds = [

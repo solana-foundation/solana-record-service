@@ -5,7 +5,12 @@ use pinocchio::log::sol_log;
 
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, log::sol_log_64, program_error::ProgramError, pubkey::try_find_program_address, sysvars::{rent::Rent, Sysvar}, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::try_find_program_address,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign, CreateAccount, Transfer};
 
@@ -126,8 +131,8 @@ impl<'info> CreateRecord<'info> {
 
         let seeds = [b"record", self.accounts.class.key().as_ref(), self.seed];
 
-        let (expected_pda, bump) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let (expected_pda, bump) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
 
         // Verify the provided record account matches the expected PDA
         if self.accounts.record.key().ne(&expected_pda) {
@@ -178,7 +183,7 @@ impl<'info> CreateRecord<'info> {
                 owner: &crate::ID,
             }
             .invoke_signed(&signers)?;
-        }    
+        }
 
         let record = Record {
             class: *self.accounts.class.key(),

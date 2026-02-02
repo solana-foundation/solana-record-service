@@ -43,7 +43,7 @@ impl BurnChecked<'_> {
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
         const DISCRIMINATOR: u8 = 0x0f;
-        
+
         // Account metadata
         let account_metas: [AccountMeta; 3] = [
             AccountMeta::writable(self.account.key()),

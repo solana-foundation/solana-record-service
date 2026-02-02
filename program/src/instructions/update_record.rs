@@ -1,11 +1,13 @@
-use core::mem::size_of;
 use crate::{
     state::{Class, Record, CLASS_OFFSET, IS_PERMISSIONED_OFFSET},
     utils::{ByteReader, Context},
 };
+use core::mem::size_of;
 #[cfg(not(feature = "perf"))]
 use pinocchio::log::sol_log;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+};
 
 /// UpdateRecord instruction.
 ///
@@ -20,7 +22,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::
 /// 3. `record` - The record account to be updated
 /// 4. `class` - The class account of the record
 /// 5. `system_program` - Required for account resizing operations
-/// 
+///
 /// # Security
 /// 1. The authority must be the class authority
 pub struct UpdateRecordAccounts<'info> {
@@ -125,7 +127,11 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordExpiry<'info> {
         }
 
         // Deserialize `data`
-        let expiry = i64::from_le_bytes( ctx.data[0..8].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+        let expiry = i64::from_le_bytes(
+            ctx.data[0..8]
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?,
+        );
 
         Ok(Self { accounts, expiry })
     }
@@ -141,7 +147,10 @@ impl<'info> UpdateRecordExpiry<'info> {
     pub fn execute(&self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
         unsafe {
-            Record::update_expiry_unchecked(&mut self.accounts.record.try_borrow_mut_data()?, self.expiry)
+            Record::update_expiry_unchecked(
+                &mut self.accounts.record.try_borrow_mut_data()?,
+                self.expiry,
+            )
         }
     }
 }

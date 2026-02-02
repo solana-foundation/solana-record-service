@@ -1,7 +1,10 @@
 use crate::{state::Record, utils::Context};
-#[cfg(not(feature = "perf"))]
-use pinocchio::{log::sol_log, sysvars::{Sysvar, rent::Rent}};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+#[cfg(not(feature = "perf"))]
+use pinocchio::{
+    log::sol_log,
+    sysvars::{rent::Rent, Sysvar},
+};
 
 /// DeleteRecord instruction.
 ///
@@ -40,10 +43,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_or_deleted(record, rest.first(), authority, rest.last())?;
 
-        Ok(Self {
-            payer,
-            record,
-        })
+        Ok(Self { payer, record })
     }
 }
 

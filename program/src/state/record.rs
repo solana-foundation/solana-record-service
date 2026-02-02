@@ -5,7 +5,10 @@ use crate::{
 };
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}
+    account_info::{AccountInfo, Ref, RefMut},
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
@@ -103,7 +106,7 @@ impl<'info> Record<'info> {
         record: &AccountInfo,
         class: Option<&AccountInfo>,
         authority: &AccountInfo,
-        mint: Option<&AccountInfo>
+        mint: Option<&AccountInfo>,
     ) -> Result<(), ProgramError> {
         // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
@@ -114,7 +117,10 @@ impl<'info> Record<'info> {
         if data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
             let mint = mint.ok_or(ProgramError::InvalidAccountData)?;
 
-            if mint.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            if mint
+                .key()
+                .ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+            {
                 return Err(ProgramError::InvalidAccountData);
             }
 
@@ -124,16 +130,19 @@ impl<'info> Record<'info> {
 
             // Require class authority to clean up externally burned tokenized records
             let class = class.ok_or(ProgramError::InvalidAccountData)?;
-            if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+            if class
+                .key()
+                .ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+            {
                 return Err(ProgramError::InvalidAccountData);
             }
             Class::check_authority(class, authority)?;
 
             // Close the Mint and get back the rent
             let bump = [
-            try_find_program_address(&[b"mint", record.key()], &crate::ID)
-                .ok_or(ProgramError::InvalidArgument)?
-                .1,
+                try_find_program_address(&[b"mint", record.key()], &crate::ID)
+                    .ok_or(ProgramError::InvalidArgument)?
+                    .1,
             ];
 
             let seeds = [
@@ -170,7 +179,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
-        if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -208,7 +220,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
-        if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -271,7 +286,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
-        if class.key().ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -354,7 +372,8 @@ impl<'info> Record<'info> {
         }
 
         // Update the expiry
-        data[EXPIRY_OFFSET..EXPIRY_OFFSET + size_of::<i64>()].clone_from_slice(&new_expiry.to_le_bytes());
+        data[EXPIRY_OFFSET..EXPIRY_OFFSET + size_of::<i64>()]
+            .clone_from_slice(&new_expiry.to_le_bytes());
 
         Ok(())
     }

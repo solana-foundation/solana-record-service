@@ -3,7 +3,9 @@ use crate::{
     utils::{ByteReader, Context},
 };
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+};
 
 /// FreezeRecord instruction.
 ///
@@ -37,7 +39,10 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeRecordAccounts<'info> {
         Record::check_program_id_and_discriminator(record)?;
 
         // Check if the class is the correct class
-        if class.key().ne(&record.try_borrow_data()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&record.try_borrow_data()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 

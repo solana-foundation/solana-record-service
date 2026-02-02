@@ -1,7 +1,7 @@
 use core::mem::size_of;
 
 use crate::{
-    state::{OwnerType, Record, OWNER_OFFSET, IS_FROZEN_OFFSET},
+    state::{OwnerType, Record, IS_FROZEN_OFFSET, OWNER_OFFSET},
     token2022::{BurnChecked, CloseAccount, ThawAccount, Token},
     utils::Context,
 };

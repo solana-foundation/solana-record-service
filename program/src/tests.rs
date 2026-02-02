@@ -12,7 +12,7 @@ use solana_record_service_client::{
     accounts::*,
     instructions::*,
     programs::SOLANA_RECORD_SERVICE_ID,
-    types::{Metadata, AdditionalMetadata},
+    types::{AdditionalMetadata, Metadata},
 };
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
@@ -874,12 +874,13 @@ fn update_class_authority() {
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
-    let instruction = UpdateClassAuthority { 
+    let instruction = UpdateClassAuthority {
         authority: authority,
         payer: authority,
         class,
-        system_program, 
-    }.instruction(UpdateClassAuthorityInstructionArgs { new_authority });
+        system_program,
+    }
+    .instruction(UpdateClassAuthorityInstructionArgs { new_authority });
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
@@ -887,7 +888,8 @@ fn update_class_authority() {
     );
 
     // Class Updated
-    let (_, class_data_updated) = keyed_account_for_class(new_authority, false, false, "test", "test");
+    let (_, class_data_updated) =
+        keyed_account_for_class(new_authority, false, false, "test", "test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -898,7 +900,9 @@ fn update_class_authority() {
         ],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data_updated.data).build(),
+            Check::account(&class)
+                .data(&class_data_updated.data)
+                .build(),
         ],
     );
 }
@@ -1348,9 +1352,7 @@ fn update_class_expiry() {
         class,
         system_program,
     }
-    .instruction(UpdateRecordExpiryInstructionArgs {
-        expiry: 1000,
-    });
+    .instruction(UpdateRecordExpiryInstructionArgs { expiry: 1000 });
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
@@ -1358,7 +1360,8 @@ fn update_class_expiry() {
     );
 
     // Record updated
-    let (_, record_data_updated) = keyed_account_for_record(class, 0, OWNER, false, 1000, b"test", b"test");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, 0, OWNER, false, 1000, b"test", b"test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1587,12 +1590,13 @@ fn delete_tokenized_record_with_no_supply() {
         &SOLANA_RECORD_SERVICE_ID,
     );
     let (mint, mut mint_data) = keyed_account_for_mint(record);
-    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
+    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
     // Record
-    let (_, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // Token2022 Program
-    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (token2022_program, token2022_program_data) =
+        mollusk_svm_programs_token::token2022::keyed_account();
 
     let instruction = DeleteRecord {
         authority,
@@ -1655,7 +1659,11 @@ fn freeze_record() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record)
@@ -2592,10 +2600,7 @@ fn update_tokenized_record() {
 
     mollusk.process_and_validate_instruction_chain(
         &[
-            (
-                &burn_instruction, 
-                &[Check::success()]
-            ),
+            (&burn_instruction, &[Check::success()]),
             (
                 &update_instruction,
                 &[
@@ -2645,15 +2650,18 @@ fn test_create_record_rejects_non_canonical_pda() {
         &[b"record", class.as_ref(), seed],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    assert_ne!(arbitrary_record_key, correct_pda, "Test setup error: arbitrary key should not match PDA");
+    assert_ne!(
+        arbitrary_record_key, correct_pda,
+        "Test setup error: arbitrary key should not match PDA"
+    );
 
     use solana_program::instruction::{AccountMeta, Instruction};
 
     let accounts = vec![
-        AccountMeta::new_readonly(owner, true),    // owner
-        AccountMeta::new(owner, true),             // payer
-        AccountMeta::new(class, false),            // class
-        AccountMeta::new(arbitrary_record_key, true), // record - arbitrary key instead of PDA
+        AccountMeta::new_readonly(owner, true),           // owner
+        AccountMeta::new(owner, true),                    // payer
+        AccountMeta::new(class, false),                   // class
+        AccountMeta::new(arbitrary_record_key, true),     // record - arbitrary key instead of PDA
         AccountMeta::new_readonly(system_program, false), // system_program
     ];
 
@@ -2714,7 +2722,10 @@ fn test_create_record_rejects_wrong_pda_different_seed() {
         &SOLANA_RECORD_SERVICE_ID,
     );
 
-    assert_ne!(wrong_pda, correct_pda, "Test setup error: PDAs should differ");
+    assert_ne!(
+        wrong_pda, correct_pda,
+        "Test setup error: PDAs should differ"
+    );
 
     use solana_program::instruction::{AccountMeta, Instruction};
 
@@ -2775,14 +2786,17 @@ fn test_create_class_rejects_non_canonical_pda() {
         &[b"class", authority.as_ref(), name.as_bytes()],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    assert_ne!(arbitrary_class_key, correct_pda, "Test setup error: arbitrary key should not match PDA");
+    assert_ne!(
+        arbitrary_class_key, correct_pda,
+        "Test setup error: arbitrary key should not match PDA"
+    );
 
     use solana_program::instruction::{AccountMeta, Instruction};
 
     let accounts = vec![
-        AccountMeta::new(authority, true),         // authority
-        AccountMeta::new(authority, true),         // payer
-        AccountMeta::new(arbitrary_class_key, true), // class - arbitrary key instead of PDA
+        AccountMeta::new(authority, true),                // authority
+        AccountMeta::new(authority, true),                // payer
+        AccountMeta::new(arbitrary_class_key, true),      // class - arbitrary key instead of PDA
         AccountMeta::new_readonly(system_program, false), // system_program
     ];
 
@@ -2831,18 +2845,23 @@ fn test_mint_tokenized_record_rejects_non_canonical_mint_pda() {
     let arbitrary_mint_key = Pubkey::new_from_array([0xef; 32]);
 
     // Verify this is NOT the correct mint PDA
-    let (correct_mint_pda, _bump) = Pubkey::find_program_address(
-        &[b"mint", record.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
+    let (correct_mint_pda, _bump) =
+        Pubkey::find_program_address(&[b"mint", record.as_ref()], &SOLANA_RECORD_SERVICE_ID);
+    assert_ne!(
+        arbitrary_mint_key, correct_mint_pda,
+        "Test setup error: arbitrary key should not match mint PDA"
     );
-    assert_ne!(arbitrary_mint_key, correct_mint_pda, "Test setup error: arbitrary key should not match mint PDA");
 
     // Group - use correct PDA
     let (group, _) = keyed_account_for_group(class);
 
     // ATA - need to derive based on the arbitrary mint
     let (token_account, _) = Pubkey::find_program_address(
-        &[owner.as_ref(), TOKEN_2022_PROGRAM_ID.as_ref(), arbitrary_mint_key.as_ref()],
+        &[
+            owner.as_ref(),
+            TOKEN_2022_PROGRAM_ID.as_ref(),
+            arbitrary_mint_key.as_ref(),
+        ],
         &mollusk_svm_programs_token::associated_token::ID,
     );
 
@@ -2854,14 +2873,14 @@ fn test_mint_tokenized_record_rejects_non_canonical_mint_pda() {
     use solana_program::instruction::{AccountMeta, Instruction};
 
     let accounts = vec![
-        AccountMeta::new_readonly(owner, false),     // owner
-        AccountMeta::new(owner, true),               // payer
-        AccountMeta::new_readonly(owner, true),      // authority
-        AccountMeta::new(record, false),             // record
-        AccountMeta::new(arbitrary_mint_key, true),  // mint - arbitrary key instead of PDA
-        AccountMeta::new(class, false),              // class
-        AccountMeta::new(group, false),              // group
-        AccountMeta::new(token_account, false),      // token_account
+        AccountMeta::new_readonly(owner, false),    // owner
+        AccountMeta::new(owner, true),              // payer
+        AccountMeta::new_readonly(owner, true),     // authority
+        AccountMeta::new(record, false),            // record
+        AccountMeta::new(arbitrary_mint_key, true), // mint - arbitrary key instead of PDA
+        AccountMeta::new(class, false),             // class
+        AccountMeta::new(group, false),             // group
+        AccountMeta::new(token_account, false),     // token_account
         AccountMeta::new_readonly(associated_token_program, false),
         AccountMeta::new_readonly(token2022, false),
         AccountMeta::new_readonly(system_program, false),
@@ -2926,10 +2945,10 @@ fn test_create_record_with_prefunded_account_calculates_lamports_correctly() {
     use solana_program::instruction::{AccountMeta, Instruction};
 
     let accounts = vec![
-        AccountMeta::new_readonly(owner, true),    // owner
-        AccountMeta::new(owner, true),             // payer
-        AccountMeta::new(class, false),            // class
-        AccountMeta::new(record, false),           // record - correct PDA
+        AccountMeta::new_readonly(owner, true),           // owner
+        AccountMeta::new(owner, true),                    // payer
+        AccountMeta::new(class, false),                   // class
+        AccountMeta::new(record, false),                  // record - correct PDA
         AccountMeta::new_readonly(system_program, false), // system_program
     ];
 
@@ -2962,11 +2981,17 @@ fn test_create_record_with_prefunded_account_calculates_lamports_correctly() {
         ],
     );
 
-    assert!(!result.program_result.is_err(), "Record creation with pre-funded account should succeed");
+    assert!(
+        !result.program_result.is_err(),
+        "Record creation with pre-funded account should succeed"
+    );
 
     // Verify the record was created with correct rent
     let record_account = result.get_account(&record).unwrap();
-    assert!(record_account.lamports > prefund_amount, "Record should have more lamports than pre-funded amount");
+    assert!(
+        record_account.lamports > prefund_amount,
+        "Record should have more lamports than pre-funded amount"
+    );
 }
 
 #[test]
@@ -2990,9 +3015,9 @@ fn test_create_class_with_prefunded_account_calculates_lamports_correctly() {
     use solana_program::instruction::{AccountMeta, Instruction};
 
     let accounts = vec![
-        AccountMeta::new_readonly(authority, true),  // authority
-        AccountMeta::new(authority, true),           // payer
-        AccountMeta::new(class, false),              // class - correct PDA
+        AccountMeta::new_readonly(authority, true), // authority
+        AccountMeta::new(authority, true),          // payer
+        AccountMeta::new(class, false),             // class - correct PDA
         AccountMeta::new_readonly(system_program, false), // system_program
     ];
 
@@ -3025,11 +3050,17 @@ fn test_create_class_with_prefunded_account_calculates_lamports_correctly() {
         ],
     );
 
-    assert!(!result.program_result.is_err(), "Class creation with pre-funded account should succeed");
+    assert!(
+        !result.program_result.is_err(),
+        "Class creation with pre-funded account should succeed"
+    );
 
     // Verify the class was created with correct rent
     let class_account = result.get_account(&class).unwrap();
-    assert!(class_account.lamports > prefund_amount, "Class should have more lamports than pre-funded amount");
+    assert!(
+        class_account.lamports > prefund_amount,
+        "Class should have more lamports than pre-funded amount"
+    );
 }
 
 #[test]
@@ -3056,7 +3087,8 @@ fn test_delete_tokenized_record_requires_class_authority_after_external_burn() {
     let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
 
     // Token2022 Program
-    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (token2022_program, token2022_program_data) =
+        mollusk_svm_programs_token::token2022::keyed_account();
 
     // Build instruction as attacker (not class authority)
     let instruction = DeleteRecord {
@@ -3115,7 +3147,8 @@ fn test_delete_tokenized_record_succeeds_for_class_authority_after_external_burn
     let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
 
     // Token2022 Program
-    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
+    let (token2022_program, token2022_program_data) =
+        mollusk_svm_programs_token::token2022::keyed_account();
 
     // Build instruction as class authority
     let instruction = DeleteRecord {
@@ -3155,7 +3188,6 @@ fn test_delete_tokenized_record_succeeds_for_class_authority_after_external_burn
 
 #[test]
 fn test_burn_frozen_tokenized_record_succeeds() {
-
     // Owner
     let (owner, owner_data) = keyed_account_for_owner();
     // Payer
@@ -3169,8 +3201,7 @@ fn test_burn_frozen_tokenized_record_succeeds() {
     );
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record - frozen (is_frozen = true)
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, true, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, true, 0, b"test", b"test");
     // ATA - frozen (is_frozen = true)
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, true);
 
@@ -3221,11 +3252,8 @@ fn keyed_account_for_multisig_as_mint(record: Pubkey) -> (Pubkey, Account) {
     // Set byte at offset 165 to match MINT_DISCRIMINATOR (0x01)
     multisig_data[165] = 0x01;
 
-    let mut multisig_account = Account::new(
-        100_000_000u64,
-        multisig_data.len(),
-        &TOKEN_2022_PROGRAM_ID,
-    );
+    let mut multisig_account =
+        Account::new(100_000_000u64, multisig_data.len(), &TOKEN_2022_PROGRAM_ID);
     multisig_account
         .data_as_mut_slice()
         .copy_from_slice(&multisig_data);
@@ -3254,11 +3282,8 @@ fn keyed_account_for_multisig_as_token(owner: Pubkey, mint: Pubkey) -> (Pubkey, 
     // Set amount to 1 at offset 64
     multisig_data[64..72].copy_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0]);
 
-    let mut multisig_account = Account::new(
-        100_000_000u64,
-        multisig_data.len(),
-        &TOKEN_2022_PROGRAM_ID,
-    );
+    let mut multisig_account =
+        Account::new(100_000_000u64, multisig_data.len(), &TOKEN_2022_PROGRAM_ID);
     multisig_account
         .data_as_mut_slice()
         .copy_from_slice(&multisig_data);
@@ -3275,7 +3300,8 @@ fn test_multisig_account_rejected_as_mint() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) = keyed_account_for_record(class, 1, RANDOM_PUBKEY, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, RANDOM_PUBKEY, false, 0, b"test", b"test");
     // Fake mint using Multisig size (355 bytes)
     let (mint, mint_data) = keyed_account_for_multisig_as_mint(record);
     // Token account
@@ -3333,7 +3359,8 @@ fn test_multisig_account_rejected_as_token_account() {
     // Mint
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record - owner_type = Token (1), owner = mint
-    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) =
+        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // Fake token account using Multisig size (355 bytes)
     let (token_account, token_account_data) = keyed_account_for_multisig_as_token(owner, mint);
 

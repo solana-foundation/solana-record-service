@@ -143,8 +143,8 @@ impl<'info> CreateClass<'info> {
             self.name.as_bytes(),
         ];
 
-        let (expected_pda, bump) = try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?;
+        let (expected_pda, bump) =
+            try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?;
 
         // Verify the provided class account matches the expected PDA
         if self.accounts.class.key().ne(&expected_pda) {
@@ -195,7 +195,7 @@ impl<'info> CreateClass<'info> {
                 owner: &crate::ID,
             }
             .invoke_signed(&signers)?;
-        }        
+        }
 
         let class = Class {
             authority: *self.accounts.authority.key(),

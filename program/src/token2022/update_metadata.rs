@@ -60,7 +60,8 @@ impl UpdateMetadata<'_> {
         // - [8]: field (u8)
         // - [9..13]: additional metadata length (u32)
         // - [13..13+additional_metadata.len()]: additional metadata bytes
-        let instruction_data_size = DISCRIMINATOR.len() + size_of::<u8>() + self.additional_metadata.len();
+        let instruction_data_size =
+            DISCRIMINATOR.len() + size_of::<u8>() + self.additional_metadata.len();
         let mut instruction_data = [UNINIT_BYTE; 2_000];
 
         write_bytes(

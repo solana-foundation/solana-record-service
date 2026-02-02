@@ -42,7 +42,8 @@ impl InitializeMember<'_> {
     const DISCRIMINATOR_OFFSET: usize = 0;
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        const INITIALIZE_MEMBER_DISCRIMINATOR: [u8; 8] = [0x98, 0x20, 0xde, 0xb0, 0xdf, 0xed, 0x74, 0x86];
+        const INITIALIZE_MEMBER_DISCRIMINATOR: [u8; 8] =
+            [0x98, 0x20, 0xde, 0xb0, 0xdf, 0xed, 0x74, 0x86];
 
         // Account metadata
         let account_metas: [AccountMeta; 5] = [

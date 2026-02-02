@@ -5,7 +5,11 @@ use crate::{
 };
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}, ProgramResult
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+    ProgramResult,
 };
 
 /// FreezeRecord instruction.
@@ -46,12 +50,18 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'inf
 
         let record_data = record.try_borrow_data()?;
         // Check if the class is the correct class
-        if class.key().ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if the token is linked to the record
-        if mint.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if mint
+            .key()
+            .ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -76,7 +86,7 @@ pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord<'info> {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = FreezeTokenizedRecordAccounts::try_from(ctx.accounts)?;
 

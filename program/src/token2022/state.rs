@@ -63,13 +63,11 @@ impl<'info> Mint<'info> {
 
         let data = account_info.try_borrow_data()?;
 
-        Ok(
-            u64::from_le_bytes(
-                data[TOKEN_ACCOUNT_SUPPLY_OFFSET..TOKEN_ACCOUNT_SUPPLY_OFFSET + size_of::<u64>()]
-                    .try_into()
-                    .unwrap()
-            )
-        )
+        Ok(u64::from_le_bytes(
+            data[TOKEN_ACCOUNT_SUPPLY_OFFSET..TOKEN_ACCOUNT_SUPPLY_OFFSET + size_of::<u64>()]
+                .try_into()
+                .unwrap(),
+        ))
     }
 }
 
