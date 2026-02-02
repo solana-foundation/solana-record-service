@@ -1,5 +1,7 @@
 use crate::{
-    constants::CLOSED_ACCOUNT_DISCRIMINATOR, token2022::{CloseAccount, Mint, Token}, utils::{resize_account, ByteWriter}
+    constants::CLOSED_ACCOUNT_DISCRIMINATOR,
+    token2022::{CloseAccount, Mint, Token},
+    utils::{resize_account, ByteWriter},
 };
 use core::{mem::size_of, str};
 use pinocchio::{
@@ -191,17 +193,17 @@ impl<'info> Record<'info> {
 
         let data = record.try_borrow_data()?;
 
+        // Check if the owner type is pubkey
+        if data[OWNER_TYPE_OFFSET].ne(&(OwnerType::Pubkey as u8)) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         // Check if the authority is the owner
         if authority
             .key()
             .eq(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
         {
             return Ok(());
-        }
-
-        // Check if the owner type is pubkey
-        if data[OWNER_TYPE_OFFSET].ne(&(OwnerType::Pubkey as u8)) {
-            return Err(ProgramError::InvalidAccountData);
         }
 
         // Validate the delegate
