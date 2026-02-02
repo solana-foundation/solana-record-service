@@ -69,7 +69,12 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord<'info> {
         }
 
         // Deserialize `is_frozen`
-        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
+        let raw_is_frozen: u8 = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
+        let is_frozen = match raw_is_frozen {
+            0 => false,
+            1 => true,
+            _ => return Err(ProgramError::InvalidInstructionData),
+        };
 
         Ok(Self {
             accounts,
