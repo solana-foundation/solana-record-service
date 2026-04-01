@@ -4,5 +4,5 @@
 //!
 //! <https://github.com/codama-idl/codama>
 //!
-pub mod client;
-pub use client::*;
+pub mod generated;
+pub use generated::*;
