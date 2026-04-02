@@ -1,9 +1,9 @@
 use borsh::{to_vec, BorshSerialize};
-use solana_account_test::{Account, WritableAccount};
-use solana_program_error_test::ProgramError;
+use solana_account::{Account, WritableAccount};
+use solana_program_error::ProgramError;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
-use solana_pubkey_test::Pubkey;
+use solana_pubkey::Pubkey;
 use spl_collections::{TrailingStr, TrailingVec, U8PrefixedStr, U8PrefixedVec};
 
 use solana_record_service_client::{

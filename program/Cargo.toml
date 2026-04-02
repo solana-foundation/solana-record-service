@@ -19,9 +19,9 @@ pinocchio-associated-token-account = "0.1.1"
 solana-record-service-client = { workspace = true }
 mollusk-svm = "0.10.1"
 mollusk-svm-programs-token = "0.10.1"
-solana-account-test = { package = "solana-account", version = "3.2.0" }
-solana-program-error-test = { package = "solana-program-error", version = "~3.0" }
-solana-pubkey-test = { package = "solana-pubkey", version = "4.0" }
+solana-account = "3.2.0"
+solana-program-error = "~3.0"
+solana-pubkey = "4.0"
 spl-collections = { version = "^0.1", features = ["borsh"] }
 borsh = "^1.0"
 hex = "0.4.3"
