@@ -1,5 +1,5 @@
 use crate::{
-    constants::CLOSED_ACCOUNT_DISCRIMINATOR, token2022::{CloseAccount, Mint, Token}, utils::{resize_account, ByteWriter}
+    token2022::{CloseAccount, Mint, Token}, utils::{resize_account, ByteWriter}
 };
 use core::{mem::size_of, str};
 use pinocchio::{
@@ -394,11 +394,13 @@ impl<'info> Record<'info> {
         record: &'info AccountInfo,
         payer: &'info AccountInfo,
     ) -> Result<(), ProgramError> {
-        resize_account(record, payer, 1, true)?;
-        {
-            let mut data_ref = record.try_borrow_mut_data()?;
-            data_ref[DISCRIMINATOR_OFFSET] = CLOSED_ACCOUNT_DISCRIMINATOR;
-        }
+        // Resize to 0 bytes
+        record.realloc(0, true)?;
+        // Transfer ALL lamports back to payer to fully close the account
+        // This allows CreateAccount to work when re-creating the record
+        let lamports = record.lamports();
+        *payer.try_borrow_mut_lamports()? = payer.lamports().saturating_add(lamports);
+        *record.try_borrow_mut_lamports()? = 0;
         Ok(())
     }
 
