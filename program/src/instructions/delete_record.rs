@@ -6,9 +6,8 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// DeleteRecord instruction.
 ///
 /// This function:
-/// 1. Reallocates the record account data to 1 byte, 0xff to counter
-///    reinitialization attacks
-/// 2. Transfers the lamports from the record to the authority
+/// 1. Reallocates the record account data to 0 bytes
+/// 2. Transfers the lamports from the record to the payer
 /// 3. If the record has an authority delegate, it will close the delegate account
 ///    as well
 ///
