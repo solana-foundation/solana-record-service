@@ -10,7 +10,6 @@ use borsh::BorshSerialize;
 
 /// Additional metadata for Token22 Metadata Extension compatible Metadata format
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AdditionalMetadata {
     pub label: String,
     pub value: String,

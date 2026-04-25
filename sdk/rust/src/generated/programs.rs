@@ -5,7 +5,8 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use solana_program::{pubkey, pubkey::Pubkey};
+use solana_address::{address, Address};
 
 /// `solana_record_service` program ID.
-pub const SOLANA_RECORD_SERVICE_ID: Pubkey = pubkey!("srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa");
+pub const SOLANA_RECORD_SERVICE_ID: Address =
+    address!("srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa");

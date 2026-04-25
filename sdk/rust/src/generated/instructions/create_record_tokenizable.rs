@@ -5,76 +5,73 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+use crate::generated::types::Metadata;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
-use kaigan::types::U8PrefixVec;
+use spl_collections::U8PrefixedVec;
+
+pub const CREATE_RECORD_TOKENIZABLE_DISCRIMINATOR: u8 = 4;
 
 /// Accounts.
 #[derive(Debug)]
-pub struct CreateRecord {
+pub struct CreateRecordTokenizable {
     /// Owner of the new record
-    pub owner: solana_program::pubkey::Pubkey,
+    pub owner: solana_address::Address,
     /// Account that will pay for the record account
-    pub payer: solana_program::pubkey::Pubkey,
+    pub payer: solana_address::Address,
     /// Class account for the record to be created
-    pub class: solana_program::pubkey::Pubkey,
+    pub class: solana_address::Address,
     /// Record account to be created
-    pub record: solana_program::pubkey::Pubkey,
+    pub record: solana_address::Address,
     /// System Program used to create our record account
-    pub system_program: solana_program::pubkey::Pubkey,
+    pub system_program: solana_address::Address,
     /// Optional authority for permissioned classes
-    pub authority: Option<solana_program::pubkey::Pubkey>,
+    pub authority: Option<solana_address::Address>,
 }
 
-impl CreateRecord {
+impl CreateRecordTokenizable {
     pub fn instruction(
         &self,
-        args: CreateRecordInstructionArgs,
-    ) -> solana_program::instruction::Instruction {
+        args: CreateRecordTokenizableInstructionArgs,
+    ) -> solana_instruction::Instruction {
         self.instruction_with_remaining_accounts(args, &[])
     }
     #[allow(clippy::arithmetic_side_effects)]
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: CreateRecordInstructionArgs,
-        remaining_accounts: &[solana_program::instruction::AccountMeta],
-    ) -> solana_program::instruction::Instruction {
+        args: CreateRecordTokenizableInstructionArgs,
+        remaining_accounts: &[solana_instruction::AccountMeta],
+    ) -> solana_instruction::Instruction {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.owner, true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.payer, true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.class, false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.record,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new(self.payer, true));
+        accounts.push(solana_instruction::AccountMeta::new(self.class, false));
+        accounts.push(solana_instruction::AccountMeta::new(self.record, false));
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.system_program,
             false,
         ));
         if let Some(authority) = self.authority {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 authority, true,
             ));
         } else {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::SOLANA_RECORD_SERVICE_ID,
                 false,
             ));
         }
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = borsh::to_vec(&CreateRecordInstructionData::new()).unwrap();
-        let mut args = borsh::to_vec(&args).unwrap();
+        let mut data = CreateRecordTokenizableInstructionData::new()
+            .try_to_vec()
+            .unwrap();
+        let mut args = args.try_to_vec().unwrap();
         data.append(&mut args);
 
-        solana_program::instruction::Instruction {
+        solana_instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
             accounts,
             data,
@@ -83,32 +80,40 @@ impl CreateRecord {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordInstructionData {
+pub struct CreateRecordTokenizableInstructionData {
     discriminator: u8,
 }
 
-impl CreateRecordInstructionData {
+impl CreateRecordTokenizableInstructionData {
     pub fn new() -> Self {
         Self { discriminator: 4 }
     }
+
+    pub(crate) fn try_to_vec(&self) -> Result<Vec<u8>, std::io::Error> {
+        borsh::to_vec(self)
+    }
 }
 
-impl Default for CreateRecordInstructionData {
+impl Default for CreateRecordTokenizableInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CreateRecordInstructionArgs {
+pub struct CreateRecordTokenizableInstructionArgs {
     pub expiration: i64,
-    pub seed: U8PrefixVec<u8>,
-    pub data: RemainderVec<u8>,
+    pub seed: U8PrefixedVec<u8>,
+    pub metadata: Metadata,
 }
 
-/// Instruction builder for `CreateRecord`.
+impl CreateRecordTokenizableInstructionArgs {
+    pub(crate) fn try_to_vec(&self) -> Result<Vec<u8>, std::io::Error> {
+        borsh::to_vec(self)
+    }
+}
+
+/// Instruction builder for `CreateRecordTokenizable`.
 ///
 /// ### Accounts:
 ///
@@ -119,58 +124,58 @@ pub struct CreateRecordInstructionArgs {
 ///   4. `[optional]` system_program (default to `11111111111111111111111111111111`)
 ///   5. `[signer, optional]` authority
 #[derive(Clone, Debug, Default)]
-pub struct CreateRecordBuilder {
-    owner: Option<solana_program::pubkey::Pubkey>,
-    payer: Option<solana_program::pubkey::Pubkey>,
-    class: Option<solana_program::pubkey::Pubkey>,
-    record: Option<solana_program::pubkey::Pubkey>,
-    system_program: Option<solana_program::pubkey::Pubkey>,
-    authority: Option<solana_program::pubkey::Pubkey>,
+pub struct CreateRecordTokenizableBuilder {
+    owner: Option<solana_address::Address>,
+    payer: Option<solana_address::Address>,
+    class: Option<solana_address::Address>,
+    record: Option<solana_address::Address>,
+    system_program: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
     expiration: Option<i64>,
-    seed: Option<U8PrefixVec<u8>>,
-    data: Option<RemainderVec<u8>>,
-    __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
+    seed: Option<U8PrefixedVec<u8>>,
+    metadata: Option<Metadata>,
+    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
-impl CreateRecordBuilder {
+impl CreateRecordTokenizableBuilder {
     pub fn new() -> Self {
         Self::default()
     }
     /// Owner of the new record
     #[inline(always)]
-    pub fn owner(&mut self, owner: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn owner(&mut self, owner: solana_address::Address) -> &mut Self {
         self.owner = Some(owner);
         self
     }
     /// Account that will pay for the record account
     #[inline(always)]
-    pub fn payer(&mut self, payer: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn payer(&mut self, payer: solana_address::Address) -> &mut Self {
         self.payer = Some(payer);
         self
     }
     /// Class account for the record to be created
     #[inline(always)]
-    pub fn class(&mut self, class: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn class(&mut self, class: solana_address::Address) -> &mut Self {
         self.class = Some(class);
         self
     }
     /// Record account to be created
     #[inline(always)]
-    pub fn record(&mut self, record: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn record(&mut self, record: solana_address::Address) -> &mut Self {
         self.record = Some(record);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
     /// System Program used to create our record account
     #[inline(always)]
-    pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
+    pub fn system_program(&mut self, system_program: solana_address::Address) -> &mut Self {
         self.system_program = Some(system_program);
         self
     }
     /// `[optional account]`
     /// Optional authority for permissioned classes
     #[inline(always)]
-    pub fn authority(&mut self, authority: Option<solana_program::pubkey::Pubkey>) -> &mut Self {
+    pub fn authority(&mut self, authority: Option<solana_address::Address>) -> &mut Self {
         self.authority = authority;
         self
     }
@@ -180,21 +185,18 @@ impl CreateRecordBuilder {
         self
     }
     #[inline(always)]
-    pub fn seed(&mut self, seed: U8PrefixVec<u8>) -> &mut Self {
+    pub fn seed(&mut self, seed: U8PrefixedVec<u8>) -> &mut Self {
         self.seed = Some(seed);
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
-        self.data = Some(data);
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
+        self.metadata = Some(metadata);
         self
     }
     /// Add an additional account to the instruction.
     #[inline(always)]
-    pub fn add_remaining_account(
-        &mut self,
-        account: solana_program::instruction::AccountMeta,
-    ) -> &mut Self {
+    pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
         self.__remaining_accounts.push(account);
         self
     }
@@ -202,74 +204,74 @@ impl CreateRecordBuilder {
     #[inline(always)]
     pub fn add_remaining_accounts(
         &mut self,
-        accounts: &[solana_program::instruction::AccountMeta],
+        accounts: &[solana_instruction::AccountMeta],
     ) -> &mut Self {
         self.__remaining_accounts.extend_from_slice(accounts);
         self
     }
     #[allow(clippy::clone_on_copy)]
-    pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = CreateRecord {
+    pub fn instruction(&self) -> solana_instruction::Instruction {
+        let accounts = CreateRecordTokenizable {
             owner: self.owner.expect("owner is not set"),
             payer: self.payer.expect("payer is not set"),
             class: self.class.expect("class is not set"),
             record: self.record.expect("record is not set"),
             system_program: self
                 .system_program
-                .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
+                .unwrap_or(solana_address::address!("11111111111111111111111111111111")),
             authority: self.authority,
         };
-        let args = CreateRecordInstructionArgs {
+        let args = CreateRecordTokenizableInstructionArgs {
             expiration: self.expiration.clone().expect("expiration is not set"),
             seed: self.seed.clone().expect("seed is not set"),
-            data: self.data.clone().expect("data is not set"),
+            metadata: self.metadata.clone().expect("metadata is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
     }
 }
 
-/// `create_record` CPI accounts.
-pub struct CreateRecordCpiAccounts<'a, 'b> {
+/// `create_record_tokenizable` CPI accounts.
+pub struct CreateRecordTokenizableCpiAccounts<'a, 'b> {
     /// Owner of the new record
-    pub owner: &'b solana_program::account_info::AccountInfo<'a>,
+    pub owner: &'b solana_account_info::AccountInfo<'a>,
     /// Account that will pay for the record account
-    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// Class account for the record to be created
-    pub class: &'b solana_program::account_info::AccountInfo<'a>,
+    pub class: &'b solana_account_info::AccountInfo<'a>,
     /// Record account to be created
-    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    pub record: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to create our record account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub system_program: &'b solana_account_info::AccountInfo<'a>,
     /// Optional authority for permissioned classes
-    pub authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    pub authority: Option<&'b solana_account_info::AccountInfo<'a>>,
 }
 
-/// `create_record` CPI instruction.
-pub struct CreateRecordCpi<'a, 'b> {
+/// `create_record_tokenizable` CPI instruction.
+pub struct CreateRecordTokenizableCpi<'a, 'b> {
     /// The program to invoke.
-    pub __program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub __program: &'b solana_account_info::AccountInfo<'a>,
     /// Owner of the new record
-    pub owner: &'b solana_program::account_info::AccountInfo<'a>,
+    pub owner: &'b solana_account_info::AccountInfo<'a>,
     /// Account that will pay for the record account
-    pub payer: &'b solana_program::account_info::AccountInfo<'a>,
+    pub payer: &'b solana_account_info::AccountInfo<'a>,
     /// Class account for the record to be created
-    pub class: &'b solana_program::account_info::AccountInfo<'a>,
+    pub class: &'b solana_account_info::AccountInfo<'a>,
     /// Record account to be created
-    pub record: &'b solana_program::account_info::AccountInfo<'a>,
+    pub record: &'b solana_account_info::AccountInfo<'a>,
     /// System Program used to create our record account
-    pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
+    pub system_program: &'b solana_account_info::AccountInfo<'a>,
     /// Optional authority for permissioned classes
-    pub authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    pub authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
-    pub __args: CreateRecordInstructionArgs,
+    pub __args: CreateRecordTokenizableInstructionArgs,
 }
 
-impl<'a, 'b> CreateRecordCpi<'a, 'b> {
+impl<'a, 'b> CreateRecordTokenizableCpi<'a, 'b> {
     pub fn new(
-        program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: CreateRecordCpiAccounts<'a, 'b>,
-        args: CreateRecordInstructionArgs,
+        program: &'b solana_account_info::AccountInfo<'a>,
+        accounts: CreateRecordTokenizableCpiAccounts<'a, 'b>,
+        args: CreateRecordTokenizableInstructionArgs,
     ) -> Self {
         Self {
             __program: program,
@@ -283,25 +285,18 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
         }
     }
     #[inline(always)]
-    pub fn invoke(&self) -> solana_program::entrypoint::ProgramResult {
+    pub fn invoke(&self) -> solana_program_error::ProgramResult {
         self.invoke_signed_with_remaining_accounts(&[], &[])
     }
     #[inline(always)]
     pub fn invoke_with_remaining_accounts(
         &self,
-        remaining_accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
-    ) -> solana_program::entrypoint::ProgramResult {
+        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
+    ) -> solana_program_error::ProgramResult {
         self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
     }
     #[inline(always)]
-    pub fn invoke_signed(
-        &self,
-        signers_seeds: &[&[&[u8]]],
-    ) -> solana_program::entrypoint::ProgramResult {
+    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
         self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
     }
     #[allow(clippy::arithmetic_side_effects)]
@@ -310,56 +305,48 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
     pub fn invoke_signed_with_remaining_accounts(
         &self,
         signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
-    ) -> solana_program::entrypoint::ProgramResult {
+        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
+    ) -> solana_program_error::ProgramResult {
         let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.owner.key,
             true,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.payer.key,
-            true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.class.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
+        accounts.push(solana_instruction::AccountMeta::new(*self.payer.key, true));
+        accounts.push(solana_instruction::AccountMeta::new(*self.class.key, false));
+        accounts.push(solana_instruction::AccountMeta::new(
             *self.record.key,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.system_program.key,
             false,
         ));
         if let Some(authority) = self.authority {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 *authority.key,
                 true,
             ));
         } else {
-            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::SOLANA_RECORD_SERVICE_ID,
                 false,
             ));
         }
         remaining_accounts.iter().for_each(|remaining_account| {
-            accounts.push(solana_program::instruction::AccountMeta {
+            accounts.push(solana_instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
                 is_signer: remaining_account.1,
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = borsh::to_vec(&CreateRecordInstructionData::new()).unwrap();
-        let mut args = borsh::to_vec(&self.__args).unwrap();
+        let mut data = CreateRecordTokenizableInstructionData::new()
+            .try_to_vec()
+            .unwrap();
+        let mut args = self.__args.try_to_vec().unwrap();
         data.append(&mut args);
 
-        let instruction = solana_program::instruction::Instruction {
+        let instruction = solana_instruction::Instruction {
             program_id: crate::SOLANA_RECORD_SERVICE_ID,
             accounts,
             data,
@@ -379,14 +366,14 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
         if signers_seeds.is_empty() {
-            solana_program::program::invoke(&instruction, &account_infos)
+            solana_cpi::invoke(&instruction, &account_infos)
         } else {
-            solana_program::program::invoke_signed(&instruction, &account_infos, signers_seeds)
+            solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
         }
     }
 }
 
-/// Instruction builder for `CreateRecord` via CPI.
+/// Instruction builder for `CreateRecordTokenizable` via CPI.
 ///
 /// ### Accounts:
 ///
@@ -397,13 +384,13 @@ impl<'a, 'b> CreateRecordCpi<'a, 'b> {
 ///   4. `[]` system_program
 ///   5. `[signer, optional]` authority
 #[derive(Clone, Debug)]
-pub struct CreateRecordCpiBuilder<'a, 'b> {
-    instruction: Box<CreateRecordCpiBuilderInstruction<'a, 'b>>,
+pub struct CreateRecordTokenizableCpiBuilder<'a, 'b> {
+    instruction: Box<CreateRecordTokenizableCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
-    pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(CreateRecordCpiBuilderInstruction {
+impl<'a, 'b> CreateRecordTokenizableCpiBuilder<'a, 'b> {
+    pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
+        let instruction = Box::new(CreateRecordTokenizableCpiBuilderInstruction {
             __program: program,
             owner: None,
             payer: None,
@@ -413,35 +400,32 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
             authority: None,
             expiration: None,
             seed: None,
-            data: None,
+            metadata: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
     /// Owner of the new record
     #[inline(always)]
-    pub fn owner(&mut self, owner: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+    pub fn owner(&mut self, owner: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.owner = Some(owner);
         self
     }
     /// Account that will pay for the record account
     #[inline(always)]
-    pub fn payer(&mut self, payer: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+    pub fn payer(&mut self, payer: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.payer = Some(payer);
         self
     }
     /// Class account for the record to be created
     #[inline(always)]
-    pub fn class(&mut self, class: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
+    pub fn class(&mut self, class: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.class = Some(class);
         self
     }
     /// Record account to be created
     #[inline(always)]
-    pub fn record(
-        &mut self,
-        record: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
+    pub fn record(&mut self, record: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
         self.instruction.record = Some(record);
         self
     }
@@ -449,7 +433,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn system_program(
         &mut self,
-        system_program: &'b solana_program::account_info::AccountInfo<'a>,
+        system_program: &'b solana_account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
         self
@@ -459,7 +443,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn authority(
         &mut self,
-        authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+        authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     ) -> &mut Self {
         self.instruction.authority = authority;
         self
@@ -470,20 +454,20 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn seed(&mut self, seed: U8PrefixVec<u8>) -> &mut Self {
+    pub fn seed(&mut self, seed: U8PrefixedVec<u8>) -> &mut Self {
         self.instruction.seed = Some(seed);
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
-        self.instruction.data = Some(data);
+    pub fn metadata(&mut self, metadata: Metadata) -> &mut Self {
+        self.instruction.metadata = Some(metadata);
         self
     }
     /// Add an additional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
         &mut self,
-        account: &'b solana_program::account_info::AccountInfo<'a>,
+        account: &'b solana_account_info::AccountInfo<'a>,
         is_writable: bool,
         is_signer: bool,
     ) -> &mut Self {
@@ -499,11 +483,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn add_remaining_accounts(
         &mut self,
-        accounts: &[(
-            &'b solana_program::account_info::AccountInfo<'a>,
-            bool,
-            bool,
-        )],
+        accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
     ) -> &mut Self {
         self.instruction
             .__remaining_accounts
@@ -511,25 +491,26 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn invoke(&self) -> solana_program::entrypoint::ProgramResult {
+    pub fn invoke(&self) -> solana_program_error::ProgramResult {
         self.invoke_signed(&[])
     }
     #[allow(clippy::clone_on_copy)]
     #[allow(clippy::vec_init_then_push)]
-    pub fn invoke_signed(
-        &self,
-        signers_seeds: &[&[&[u8]]],
-    ) -> solana_program::entrypoint::ProgramResult {
-        let args = CreateRecordInstructionArgs {
+    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
+        let args = CreateRecordTokenizableInstructionArgs {
             expiration: self
                 .instruction
                 .expiration
                 .clone()
                 .expect("expiration is not set"),
             seed: self.instruction.seed.clone().expect("seed is not set"),
-            data: self.instruction.data.clone().expect("data is not set"),
+            metadata: self
+                .instruction
+                .metadata
+                .clone()
+                .expect("metadata is not set"),
         };
-        let instruction = CreateRecordCpi {
+        let instruction = CreateRecordTokenizableCpi {
             __program: self.instruction.__program,
 
             owner: self.instruction.owner.expect("owner is not set"),
@@ -556,21 +537,17 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct CreateRecordCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_program::account_info::AccountInfo<'a>,
-    owner: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    payer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    class: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    record: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+struct CreateRecordTokenizableCpiBuilderInstruction<'a, 'b> {
+    __program: &'b solana_account_info::AccountInfo<'a>,
+    owner: Option<&'b solana_account_info::AccountInfo<'a>>,
+    payer: Option<&'b solana_account_info::AccountInfo<'a>>,
+    class: Option<&'b solana_account_info::AccountInfo<'a>>,
+    record: Option<&'b solana_account_info::AccountInfo<'a>>,
+    system_program: Option<&'b solana_account_info::AccountInfo<'a>>,
+    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     expiration: Option<i64>,
-    seed: Option<U8PrefixVec<u8>>,
-    data: Option<RemainderVec<u8>>,
+    seed: Option<U8PrefixedVec<u8>>,
+    metadata: Option<Metadata>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
-    __remaining_accounts: Vec<(
-        &'b solana_program::account_info::AccountInfo<'a>,
-        bool,
-        bool,
-    )>,
+    __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

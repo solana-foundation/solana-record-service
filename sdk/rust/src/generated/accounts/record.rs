@@ -7,30 +7,23 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
-use kaigan::types::U8PrefixVec;
-use solana_program::pubkey::Pubkey;
+use solana_address::Address;
+use spl_collections::TrailingVec;
+use spl_collections::U8PrefixedVec;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Record {
     pub discriminator: u8,
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub class: Pubkey,
+    pub class: Address,
     pub owner_type: u8,
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub owner: Pubkey,
+    pub owner: Address,
     pub is_frozen: bool,
     pub expiry: i64,
-    pub seed: U8PrefixVec<u8>,
-    pub data: RemainderVec<u8>,
+    pub seed: U8PrefixedVec<u8>,
+    pub data: TrailingVec<u8>,
 }
+
+pub const RECORD_DISCRIMINATOR: u8 = 2;
 
 impl Record {
     #[inline(always)]
@@ -40,12 +33,10 @@ impl Record {
     }
 }
 
-impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Record {
+impl<'a> TryFrom<&solana_account_info::AccountInfo<'a>> for Record {
     type Error = std::io::Error;
 
-    fn try_from(
-        account_info: &solana_program::account_info::AccountInfo<'a>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(account_info: &solana_account_info::AccountInfo<'a>) -> Result<Self, Self::Error> {
         let mut data: &[u8] = &(*account_info.data).borrow();
         Self::deserialize(&mut data)
     }
@@ -54,7 +45,7 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Record {
 #[cfg(feature = "fetch")]
 pub fn fetch_record(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_program::pubkey::Pubkey,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::DecodedAccount<Record>, std::io::Error> {
     let accounts = fetch_all_record(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -63,18 +54,17 @@ pub fn fetch_record(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_record(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_program::pubkey::Pubkey],
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::DecodedAccount<Record>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Record>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
-        let account = accounts[i].as_ref().ok_or(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Account not found: {}", address),
-        ))?;
+        let account = accounts[i].as_ref().ok_or(std::io::Error::other(format!(
+            "Account not found: {address}"
+        )))?;
         let data = Record::from_bytes(&account.data)?;
         decoded_accounts.push(crate::shared::DecodedAccount {
             address,
@@ -88,7 +78,7 @@ pub fn fetch_all_record(
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_record(
     rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_program::pubkey::Pubkey,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::MaybeAccount<Record>, std::io::Error> {
     let accounts = fetch_all_maybe_record(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -97,11 +87,11 @@ pub fn fetch_maybe_record(
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_record(
     rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_program::pubkey::Pubkey],
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::MaybeAccount<Record>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Record>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
@@ -133,8 +123,10 @@ impl anchor_lang::AccountSerialize for Record {}
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::Owner for Record {
-    fn owner() -> Pubkey {
-        crate::SOLANA_RECORD_SERVICE_ID
+    fn owner() -> anchor_lang::solana_program::pubkey::Pubkey {
+        anchor_lang::solana_program::pubkey::Pubkey::from(
+            crate::SOLANA_RECORD_SERVICE_ID.to_bytes(),
+        )
     }
 }
 
@@ -143,5 +135,5 @@ impl anchor_lang::IdlBuild for Record {}
 
 #[cfg(feature = "anchor-idl-build")]
 impl anchor_lang::Discriminator for Record {
-    const DISCRIMINATOR: [u8; 8] = [0; 8];
+    const DISCRIMINATOR: &[u8] = &[0; 8];
 }
