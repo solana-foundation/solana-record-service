@@ -6,9 +6,6 @@ use pinocchio::{
 };
 use utils::Context;
 
-#[cfg(not(test))]
-use pinocchio::nostd_panic_handler;
-
 pub mod constants;
 pub mod instructions;
 pub mod state;
