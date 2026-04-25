@@ -11,6 +11,51 @@ pub struct Context<'info> {
     pub data: &'info [u8],
 }
 
+/// A global `#[panic_handler]` for `no_std` programs.
+///
+/// This macro sets up a default panic handler that logs the location (file,
+/// line and column) where the panic occurred and then calls the syscall
+/// `abort()`.
+///
+/// This macro should be used when all crates are `no_std`.
+#[macro_export]
+macro_rules! nostd_panic_handler {
+    () => {
+        /// A panic handler for `no_std`.
+        #[cfg(any(target_os = "solana", target_arch = "bpf"))]
+        #[panic_handler]
+        fn handler(info: &core::panic::PanicInfo<'_>) -> ! {
+            if let Some(location) = info.location() {
+                unsafe {
+                    pinocchio::syscalls::sol_panic_(
+                        location.file().as_ptr(),
+                        location.file().len() as u64,
+                        location.line() as u64,
+                        location.column() as u64,
+                    )
+                }
+            } else {
+                // Panic reporting.
+                const PANICKED: &str = "** PANICKED **";
+                unsafe {
+                    pinocchio::syscalls::sol_log_(PANICKED.as_ptr(), PANICKED.len() as u64);
+                    pinocchio::syscalls::abort();
+                }
+            }
+        }
+
+        /// A panic handler for when the program is compiled on a target different than
+        /// `"solana"`.
+        ///
+        /// This links the `std` library, which will set up a default panic handler.
+        #[cfg(not(any(target_os = "solana", target_arch = "bpf")))]
+        mod __private_panic_handler {
+            extern crate std as __std;
+        }
+    };
+}
+
+
 /// Resize an account and handle lamport transfers based on the new size
 ///
 /// This function will:
