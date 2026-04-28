@@ -12,7 +12,7 @@ use solana_record_service_client::{
     accounts::*,
     instructions::*,
     programs::SOLANA_RECORD_SERVICE_ID,
-    types::{Metadata, AdditionalMetadata},
+    types::{AdditionalMetadata, Metadata},
 };
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
@@ -130,15 +130,14 @@ fn keyed_account_for_class(
         &SOLANA_RECORD_SERVICE_ID,
     );
 
-    let class_account_data = Class {
+    let class_account_data = borsh::to_vec(&Class {
         discriminator: 1,
         authority,
         is_permissioned,
         is_frozen,
         name: make_u8prefix_string(name),
         metadata: make_remainder_str(metadata),
-    }
-    .try_to_vec()
+    })
     .expect("Invalid class");
 
     let mut class_account = Account::new(
@@ -165,7 +164,7 @@ fn keyed_account_for_record(
         &[b"record", &class.as_ref(), seed.as_ref()],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    let record_account_data = Record {
+    let record_account_data = borsh::to_vec(&Record {
         discriminator: 2,
         class,
         owner_type,
@@ -174,8 +173,7 @@ fn keyed_account_for_record(
         expiry,
         seed: make_u8prefix_vec_u8(seed),
         data: RemainderVec::<u8>::try_from_slice(data).unwrap(),
-    }
-    .try_to_vec()
+    })
     .expect("Invalid record");
 
     let mut record_account = Account::new(
@@ -213,7 +211,7 @@ fn keyed_account_for_record_with_metadata(
         &[b"record", &class.as_ref(), name.as_ref()],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    let record_account_data = Record {
+    let record_account_data = borsh::to_vec(&Record {
         discriminator: 2,
         class,
         owner_type,
@@ -222,8 +220,7 @@ fn keyed_account_for_record_with_metadata(
         expiry,
         seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(metadata.unwrap_or(METADATA)).unwrap(),
-    }
-    .try_to_vec()
+    })
     .expect("Invalid record");
 
     let mut record_account = Account::new(
@@ -262,7 +259,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
         &[b"record", &class.as_ref(), name.as_ref()],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    let record_account_data = Record {
+    let record_account_data = borsh::to_vec(&Record {
         discriminator: 2,
         class,
         owner_type,
@@ -271,8 +268,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
         expiry,
         seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_ADDITIONAL_METADATA).unwrap(),
-    }
-    .try_to_vec()
+    })
     .expect("Invalid record");
 
     let mut record_account = Account::new(
@@ -303,10 +299,10 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
     name: &str,
 ) -> (Pubkey, Account) {
     let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), name.as_ref()],
+        &[b"record", class.as_ref(), name.as_ref()],
         &SOLANA_RECORD_SERVICE_ID,
     );
-    let record_account_data = Record {
+    let record_account_data = borsh::to_vec(&Record {
         discriminator: 2,
         class,
         owner_type,
@@ -316,8 +312,7 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
         seed: make_u8prefix_vec_u8(name.as_bytes()),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA)
             .unwrap(),
-    }
-    .try_to_vec()
+    })
     .expect("Invalid record");
 
     let mut record_account = Account::new(
@@ -874,12 +869,13 @@ fn update_class_authority() {
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
-    let instruction = UpdateClassAuthority { 
+    let instruction = UpdateClassAuthority {
         authority: authority,
         payer: authority,
         class,
-        system_program, 
-    }.instruction(UpdateClassAuthorityInstructionArgs { new_authority });
+        system_program,
+    }
+    .instruction(UpdateClassAuthorityInstructionArgs { new_authority });
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
@@ -887,7 +883,8 @@ fn update_class_authority() {
     );
 
     // Class Updated
-    let (_, class_data_updated) = keyed_account_for_class(new_authority, false, false, "test", "test");
+    let (_, class_data_updated) =
+        keyed_account_for_class(new_authority, false, false, "test", "test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -898,7 +895,9 @@ fn update_class_authority() {
         ],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data_updated.data).build(),
+            Check::account(&class)
+                .data(&class_data_updated.data)
+                .build(),
         ],
     );
 }
@@ -1237,7 +1236,7 @@ fn update_record_with_metadata() {
         false,
         0,
         "test",
-        Some(&new_metadata.try_to_vec().unwrap()),
+        Some(&borsh::to_vec(&new_metadata).expect("Failed to serialize metadata")),
     );
 
     //System Program
@@ -1348,9 +1347,7 @@ fn update_class_expiry() {
         class,
         system_program,
     }
-    .instruction(UpdateRecordExpiryInstructionArgs {
-        expiry: 1000,
-    });
+    .instruction(UpdateRecordExpiryInstructionArgs { expiry: 1000 });
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
@@ -1358,7 +1355,8 @@ fn update_class_expiry() {
     );
 
     // Record updated
-    let (_, record_data_updated) = keyed_account_for_record(class, 0, OWNER, false, 1000, b"test", b"test");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, 0, OWNER, false, 1000, b"test", b"test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1587,13 +1585,14 @@ fn delete_tokenized_record_with_no_supply() {
         &SOLANA_RECORD_SERVICE_ID,
     );
     let (mint, mut mint_data) = keyed_account_for_mint(record);
-    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
+    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
     // Record
-    let (_, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
     // Token2022 Program
-    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
-   
+    let (token2022_program, token2022_program_data) =
+        mollusk_svm_programs_token::token2022::keyed_account();
+
     let instruction = DeleteRecord {
         authority: owner,
         payer: owner,
@@ -1654,7 +1653,11 @@ fn freeze_record() {
 
     mollusk.process_and_validate_instruction(
         &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
         &[
             Check::success(),
             Check::account(&record)
@@ -2532,7 +2535,7 @@ fn update_tokenized_record() {
         false,
         0,
         "test",
-        Some(&new_metadata.try_to_vec().unwrap()),
+        Some(&borsh::to_vec(&new_metadata).unwrap()),
     );
 
     //System Program
@@ -2591,10 +2594,7 @@ fn update_tokenized_record() {
 
     mollusk.process_and_validate_instruction_chain(
         &[
-            (
-                &burn_instruction, 
-                &[Check::success()]
-            ),
+            (&burn_instruction, &[Check::success()]),
             (
                 &update_instruction,
                 &[
