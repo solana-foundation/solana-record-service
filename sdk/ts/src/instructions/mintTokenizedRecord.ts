@@ -84,7 +84,7 @@ export function mintTokenizedRecord(
   // Program ID.
   const programId = context.programs.getPublicKey(
     'solanaRecordService',
-    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+    'srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn'
   );
 
   // Accounts.

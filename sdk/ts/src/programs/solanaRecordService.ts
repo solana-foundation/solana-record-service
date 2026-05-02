@@ -18,7 +18,7 @@ import {
 } from '../errors';
 
 export const SOLANA_RECORD_SERVICE_PROGRAM_ID =
-  'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa' as PublicKey<'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'>;
+  'srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn' as PublicKey<'srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn'>;
 
 export function createSolanaRecordServiceProgram(): Program {
   return {

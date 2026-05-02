@@ -8,4 +8,4 @@
 use solana_program::{pubkey, pubkey::Pubkey};
 
 /// `solana_record_service` program ID.
-pub const SOLANA_RECORD_SERVICE_ID: Pubkey = pubkey!("srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa");
+pub const SOLANA_RECORD_SERVICE_ID: Pubkey = pubkey!("srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn");

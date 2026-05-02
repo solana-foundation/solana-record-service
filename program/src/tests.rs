@@ -764,7 +764,7 @@ fn create_class() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -807,7 +807,7 @@ fn update_class_metadata() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -849,7 +849,7 @@ fn update_class_metadata_incorrect_authority() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -883,7 +883,7 @@ fn update_class_authority() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     // Class Updated
@@ -917,7 +917,7 @@ fn update_class_frozen() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -944,7 +944,7 @@ fn update_class_frozen_already_frozen() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -985,7 +985,7 @@ fn create_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1036,7 +1036,7 @@ fn create_record_with_metadata() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1091,7 +1091,7 @@ fn create_record_with_metadata_and_additional_metadata() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1139,7 +1139,7 @@ fn create_permissioned_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1189,7 +1189,7 @@ fn update_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1261,7 +1261,7 @@ fn update_record_with_metadata() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1311,7 +1311,7 @@ fn update_record_with_delegate_incorrect_authority() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1354,7 +1354,7 @@ fn update_class_expiry() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     // Record updated
@@ -1402,7 +1402,7 @@ fn transfer_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1441,7 +1441,7 @@ fn transfer_record_with_delegate() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1482,7 +1482,7 @@ fn fail_transfer_record_frozen() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1516,7 +1516,7 @@ fn delete_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1557,7 +1557,7 @@ fn delete_record_with_delegate() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1606,7 +1606,7 @@ fn delete_tokenized_record_with_no_supply() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -1649,7 +1649,7 @@ fn freeze_record() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1686,7 +1686,7 @@ fn freeze_record_already_frozen() {
 
     let mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk.process_and_validate_instruction(
@@ -1746,7 +1746,7 @@ fn mint_record_token() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -1816,7 +1816,7 @@ fn mint_record_token_with_additional_metadata() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -1887,7 +1887,7 @@ fn mint_record_token_with_multiple_additional_metadata() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -1958,7 +1958,7 @@ fn mint_record_token_with_delegate() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2023,7 +2023,7 @@ fn freeze_tokenized_record() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2082,7 +2082,7 @@ fn freeze_tokenized_record_delegate() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2143,7 +2143,7 @@ fn transfer_tokenized_record() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2199,7 +2199,7 @@ fn transfer_tokenized_record_delegate() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2255,7 +2255,7 @@ fn burn_tokenized_record() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2310,7 +2310,7 @@ fn burn_tokenized_record_delegate() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2379,7 +2379,7 @@ fn mint_and_burn_tokenized_record() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2457,7 +2457,7 @@ fn mint_and_burn_tokenized_record_delegate() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
@@ -2583,7 +2583,7 @@ fn update_tokenized_record() {
 
     let mut mollusk = Mollusk::new(
         &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/solana_record_service",
+        "../target/deploy/srs",
     );
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);

@@ -14,7 +14,7 @@ const typescriptClientsDir = path.join(
 const root = rootNode(
     programNode({
         name: "solana-record-service",
-        publicKey: "srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa",
+        publicKey: "srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn",
         version: "1.1.0",
         accounts: [
             accountNode({

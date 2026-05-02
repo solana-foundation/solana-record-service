@@ -137,7 +137,7 @@ export function getRecordGpaBuilder(
 ) {
   const programId = context.programs.getPublicKey(
     'solanaRecordService',
-    'srsUi2TVUUCyGcZdopxJauk8ZBzgAaHHZCVUhm5ifPa'
+    'srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn'
   );
   return gpaBuilder(context, programId)
     .registerFields<{
