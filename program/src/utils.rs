@@ -6,6 +6,43 @@ use pinocchio::{
     ProgramResult,
 };
 use pinocchio_system::instructions::Transfer;
+
+pub fn hashv(values: &[&[u8]]) -> [u8; 32] {
+    #[cfg(not(any(target_os = "solana", target_arch = "bpf")))]
+    {
+        #[cfg(feature = "sha2")]
+        {
+            use sha2::{Digest, Sha256};
+
+            let mut hasher = Sha256::new();
+            for value in values {
+                hasher.update(value);
+            }
+            hasher.finalize().into()
+        }
+
+        #[cfg(not(feature = "sha2"))]
+        {
+            let _ = values;
+            panic!("hashv is only available on native targets with the `sha2` feature enabled")
+        }
+    }
+
+    // Call via a system call to perform the calculation.
+    #[cfg(any(target_os = "solana", target_arch = "bpf"))]
+    {
+        let mut result = [0; 32];
+        unsafe {
+            pinocchio::syscalls::sol_sha256(
+                values.as_ptr().cast(),
+                values.len() as u64,
+                result.as_mut_ptr(),
+            );
+        }
+        result
+    }
+}
+
 pub struct Context<'info> {
     pub accounts: &'info [AccountInfo],
     pub data: &'info [u8],
@@ -54,7 +91,6 @@ macro_rules! nostd_panic_handler {
         }
     };
 }
-
 
 /// Resize an account and handle lamport transfers based on the new size
 ///

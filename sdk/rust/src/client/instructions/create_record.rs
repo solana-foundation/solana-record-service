@@ -8,7 +8,7 @@
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::RemainderVec;
-use kaigan::types::U8PrefixVec;
+use kaigan::types::U16PrefixString;
 
 /// Accounts.
 #[derive(Debug)]
@@ -104,7 +104,7 @@ impl Default for CreateRecordInstructionData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CreateRecordInstructionArgs {
     pub expiration: i64,
-    pub seed: U8PrefixVec<u8>,
+    pub name: U16PrefixString,
     pub data: RemainderVec<u8>,
 }
 
@@ -127,7 +127,7 @@ pub struct CreateRecordBuilder {
     system_program: Option<solana_program::pubkey::Pubkey>,
     authority: Option<solana_program::pubkey::Pubkey>,
     expiration: Option<i64>,
-    seed: Option<U8PrefixVec<u8>>,
+    name: Option<U16PrefixString>,
     data: Option<RemainderVec<u8>>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
@@ -180,8 +180,8 @@ impl CreateRecordBuilder {
         self
     }
     #[inline(always)]
-    pub fn seed(&mut self, seed: U8PrefixVec<u8>) -> &mut Self {
-        self.seed = Some(seed);
+    pub fn name(&mut self, name: U16PrefixString) -> &mut Self {
+        self.name = Some(name);
         self
     }
     #[inline(always)]
@@ -221,7 +221,7 @@ impl CreateRecordBuilder {
         };
         let args = CreateRecordInstructionArgs {
             expiration: self.expiration.clone().expect("expiration is not set"),
-            seed: self.seed.clone().expect("seed is not set"),
+            name: self.name.clone().expect("name is not set"),
             data: self.data.clone().expect("data is not set"),
         };
 
@@ -412,7 +412,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
             system_program: None,
             authority: None,
             expiration: None,
-            seed: None,
+            name: None,
             data: None,
             __remaining_accounts: Vec::new(),
         });
@@ -470,8 +470,8 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn seed(&mut self, seed: U8PrefixVec<u8>) -> &mut Self {
-        self.instruction.seed = Some(seed);
+    pub fn name(&mut self, name: U16PrefixString) -> &mut Self {
+        self.instruction.name = Some(name);
         self
     }
     #[inline(always)]
@@ -526,7 +526,7 @@ impl<'a, 'b> CreateRecordCpiBuilder<'a, 'b> {
                 .expiration
                 .clone()
                 .expect("expiration is not set"),
-            seed: self.instruction.seed.clone().expect("seed is not set"),
+            name: self.instruction.name.clone().expect("name is not set"),
             data: self.instruction.data.clone().expect("data is not set"),
         };
         let instruction = CreateRecordCpi {
@@ -565,7 +565,7 @@ struct CreateRecordCpiBuilderInstruction<'a, 'b> {
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     expiration: Option<i64>,
-    seed: Option<U8PrefixVec<u8>>,
+    name: Option<U16PrefixString>,
     data: Option<RemainderVec<u8>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(

@@ -43,7 +43,7 @@ const root = rootNode(
                     structFieldTypeNode({ name: 'owner', type: publicKeyTypeNode() }),
                     structFieldTypeNode({ name: 'isFrozen', type: booleanTypeNode() }),
                     structFieldTypeNode({ name: 'expiry', type: numberTypeNode("i64") }),
-                    structFieldTypeNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8")) }),
+                    structFieldTypeNode({ name: 'name', type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u16")) }),
                     structFieldTypeNode({ name: 'data', type: bytesTypeNode() }),
                 ])
             }),
@@ -222,7 +222,10 @@ const root = rootNode(
                     instructionArgumentNode({ 
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
-                    instructionArgumentNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8"))}),
+                    instructionArgumentNode({
+                        name: 'name',
+                        type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u16")),
+                    }),
                     instructionArgumentNode({ name: 'data', type: bytesTypeNode() }),
                 ],
                 accounts: [
@@ -248,7 +251,7 @@ const root = rootNode(
                         name: "record",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Record account to be created"]
+                        docs: ["Record PDA derived from [\"record\", class, SHA-256(\"srs-record-name-v1\" || UTF-8(name))]"]
                     }),
                     instructionAccountNode({
                         name: "systemProgram",
@@ -281,7 +284,10 @@ const root = rootNode(
                     instructionArgumentNode({ 
                         name: 'expiration', type: numberTypeNode("i64") 
                     }),
-                    instructionArgumentNode({ name: 'seed', type: sizePrefixTypeNode(bytesTypeNode(), numberTypeNode("u8")) }),
+                    instructionArgumentNode({
+                        name: 'name',
+                        type: sizePrefixTypeNode(stringTypeNode("utf8"), numberTypeNode("u16")),
+                    }),
                     instructionArgumentNode({ name: 'metadata', type: definedTypeLinkNode('metadata')})
                 ],
                 accounts: [
@@ -307,7 +313,7 @@ const root = rootNode(
                         name: "record",
                         isSigner: false,
                         isWritable: true,
-                        docs: ["Record account to be created"]
+                        docs: ["Record PDA derived from [\"record\", class, SHA-256(\"srs-record-name-v1\" || UTF-8(name))]"]
                     }),
                     instructionAccountNode({
                         name: "systemProgram",

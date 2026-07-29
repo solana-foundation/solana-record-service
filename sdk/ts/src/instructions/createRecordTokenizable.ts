@@ -16,10 +16,11 @@ import {
 } from '@metaplex-foundation/umi';
 import {
   Serializer,
-  bytes,
   i64,
   mapSerializer,
+  string,
   struct,
+  u16,
   u8,
 } from '@metaplex-foundation/umi/serializers';
 import {
@@ -37,7 +38,7 @@ export type CreateRecordTokenizableInstructionAccounts = {
   payer: Signer;
   /** Class account for the record to be created */
   class: PublicKey | Pda;
-  /** Record account to be created */
+  /** Record PDA derived from ["record", class, SHA-256("srs-record-name-v1" || UTF-8(name))] */
   record: PublicKey | Pda;
   /** System Program used to create our record account */
   systemProgram?: PublicKey | Pda;
@@ -49,13 +50,13 @@ export type CreateRecordTokenizableInstructionAccounts = {
 export type CreateRecordTokenizableInstructionData = {
   discriminator: number;
   expiration: bigint;
-  seed: Uint8Array;
+  name: string;
   metadata: Metadata;
 };
 
 export type CreateRecordTokenizableInstructionDataArgs = {
   expiration: number | bigint;
-  seed: Uint8Array;
+  name: string;
   metadata: MetadataArgs;
 };
 
@@ -72,7 +73,7 @@ export function getCreateRecordTokenizableInstructionDataSerializer(): Serialize
       [
         ['discriminator', u8()],
         ['expiration', i64()],
-        ['seed', bytes({ size: u8() })],
+        ['name', string({ size: u16() })],
         ['metadata', getMetadataSerializer()],
       ],
       { description: 'CreateRecordTokenizableInstructionData' }

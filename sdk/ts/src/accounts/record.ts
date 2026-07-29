@@ -26,7 +26,9 @@ import {
   i64,
   mapSerializer,
   publicKey as publicKeySerializer,
+  string,
   struct,
+  u16,
   u8,
 } from '@metaplex-foundation/umi/serializers';
 
@@ -39,7 +41,7 @@ export type RecordAccountData = {
   owner: PublicKey;
   isFrozen: boolean;
   expiry: bigint;
-  seed: Uint8Array;
+  name: string;
   data: Uint8Array;
 };
 
@@ -48,7 +50,7 @@ export type RecordAccountDataArgs = {
   owner: PublicKey;
   isFrozen: boolean;
   expiry: number | bigint;
-  seed: Uint8Array;
+  name: string;
   data: Uint8Array;
 };
 
@@ -65,7 +67,7 @@ export function getRecordAccountDataSerializer(): Serializer<
         ['owner', publicKeySerializer()],
         ['isFrozen', bool()],
         ['expiry', i64()],
-        ['seed', bytes({ size: u8() })],
+        ['name', string({ size: u16() })],
         ['data', bytes()],
       ],
       { description: 'RecordAccountData' }
@@ -147,7 +149,7 @@ export function getRecordGpaBuilder(
       owner: PublicKey;
       isFrozen: boolean;
       expiry: number | bigint;
-      seed: Uint8Array;
+      name: string;
       data: Uint8Array;
     }>({
       discriminator: [0, u8()],
@@ -156,7 +158,7 @@ export function getRecordGpaBuilder(
       owner: [34, publicKeySerializer()],
       isFrozen: [66, bool()],
       expiry: [67, i64()],
-      seed: [75, bytes({ size: u8() })],
+      name: [75, string({ size: u16() })],
       data: [null, bytes()],
     })
     .deserializeUsing<Record>((account) => deserializeRecord(account));

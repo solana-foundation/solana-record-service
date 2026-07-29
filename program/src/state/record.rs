@@ -1,9 +1,13 @@
 use crate::{
-    token2022::{CloseAccount, Mint, Token}, utils::{resize_account, ByteWriter}
+    token2022::{CloseAccount, Mint, Token},
+    utils::{resize_account, ByteWriter},
 };
 use core::{mem::size_of, str};
 use pinocchio::{
-    account_info::{AccountInfo, Ref, RefMut}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}
+    account_info::{AccountInfo, Ref, RefMut},
+    instruction::{Seed, Signer},
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
 };
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
@@ -15,8 +19,8 @@ const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Pubkey>();
 pub const OWNER_OFFSET: usize = OWNER_TYPE_OFFSET + size_of::<u8>();
 pub const IS_FROZEN_OFFSET: usize = OWNER_OFFSET + size_of::<Pubkey>();
 const EXPIRY_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
-const SEED_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
-pub const SEED_OFFSET: usize = SEED_LEN_OFFSET + size_of::<u8>();
+const NAME_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
+pub const NAME_OFFSET: usize = NAME_LEN_OFFSET + size_of::<u16>();
 
 #[repr(C)]
 pub struct Record<'info> {
@@ -31,7 +35,7 @@ pub struct Record<'info> {
     /// Optional expiration timestamp, if not set, the expiry is [0; 8]
     pub expiry: i64,
     /// The record name/key
-    pub seed: &'info [u8],
+    pub name: &'info str,
     /// The record's data content
     pub data: &'info str,
 }
@@ -56,7 +60,25 @@ impl<'info> Record<'info> {
         + size_of::<Pubkey>()
         + size_of::<bool>()
         + size_of::<i64>()
-        + size_of::<u8>();
+        + size_of::<u16>();
+
+    fn get_data_offset(data: &[u8]) -> Result<usize, ProgramError> {
+        let name_len = u16::from_le_bytes(
+            data.get(NAME_LEN_OFFSET..NAME_OFFSET)
+                .ok_or(ProgramError::InvalidAccountData)?
+                .try_into()
+                .map_err(|_| ProgramError::InvalidAccountData)?,
+        ) as usize;
+        let offset = NAME_OFFSET
+            .checked_add(name_len)
+            .ok_or(ProgramError::InvalidAccountData)?;
+
+        if offset > data.len() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        Ok(offset)
+    }
 
     /// Check if the program id and discriminator are valid
     #[inline(always)]
@@ -101,7 +123,7 @@ impl<'info> Record<'info> {
         record: &AccountInfo,
         class: Option<&AccountInfo>,
         authority: &AccountInfo,
-        mint: Option<&AccountInfo>
+        mint: Option<&AccountInfo>,
     ) -> Result<(), ProgramError> {
         // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
@@ -112,7 +134,10 @@ impl<'info> Record<'info> {
         if data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
             let mint = mint.ok_or(ProgramError::InvalidAccountData)?;
 
-            if mint.key().ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+            if mint
+                .key()
+                .ne(&data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()])
+            {
                 return Err(ProgramError::InvalidAccountData);
             }
 
@@ -122,9 +147,9 @@ impl<'info> Record<'info> {
 
             // Close the Mint and get back the rent
             let bump = [
-            try_find_program_address(&[b"mint", record.key()], &crate::ID)
-                .ok_or(ProgramError::InvalidArgument)?
-                .1,
+                try_find_program_address(&[b"mint", record.key()], &crate::ID)
+                    .ok_or(ProgramError::InvalidArgument)?
+                    .1,
             ];
 
             let seeds = [
@@ -132,9 +157,9 @@ impl<'info> Record<'info> {
                 Seed::from(record.key()),
                 Seed::from(&bump),
             ];
-    
+
             let signers = [Signer::from(&seeds)];
-    
+
             // Close the mint account
             CloseAccount {
                 account: mint,
@@ -161,7 +186,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
-        if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -199,7 +227,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
-        if class.key().ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -262,7 +293,10 @@ impl<'info> Record<'info> {
 
         // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
-        if class.key().ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if class
+            .key()
+            .ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()])
+        {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -345,7 +379,8 @@ impl<'info> Record<'info> {
         }
 
         // Update the expiry
-        data[EXPIRY_OFFSET..EXPIRY_OFFSET + size_of::<i64>()].clone_from_slice(&new_expiry.to_le_bytes());
+        data[EXPIRY_OFFSET..EXPIRY_OFFSET + size_of::<i64>()]
+            .clone_from_slice(&new_expiry.to_le_bytes());
 
         Ok(())
     }
@@ -359,14 +394,15 @@ impl<'info> Record<'info> {
         payer: &'info AccountInfo,
         data: &'info str,
     ) -> Result<(), ProgramError> {
-        let seed_len = {
+        let offset = {
             let data_ref = record.try_borrow_data()?;
-            data_ref[SEED_LEN_OFFSET] as usize
+            Self::get_data_offset(&data_ref)?
         };
 
-        let offset = seed_len + SEED_LEN_OFFSET + size_of::<u8>();
         let current_len = record.data_len();
-        let new_len = offset + data.len();
+        let new_len = offset
+            .checked_add(data.len())
+            .ok_or(ProgramError::InvalidAccountData)?;
 
         if new_len != current_len {
             resize_account(record, payer, new_len, new_len < current_len)?;
@@ -411,13 +447,14 @@ impl<'info> Record<'info> {
     pub unsafe fn get_metadata_len_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<usize, ProgramError> {
-        let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
+        let metadata_start = Self::get_data_offset(data)?;
+        let mut offset = metadata_start;
 
-        // Read seed_len and skip name
-        let seed_len =
+        // Read name_len and skip name
+        let name_len =
             u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
                 as usize;
-        offset += size_of::<u32>() + seed_len;
+        offset += size_of::<u32>() + name_len;
 
         // Read ticker_len and skip ticker
         let ticker_len =
@@ -448,7 +485,7 @@ impl<'info> Record<'info> {
             offset += size_of::<u32>() + value_len;
         }
 
-        Ok(offset - (SEED_LEN_OFFSET - size_of::<u8>() - data[SEED_LEN_OFFSET] as usize))
+        Ok(offset - metadata_start)
     }
 
     #[inline(always)]
@@ -458,13 +495,14 @@ impl<'info> Record<'info> {
     pub unsafe fn get_metadata_data_unchecked(
         data: &'info Ref<'info, [u8]>,
     ) -> Result<(&'info [u8], Option<&'info [u8]>), ProgramError> {
-        let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
+        let metadata_start = Self::get_data_offset(data)?;
+        let mut offset = metadata_start;
 
-        // Read seed_len and skip seed
-        let seed_len =
+        // Read name_len and skip name
+        let name_len =
             u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap())
                 as usize;
-        offset += size_of::<u32>() + seed_len;
+        offset += size_of::<u32>() + name_len;
 
         // Read ticker_len and skip ticker
         let ticker_len =
@@ -478,8 +516,7 @@ impl<'info> Record<'info> {
                 as usize;
         offset += size_of::<u32>() + uri_len;
 
-        let metadata_data =
-            &data[SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize..offset];
+        let metadata_data = &data[metadata_start..offset];
 
         let additional_metadata_data =
             if u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) != 0
@@ -500,7 +537,7 @@ impl<'info> Record<'info> {
         &self,
         account_info: &'info AccountInfo,
     ) -> Result<(), ProgramError> {
-        let required_space = Self::MINIMUM_RECORD_SIZE + self.seed.len() + self.data.len();
+        let required_space = Self::MINIMUM_RECORD_SIZE + self.name.len() + self.data.len();
         if account_info.data_len() < required_space {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -517,8 +554,14 @@ impl<'info> Record<'info> {
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
         ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;
 
-        let mut variable_data = ByteWriter::new_with_offset(&mut data, SEED_LEN_OFFSET);
-        variable_data.write_bytes_with_length(self.seed)?;
+        let name_len: u16 = self
+            .name
+            .len()
+            .try_into()
+            .map_err(|_| ProgramError::InvalidArgument)?;
+        let mut variable_data = ByteWriter::new_with_offset(&mut data, NAME_LEN_OFFSET);
+        variable_data.write_bytes(&name_len.to_le_bytes())?;
+        variable_data.write_str(self.name)?;
         variable_data.write_str(self.data)?;
 
         Ok(())

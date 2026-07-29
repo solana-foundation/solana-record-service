@@ -8,7 +8,7 @@
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use kaigan::types::RemainderVec;
-use kaigan::types::U8PrefixVec;
+use kaigan::types::U16PrefixString;
 use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
@@ -28,7 +28,7 @@ pub struct Record {
     pub owner: Pubkey,
     pub is_frozen: bool,
     pub expiry: i64,
-    pub seed: U8PrefixVec<u8>,
+    pub name: U16PrefixString,
     pub data: RemainderVec<u8>,
 }
 
