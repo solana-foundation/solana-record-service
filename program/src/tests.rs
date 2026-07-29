@@ -1,10 +1,10 @@
 use borsh::de::BorshDeserialize;
 use borsh::ser::BorshSerialize;
-use core::str::FromStr;
+use core::{mem::size_of, str::FromStr};
 use solana_account::{Account, WritableAccount};
 use solana_program::program_error::ProgramError;
 
-use kaigan::types::{RemainderStr, RemainderVec, U8PrefixString, U8PrefixVec};
+use kaigan::types::{RemainderStr, RemainderVec, U16PrefixString, U8PrefixString};
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_pubkey::Pubkey;
 
@@ -12,13 +12,16 @@ use solana_record_service_client::{
     accounts::*,
     instructions::*,
     programs::SOLANA_RECORD_SERVICE_ID,
-    types::{Metadata, AdditionalMetadata},
+    types::{AdditionalMetadata, Metadata},
 };
+
+use crate::utils::hashv;
 
 pub const AUTHORITY: Pubkey = Pubkey::new_from_array([0xaa; 32]);
 pub const OWNER: Pubkey = Pubkey::new_from_array([0xbb; 32]);
 pub const NEW_OWNER: Pubkey = Pubkey::new_from_array([0xcc; 32]);
 pub const RANDOM_PUBKEY: Pubkey = Pubkey::new_from_array([0xdd; 32]);
+const RECORD_NAME_HASH_PREFIX: &[u8] = b"srs-record-name-v1";
 
 // TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 pub const TOKEN_2022_PROGRAM_ID: Pubkey = Pubkey::new_from_array([
@@ -71,8 +74,19 @@ fn make_u8prefix_string(s: &str) -> U8PrefixString {
         .expect("Invalid name")
 }
 
-fn make_u8prefix_vec_u8(s: &[u8]) -> U8PrefixVec<u8> {
-    U8PrefixVec::try_from_slice(&[&[s.len() as u8], s].concat()).expect("Invalid seed")
+fn make_u16prefix_string(s: &str) -> U16PrefixString {
+    let len = u16::try_from(s.len()).expect("Name is too long");
+    U16PrefixString::try_from_slice(&[&len.to_le_bytes(), s.as_bytes()].concat())
+        .expect("Invalid name")
+}
+
+fn find_record_address(class: &Pubkey, name: &str) -> Pubkey {
+    let name_hash = hashv(&[RECORD_NAME_HASH_PREFIX, name.as_bytes()]);
+    Pubkey::find_program_address(
+        &[b"record", class.as_ref(), name_hash.as_ref()],
+        &SOLANA_RECORD_SERVICE_ID,
+    )
+    .0
 }
 
 fn make_u32prefix_string(s: &str) -> String {
@@ -158,13 +172,10 @@ fn keyed_account_for_record(
     owner: Pubkey,
     is_frozen: bool,
     expiry: i64,
-    seed: &[u8],
+    name: &str,
     data: &[u8],
 ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), seed.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let address = find_record_address(&class, name);
     let record_account_data = Record {
         discriminator: 2,
         class,
@@ -172,7 +183,7 @@ fn keyed_account_for_record(
         owner,
         is_frozen,
         expiry,
-        seed: make_u8prefix_vec_u8(seed),
+        name: make_u16prefix_string(name),
         data: RemainderVec::<u8>::try_from_slice(data).unwrap(),
     }
     .try_to_vec()
@@ -209,10 +220,7 @@ fn keyed_account_for_record_with_metadata(
     name: &str,
     metadata: Option<&[u8]>,
 ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), name.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let address = find_record_address(&class, name);
     let record_account_data = Record {
         discriminator: 2,
         class,
@@ -220,7 +228,7 @@ fn keyed_account_for_record_with_metadata(
         owner,
         is_frozen,
         expiry,
-        seed: make_u8prefix_vec_u8(name.as_bytes()),
+        name: make_u16prefix_string(name),
         data: RemainderVec::<u8>::try_from_slice(metadata.unwrap_or(METADATA)).unwrap(),
     }
     .try_to_vec()
@@ -258,10 +266,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
     expiry: i64,
     name: &str,
 ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), name.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let address = find_record_address(&class, name);
     let record_account_data = Record {
         discriminator: 2,
         class,
@@ -269,7 +274,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
         owner,
         is_frozen,
         expiry,
-        seed: make_u8prefix_vec_u8(name.as_bytes()),
+        name: make_u16prefix_string(name),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_ADDITIONAL_METADATA).unwrap(),
     }
     .try_to_vec()
@@ -302,10 +307,7 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
     expiry: i64,
     name: &str,
 ) -> (Pubkey, Account) {
-    let (address, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), name.as_ref()],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let address = find_record_address(&class, name);
     let record_account_data = Record {
         discriminator: 2,
         class,
@@ -313,7 +315,7 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
         owner,
         is_frozen,
         expiry,
-        seed: make_u8prefix_vec_u8(name.as_bytes()),
+        name: make_u16prefix_string(name),
         data: RemainderVec::<u8>::try_from_slice(METADATA_WITH_MULTIPLE_ADDITIONAL_METADATA)
             .unwrap(),
     }
@@ -333,54 +335,55 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
 }
 
 const MINT_DATA_WITH_EXTENSIONS: &[u8] = &[
-    1, 0, 0, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-    0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101,
-    42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 ];
 const MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY: &[u8] = &[
-    1, 0, 0, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-    0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101,
-    42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 ];
 const MINT_CLOSE_AUTHORITY_EXTENSION: &[u8] = &[
-    3, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+    3, 0, 32, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154,
 ];
 const MINT_PERMANENT_DELEGATE_EXTENSION: &[u8] = &[
-    12, 0, 32, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+    12, 0, 32, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154,
 ];
 const MINT_METADATA_POINTER_EXTENSION: &[u8] = &[
-    18, 0, 64, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
-    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
+    18, 0, 64, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 135, 40, 132, 210, 116, 95,
+    104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78, 11,
+    198, 100, 241, 168, 154,
 ];
 const MINT_GROUP_MEMBER_POINTER_EXTENSION: &[u8] = &[
-    22, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
-    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 44, 183, 51, 50, 60, 76,
-    5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4,
-    96, 81, 27, 127,
+    22, 0, 64, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66,
+    78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 135, 40, 132, 210, 116,
+    95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78,
+    11, 198, 100, 241, 168, 154,
 ];
 const MINT_METADATA_EXTENSION: &[u8] = &[
-    19, 0, 91, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
-    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
-    4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0, 0,
-    0, 0,
+    19, 0, 91, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 135, 40, 132, 210, 116, 95,
+    104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78, 11,
+    198, 100, 241, 168, 154, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0,
+    116, 101, 115, 116, 0, 0, 0, 0,
 ];
 const MINT_GROUP_MEMBER_EXTENSION: &[u8] = &[
-    23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 52, 137, 177, 136, 59, 205, 145, 103,
-    193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152,
-    136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0,
+    23, 0, 72, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 128, 169, 86, 118, 238, 211,
+    65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165,
+    142, 112, 195, 163, 78, 34, 1, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 fn keyed_account_for_mint(record: Pubkey) -> (Pubkey, Account) {
@@ -440,17 +443,17 @@ fn keyed_account_for_mint(record: Pubkey) -> (Pubkey, Account) {
 }
 
 const MINT_METADATA_EXTENSION_UPDATED: &[u8] = &[
-    19, 0, 92, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31,
-    190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127,
-    5, 0, 0, 0, 116, 101, 115, 116, 50, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 0,
-    0, 0, 0,
+    19, 0, 92, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 135, 40, 132, 210, 116, 95,
+    104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78, 11,
+    198, 100, 241, 168, 154, 5, 0, 0, 0, 116, 101, 115, 116, 50, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0,
+    0, 116, 101, 115, 116, 0, 0, 0, 0,
 ];
 const MINT_GROUP_MEMBER_EXTENSION_UPDATED: &[u8] = &[
-    23, 0, 72, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19, 33,
-    142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 52, 137, 177, 136, 59, 205, 145, 103,
-    193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152,
-    136, 141, 87, 92, 2, 0, 0, 0, 0, 0, 0, 0,
+    23, 0, 72, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 128, 169, 86, 118, 238, 211,
+    65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165,
+    142, 112, 195, 163, 78, 34, 2, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 fn keyed_account_for_updated_mint(record: Pubkey) -> (Pubkey, Account) {
@@ -510,11 +513,11 @@ fn keyed_account_for_updated_mint(record: Pubkey) -> (Pubkey, Account) {
 }
 
 const MINT_METADATA_EXTENSION_WITH_ADDITIONAL_METADATA: &[u8; 111] = &[
-    19, 0, 107, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19,
-    33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101,
-    31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27,
-    127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 1,
-    0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116,
+    19, 0, 107, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 135, 40, 132, 210, 116, 95,
+    104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78, 11,
+    198, 100, 241, 168, 154, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0,
+    116, 101, 115, 116, 1, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116,
 ];
 
 fn keyed_account_for_mint_with_additional_metadata(record: Pubkey) -> (Pubkey, Account) {
@@ -573,13 +576,13 @@ fn keyed_account_for_mint_with_additional_metadata(record: Pubkey) -> (Pubkey, A
 }
 
 const MINT_METADATA_EXTENSIONE_WITH_MULTIPLE_ADDITIONAL_METADATA: &[u8; 143] = &[
-    19, 0, 139, 0, 44, 183, 51, 50, 60, 76, 5, 80, 101, 31, 190, 147, 58, 233, 60, 212, 133, 19,
-    33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27, 127, 44, 183, 51, 50, 60, 76, 5, 80, 101,
-    31, 190, 147, 58, 233, 60, 212, 133, 19, 33, 142, 101, 42, 77, 206, 214, 6, 73, 4, 96, 81, 27,
-    127, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0, 116, 101, 115, 116, 3,
-    0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 115, 101,
-    115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116, 4, 0, 0, 0, 116, 101,
-    115, 116,
+    19, 0, 139, 0, 135, 40, 132, 210, 116, 95, 104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165,
+    23, 50, 110, 159, 251, 80, 242, 78, 11, 198, 100, 241, 168, 154, 135, 40, 132, 210, 116, 95,
+    104, 6, 159, 22, 88, 87, 149, 183, 141, 42, 74, 165, 23, 50, 110, 159, 251, 80, 242, 78, 11,
+    198, 100, 241, 168, 154, 4, 0, 0, 0, 116, 101, 115, 116, 3, 0, 0, 0, 83, 82, 83, 4, 0, 0, 0,
+    116, 101, 115, 116, 3, 0, 0, 0, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116,
+    4, 0, 0, 0, 115, 101, 115, 116, 4, 0, 0, 0, 116, 101, 115, 116, 4, 0, 0, 0, 114, 101, 115, 116,
+    4, 0, 0, 0, 116, 101, 115, 116,
 ];
 
 fn keyed_account_for_mint_with_multiple_additional_metadata(record: Pubkey) -> (Pubkey, Account) {
@@ -639,25 +642,26 @@ fn keyed_account_for_mint_with_multiple_additional_metadata(record: Pubkey) -> (
 }
 
 const GROUP_MINT_DATA_WITH_EXTENSIONS: &[u8] = &[
-    1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188,
-    182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-    1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188,
-    182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78,
+    133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66,
+    78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 ];
 const MINT_GROUP_POINTER_EXTENSION: &[u8] = &[
-    20, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
-    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59,
-    205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211,
-    23, 123, 152, 136, 141, 87, 92,
+    20, 0, 64, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66,
+    78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238,
+    211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106,
+    165, 142, 112, 195, 163, 78, 34,
 ];
 const MINT_GROUP_EXTENSION: &[u8] = &[
-    21, 0, 80, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87,
-    188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59,
-    205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211,
-    23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255,
+    21, 0, 80, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66,
+    78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238,
+    211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106,
+    165, 142, 112, 195, 163, 78, 34, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255,
+    255,
 ];
 
 fn keyed_account_for_group(class: Pubkey) -> (Pubkey, Account) {
@@ -762,10 +766,7 @@ fn create_class() {
         metadata: make_remainder_str("test"),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -805,10 +806,7 @@ fn update_class_metadata() {
         metadata: RemainderStr::from_str("test2").unwrap(),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -847,10 +845,7 @@ fn update_class_metadata_incorrect_authority() {
         metadata: RemainderStr::from_str("test2").unwrap(),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -874,20 +869,19 @@ fn update_class_authority() {
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
-    let instruction = UpdateClassAuthority { 
+    let instruction = UpdateClassAuthority {
         authority: authority,
         payer: authority,
         class,
-        system_program, 
-    }.instruction(UpdateClassAuthorityInstructionArgs { new_authority });
+        system_program,
+    }
+    .instruction(UpdateClassAuthorityInstructionArgs { new_authority });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     // Class Updated
-    let (_, class_data_updated) = keyed_account_for_class(new_authority, false, false, "test", "test");
+    let (_, class_data_updated) =
+        keyed_account_for_class(new_authority, false, false, "test", "test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -898,7 +892,9 @@ fn update_class_authority() {
         ],
         &[
             Check::success(),
-            Check::account(&class).data(&class_data_updated.data).build(),
+            Check::account(&class)
+                .data(&class_data_updated.data)
+                .build(),
         ],
     );
 }
@@ -915,10 +911,7 @@ fn update_class_frozen() {
     let instruction = FreezeClass { authority, class }
         .instruction(FreezeClassInstructionArgs { is_frozen: true });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -942,10 +935,7 @@ fn update_class_frozen_already_frozen() {
     let instruction = FreezeClass { authority, class }
         .instruction(FreezeClassInstructionArgs { is_frozen: true });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -965,7 +955,7 @@ fn create_record() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -979,14 +969,11 @@ fn create_record() {
     }
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
-        seed: make_u8prefix_vec_u8(b"test"),
+        name: make_u16prefix_string("test"),
         data: make_remainder_vec(b"test"),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1001,6 +988,102 @@ fn create_record() {
             Check::account(&record).data(&record_data.data).build(),
         ],
     );
+}
+
+#[test]
+fn record_name_hash_vector() {
+    let name_hash = hashv(&[RECORD_NAME_HASH_PREFIX, b"test"]);
+
+    assert_eq!(
+        name_hash.as_ref(),
+        &[
+            0xd4, 0x4e, 0xdb, 0xa0, 0xde, 0x38, 0x6f, 0xc7, 0x1f, 0xec, 0x2b, 0x01, 0x1a, 0x96,
+            0xdd, 0x1a, 0xcc, 0xe9, 0x0c, 0x60, 0x0a, 0xe1, 0x7c, 0x99, 0x30, 0xac, 0x7e, 0x8e,
+            0x16, 0x23, 0x2a, 0x26,
+        ]
+    );
+
+    let hashed_address = find_record_address(&RANDOM_PUBKEY, "test");
+    let raw_name_address = Pubkey::find_program_address(
+        &[b"record", RANDOM_PUBKEY.as_ref(), b"test"],
+        &SOLANA_RECORD_SERVICE_ID,
+    )
+    .0;
+    assert_ne!(hashed_address, raw_name_address);
+}
+
+#[test]
+fn record_layout_uses_u16_utf8_name_prefix() {
+    const NAME_LEN_OFFSET: usize = 75;
+    const NAME_OFFSET: usize = NAME_LEN_OFFSET + size_of::<u16>();
+
+    for name in ["tést".to_owned(), "a".repeat(256)] {
+        let (_, account) =
+            keyed_account_for_record(RANDOM_PUBKEY, 0, OWNER, false, 0, &name, b"record data");
+        let name_len = u16::try_from(name.len()).unwrap();
+
+        assert_eq!(
+            &account.data[NAME_LEN_OFFSET..NAME_OFFSET],
+            &name_len.to_le_bytes()
+        );
+        assert_eq!(
+            &account.data[NAME_OFFSET..NAME_OFFSET + name.len()],
+            name.as_bytes()
+        );
+        assert_eq!(&account.data[NAME_OFFSET + name.len()..], b"record data");
+    }
+}
+
+#[test]
+fn record_decoder_rejects_invalid_utf8_name() {
+    const NAME_LEN_OFFSET: usize = 75;
+    const NAME_OFFSET: usize = NAME_LEN_OFFSET + size_of::<u16>();
+
+    let (_, mut account) = keyed_account_for_record(RANDOM_PUBKEY, 0, OWNER, false, 0, "x", b"");
+    account.data[NAME_LEN_OFFSET..NAME_OFFSET].copy_from_slice(&1_u16.to_le_bytes());
+    account.data[NAME_OFFSET] = 0xff;
+
+    assert!(Record::try_from_slice(&account.data).is_err());
+}
+
+#[test]
+fn create_record_with_variable_length_names() {
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
+
+    for name in ["tést".to_owned(), "a".repeat(256)] {
+        let (owner, owner_data) = keyed_account_for_owner();
+        let (class, class_data) = keyed_account_for_class_default();
+        let (record, record_data) =
+            keyed_account_for_record(class, 0, owner, false, 0, &name, b"test");
+        let (system_program, system_program_data) = keyed_account_for_system_program();
+        let instruction = CreateRecord {
+            owner,
+            payer: owner,
+            class,
+            record,
+            system_program,
+            authority: None,
+        }
+        .instruction(CreateRecordInstructionArgs {
+            expiration: 0,
+            name: make_u16prefix_string(&name),
+            data: make_remainder_vec(b"test"),
+        });
+
+        mollusk.process_and_validate_instruction(
+            &instruction,
+            &[
+                (owner, owner_data),
+                (class, class_data),
+                (record, Account::default()),
+                (system_program, system_program_data),
+            ],
+            &[
+                Check::success(),
+                Check::account(&record).data(&record_data.data).build(),
+            ],
+        );
+    }
 }
 
 #[test]
@@ -1025,7 +1108,7 @@ fn create_record_with_metadata() {
     }
     .instruction(CreateRecordTokenizableInstructionArgs {
         expiration: 0,
-        seed: make_u8prefix_vec_u8(b"test"),
+        name: make_u16prefix_string("test"),
         metadata: Metadata {
             name: make_u32prefix_string("test"),
             symbol: make_u32prefix_string("SRS"),
@@ -1034,10 +1117,7 @@ fn create_record_with_metadata() {
         },
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1077,7 +1157,7 @@ fn create_record_with_metadata_and_additional_metadata() {
     }
     .instruction(CreateRecordTokenizableInstructionArgs {
         expiration: 0,
-        seed: make_u8prefix_vec_u8(b"test"),
+        name: make_u16prefix_string("test"),
         metadata: Metadata {
             name: make_u32prefix_string("test"),
             symbol: make_u32prefix_string("SRS"),
@@ -1089,10 +1169,7 @@ fn create_record_with_metadata_and_additional_metadata() {
         },
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1119,7 +1196,7 @@ fn create_permissioned_record() {
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -1133,14 +1210,11 @@ fn create_permissioned_record() {
     }
     .instruction(CreateRecordInstructionArgs {
         expiration: 0,
-        seed: make_u8prefix_vec_u8(b"test"),
+        name: make_u16prefix_string("test"),
         data: make_remainder_vec(b"test"),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1168,10 +1242,10 @@ fn update_record() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test2");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test2");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1187,10 +1261,7 @@ fn update_record() {
         data: make_remainder_vec(b"test2"),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1220,7 +1291,7 @@ fn update_record_with_metadata() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     // New metadata
     let new_metadata = Metadata {
@@ -1259,10 +1330,7 @@ fn update_record_with_metadata() {
         },
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1293,7 +1361,7 @@ fn update_record_with_delegate_incorrect_authority() {
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
@@ -1309,10 +1377,7 @@ fn update_record_with_delegate_incorrect_authority() {
         data: make_remainder_vec(b"test2"),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1337,7 +1402,7 @@ fn update_class_expiry() {
     let (class, class_data) = keyed_account_for_class(AUTHORITY, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     //System Program
     let (system_program, system_program_data) = keyed_account_for_system_program();
 
@@ -1348,17 +1413,13 @@ fn update_class_expiry() {
         class,
         system_program,
     }
-    .instruction(UpdateRecordExpiryInstructionArgs {
-        expiry: 1000,
-    });
+    .instruction(UpdateRecordExpiryInstructionArgs { expiry: 1000 });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     // Record updated
-    let (_, record_data_updated) = keyed_account_for_record(class, 0, OWNER, false, 1000, b"test", b"test");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, 0, OWNER, false, 1000, "test", b"test");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1386,10 +1447,10 @@ fn transfer_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, owner, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, owner, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -1400,10 +1461,7 @@ fn transfer_record() {
         new_owner: Pubkey::new_from_array([0xcc; 32]),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1425,10 +1483,10 @@ fn transfer_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record updated
     let (_, record_data_updated) =
-        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, NEW_OWNER, false, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority,
@@ -1439,10 +1497,7 @@ fn transfer_record_with_delegate() {
         new_owner: Pubkey::new_from_array([0xcc; 32]),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1468,8 +1523,7 @@ fn fail_transfer_record_frozen() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = TransferRecord {
         authority: owner,
@@ -1480,10 +1534,7 @@ fn fail_transfer_record_frozen() {
         new_owner: Pubkey::new_from_array([0xcc; 32]),
     });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1502,7 +1553,7 @@ fn delete_record() {
     let (class, _class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority: owner,
@@ -1514,10 +1565,7 @@ fn delete_record() {
     }
     .instruction();
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1543,7 +1591,7 @@ fn delete_record_with_delegate() {
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
 
     let instruction = DeleteRecord {
         authority,
@@ -1555,10 +1603,7 @@ fn delete_record_with_delegate() {
     }
     .instruction();
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1582,18 +1627,16 @@ fn delete_tokenized_record_with_no_supply() {
     // Class
     let (class, _) = keyed_account_for_class_default();
     // Mint
-    let (record, _bump) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record = find_record_address(&class, "test");
     let (mint, mut mint_data) = keyed_account_for_mint(record);
-    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()].copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
+    mint_data.data_as_mut_slice()[..MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY.len()]
+        .copy_from_slice(MINT_DATA_WITH_EXTENSIONS_AND_NO_SUPPLY);
     // Record
-    let (_, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (_, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // Token2022 Program
-    let (token2022_program, token2022_program_data) = mollusk_svm_programs_token::token2022::keyed_account();
-   
+    let (token2022_program, token2022_program_data) =
+        mollusk_svm_programs_token::token2022::keyed_account();
+
     let instruction = DeleteRecord {
         authority: owner,
         payer: owner,
@@ -1604,10 +1647,7 @@ fn delete_tokenized_record_with_no_supply() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
 
@@ -1635,10 +1675,10 @@ fn freeze_record() {
     let (class, class_data) = keyed_account_for_class_default();
     // Record
     let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, false, 0, "test", b"test");
     // Record frozen
     let (_, record_data_frozen) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
+        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
 
     let instruction = FreezeRecord {
         authority,
@@ -1647,47 +1687,7 @@ fn freeze_record() {
     }
     .instruction(FreezeRecordInstructionArgs { is_frozen: true });
 
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
-
-    mollusk.process_and_validate_instruction(
-        &instruction,
-        &[(authority, authority_data), (record, record_data), (class, class_data)],
-        &[
-            Check::success(),
-            Check::account(&record)
-                .data(&record_data_frozen.data)
-                .build(),
-        ],
-    );
-}
-
-#[test]
-fn freeze_record_already_frozen() {
-    // Authority
-    let (authority, authority_data) = keyed_account_for_authority();
-    // Class
-    let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
-    // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
-    // Record frozen
-    let (_, record_data_frozen) =
-        keyed_account_for_record(class, 0, OWNER, true, 0, b"test", b"test");
-
-    let instruction = FreezeRecord {
-        authority,
-        record,
-        class,
-    }
-    .instruction(FreezeRecordInstructionArgs { is_frozen: true });
-
-    let mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk.process_and_validate_instruction(
         &instruction,
@@ -1705,8 +1705,45 @@ fn freeze_record_already_frozen() {
     );
 }
 
-// `[1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 21, 0, 80, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0]`,
-// `[1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 0, 64, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 21, 0, 80, 0, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 52, 137, 177, 136, 59, 205, 145, 103, 193, 194, 30, 23, 233, 253, 189, 51, 87, 188, 182, 87, 172, 35, 137, 100, 211, 23, 123, 152, 136, 141, 87, 92, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255]`
+#[test]
+fn freeze_record_already_frozen() {
+    // Authority
+    let (authority, authority_data) = keyed_account_for_authority();
+    // Class
+    let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
+    // Record
+    let (record, record_data) = keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+    // Record frozen
+    let (_, record_data_frozen) =
+        keyed_account_for_record(class, 0, OWNER, true, 0, "test", b"test");
+
+    let instruction = FreezeRecord {
+        authority,
+        record,
+        class,
+    }
+    .instruction(FreezeRecordInstructionArgs { is_frozen: true });
+
+    let mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (record, record_data),
+            (class, class_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record)
+                .data(&record_data_frozen.data)
+                .build(),
+        ],
+    );
+}
+
+// `[1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 0, 64, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 21, 0, 80, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 1, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0]`,
+// `[1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 0, 64, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 21, 0, 80, 0, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 128, 169, 86, 118, 238, 211, 65, 152, 41, 186, 76, 253, 201, 171, 166, 204, 66, 78, 133, 219, 234, 175, 201, 130, 106, 165, 142, 112, 195, 163, 78, 34, 1, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255]`
 
 #[test]
 fn mint_record_token() {
@@ -1744,10 +1781,7 @@ fn mint_record_token() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -1814,10 +1848,7 @@ fn mint_record_token_with_additional_metadata() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -1885,10 +1916,7 @@ fn mint_record_token_with_multiple_additional_metadata() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -1956,10 +1984,7 @@ fn mint_record_token_with_delegate() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -1996,14 +2021,10 @@ fn freeze_tokenized_record() {
     // Class
     let (class, class_data) = keyed_account_for_class_default();
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -2021,10 +2042,7 @@ fn freeze_tokenized_record() {
     }
     .instruction(FreezeTokenizedRecordInstructionArgs { is_frozen: true });
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2055,14 +2073,10 @@ fn freeze_tokenized_record_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // ATA updated
@@ -2080,10 +2094,7 @@ fn freeze_tokenized_record_delegate() {
     }
     .instruction(FreezeTokenizedRecordInstructionArgs { is_frozen: true });
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2114,14 +2125,10 @@ fn transfer_tokenized_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
     // New ATA
@@ -2141,10 +2148,7 @@ fn transfer_tokenized_record() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2170,14 +2174,10 @@ fn transfer_tokenized_record_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     // New ATA
@@ -2197,10 +2197,7 @@ fn transfer_tokenized_record_delegate() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2229,14 +2226,10 @@ fn burn_tokenized_record() {
     // Class
     let (class, _class_data) = keyed_account_for_class_default();
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(owner, mint, false);
 
@@ -2253,10 +2246,7 @@ fn burn_tokenized_record() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2284,14 +2274,10 @@ fn burn_tokenized_record_delegate() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
 
@@ -2308,10 +2294,7 @@ fn burn_tokenized_record_delegate() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2377,10 +2360,7 @@ fn mint_and_burn_tokenized_record() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2455,10 +2435,7 @@ fn mint_and_burn_tokenized_record_delegate() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
@@ -2493,14 +2470,10 @@ fn update_tokenized_record() {
     // Class
     let (class, class_data) = keyed_account_for_class(authority, true, false, "test", "test");
     // Mint
-    let (record_address, _) = Pubkey::find_program_address(
-        &[b"record", &class.as_ref(), b"test"],
-        &SOLANA_RECORD_SERVICE_ID,
-    );
+    let record_address = find_record_address(&class, "test");
     let (mint, mint_data) = keyed_account_for_mint(record_address);
     // Record
-    let (record, record_data) =
-        keyed_account_for_record(class, 1, mint, false, 0, b"test", b"test");
+    let (record, record_data) = keyed_account_for_record(class, 1, mint, false, 0, "test", b"test");
     // ATA
     let (token_account, token_account_data) = keyed_account_for_token(OWNER, mint, false);
     let (token2022, token2022_data) = mollusk_svm_programs_token::token2022::keyed_account();
@@ -2581,20 +2554,14 @@ fn update_tokenized_record() {
     }
     .instruction();
 
-    let mut mollusk = Mollusk::new(
-        &SOLANA_RECORD_SERVICE_ID,
-        "../target/deploy/srs",
-    );
+    let mut mollusk = Mollusk::new(&SOLANA_RECORD_SERVICE_ID, "../target/deploy/srs");
 
     mollusk_svm_programs_token::associated_token::add_program(&mut mollusk);
     mollusk_svm_programs_token::token2022::add_program(&mut mollusk);
 
     mollusk.process_and_validate_instruction_chain(
         &[
-            (
-                &burn_instruction, 
-                &[Check::success()]
-            ),
+            (&burn_instruction, &[Check::success()]),
             (
                 &update_instruction,
                 &[
