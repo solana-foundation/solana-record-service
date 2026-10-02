@@ -15,7 +15,7 @@
     "@types/mocha": "^10.0.10",
     "codama": "^1.2.11",
     "litesvm": "^0.2.0",
-    "mocha": "^11.1.0",
+    "mocha": "^12.0.3",
     "solana-bankrun": "^0.4.0",
     "tsx": "^4.19.3"
   }

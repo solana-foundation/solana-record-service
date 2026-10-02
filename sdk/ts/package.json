@@ -24,7 +24,7 @@
   "dependencies": {
     "@metaplex-foundation/umi": "^1.2.0",
     "@solana/kit": "^2.1.0",
-    "bn.js": "^5.2.1",
+    "bn.js": "^5.2.3",
     "borsh": "^2.0.0",
     "borsher": "^4.0.0"
   }
