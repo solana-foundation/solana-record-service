@@ -11,23 +11,14 @@ crate-type = ["lib", "cdylib"]
 default = ["perf"]
 perf = []
 
-[dependencies]
-pinocchio = { version = "0.11.2", features = ["account-resize", "cpi"] }
-pinocchio-associated-token-account = "0.4.0"
-pinocchio-system = "0.6.1"
-pinocchio-token-2022 = "0.4.0"
-solana-address = { version = "2.8.0", features = ["curve25519"] }
+[build-dependencies]
+codama = { workspace = true }
+serde_json = { workspace = true }
 
-[dev-dependencies]
-solana-record-service-client = { workspace = true }
-mollusk-svm = "0.4.0"
-mollusk-svm-programs-token = "0.4.0"
-spl-token-2022 = "8.0.1"
-solana-precompiles = "2.2.2"
-solana-account = "2.2.1"
-solana-pubkey = "2.2.1"
-solana-feature-set = "2.2.1"
-solana-program = "2.2.1"
-kaigan = ">=0.2.6"
-borsh = "^0.10"
-hex = "0.4.3"
+[dependencies]
+codama = { workspace = true }
+pinocchio = { workspace = true }
+pinocchio-associated-token-account = { workspace = true }
+pinocchio-system = { workspace = true }
+pinocchio-token-2022 = { workspace = true }
+solana-address = { workspace = true }

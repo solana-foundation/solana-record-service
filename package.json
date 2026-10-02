@@ -1,22 +1,23 @@
 {
-  "name": "srs",
+  "name": "solana-record-service",
+  "type": "module",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "description": "Solana Record Service",
+  "repository": "git@github.com:solana-foundation/solana-record-service.git",
   "license": "MIT",
-  "engines": {
-    "node": ">=20.18.0"
-  },
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "generate-sdks": "pnpx tsx codama.ts",
-    "test": "mocha --import=tsx ./tests/test.spec.ts"
+    "generate-clients": "node ./scripts/generate-clients.ts",
+    "generate-idl": "cd program && GENERATE_IDL=1 cargo check"
   },
   "dependencies": {
-    "@codama/renderers": "1.0.24",
-    "@types/mocha": "^10.0.10",
-    "codama": "^1.2.11",
-    "litesvm": "^0.2.0",
-    "mocha": "^11.1.0",
-    "solana-bankrun": "^0.4.0",
-    "tsx": "^4.19.3"
+    "@codama/renderers-js": "~2.5.0",
+    "@codama/renderers-rust": "~3.1.3",
+    "codama": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3"
   }
 }

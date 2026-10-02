@@ -1,0 +1,26 @@
+[package]
+name = "solana-record-service-client"
+version = "0.1.0"
+edition = "2021"
+description = "Rust client for the Solana Record Service"
+license = "MIT"
+repository = "https://github.com/solana-foundation/solana-record-service"
+include = ["Cargo.toml", "src/**/*.rs"]
+
+[features]
+default = []
+fetch = ["dep:solana-account", "dep:solana-rpc-client"]
+
+[dependencies]
+borsh = { workspace = true, features = ["derive"] }
+num-derive = { workspace = true }
+num-traits = { workspace = true }
+solana-account = { workspace = true, optional = true }
+solana-account-info = { workspace = true }
+solana-address = { workspace = true, features = ["borsh", "copy"] }
+solana-cpi = { workspace = true }
+solana-instruction = { workspace = true }
+solana-program-error = { workspace = true }
+solana-rpc-client = { workspace = true, optional = true }
+spl-collections = { workspace = true }
+thiserror = { workspace = true }

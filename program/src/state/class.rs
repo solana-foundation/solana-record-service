@@ -1,4 +1,5 @@
 use crate::utils::{resize_account, ByteWriter};
+use codama::CodamaAccount;
 use core::{mem::size_of, str};
 use pinocchio::{error::ProgramError, AccountView, Address};
 
@@ -9,6 +10,12 @@ const IS_FROZEN_OFFSET: usize = IS_PERMISSIONED_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 
 #[repr(C)]
+#[derive(CodamaAccount)]
+#[codama(field("discriminator", number(u8), value = 1))]
+#[codama(discriminator(field = "discriminator"))]
+#[codama(seed(type = string(utf8), value = "class"))]
+#[codama(seed(name = "authority", type = public_key))]
+#[codama(seed(name = "name", type = string(utf8)))]
 pub struct Class<'info> {
     /// The authority that controls this class
     pub authority: Address,
@@ -17,8 +24,11 @@ pub struct Class<'info> {
     /// Whether the class is frozen or not
     pub is_frozen: bool,
     /// Human-readable name for the class
+    #[codama(type = string(utf8))]
+    #[codama(size_prefix = number(u8))]
     pub name: &'info str,
     /// Optional metadata about the class
+    #[codama(type = string(utf8))]
     pub metadata: &'info str,
 }
 

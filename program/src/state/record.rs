@@ -2,6 +2,7 @@ use crate::{
     token2022::{Mint, Token},
     utils::{resize_account, ByteWriter},
 };
+use codama::{CodamaAccount, CodamaType};
 use core::{mem::size_of, str};
 use pinocchio::{
     account::{Ref, RefMut},
@@ -24,6 +25,12 @@ const SEED_LEN_OFFSET: usize = EXPIRY_OFFSET + size_of::<i64>();
 pub const SEED_OFFSET: usize = SEED_LEN_OFFSET + size_of::<u8>();
 
 #[repr(C)]
+#[derive(CodamaAccount)]
+#[codama(field("discriminator", number(u8), value = 2))]
+#[codama(discriminator(field = "discriminator"))]
+#[codama(seed(type = string(utf8), value = "record"))]
+#[codama(seed(name = "class", type = public_key))]
+#[codama(seed(name = "seed", type = bytes))]
 pub struct Record<'info> {
     /// The class this record belongs to
     pub class: Address,
@@ -36,13 +43,16 @@ pub struct Record<'info> {
     /// Optional expiration timestamp, if not set, the expiry is [0; 8]
     pub expiry: i64,
     /// The record name/key
+    #[codama(type = bytes)]
+    #[codama(size_prefix = number(u8))]
     pub seed: &'info [u8],
     /// The record's data content
+    #[codama(type = bytes)]
     pub data: &'info str,
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, CodamaType)]
 pub enum OwnerType {
     /// The owner is a pubkey
     Pubkey,

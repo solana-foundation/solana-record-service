@@ -5,8 +5,6 @@ use utils::Context;
 pub mod constants;
 pub mod instructions;
 pub mod state;
-#[cfg(test)]
-pub mod tests;
 pub mod token2022;
 pub mod utils;
 
