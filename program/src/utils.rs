@@ -1,60 +1,15 @@
 use core::mem::size_of;
 use pinocchio::{
-    account_info::{AccountInfo, RefMut},
-    program_error::ProgramError,
+    account::RefMut,
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, ProgramResult, Resize,
 };
 use pinocchio_system::instructions::Transfer;
 pub struct Context<'info> {
-    pub accounts: &'info [AccountInfo],
+    pub accounts: &'info [AccountView],
     pub data: &'info [u8],
 }
-
-/// A global `#[panic_handler]` for `no_std` programs.
-///
-/// This macro sets up a default panic handler that logs the location (file,
-/// line and column) where the panic occurred and then calls the syscall
-/// `abort()`.
-///
-/// This macro should be used when all crates are `no_std`.
-#[macro_export]
-macro_rules! nostd_panic_handler {
-    () => {
-        /// A panic handler for `no_std`.
-        #[cfg(any(target_os = "solana", target_arch = "bpf"))]
-        #[panic_handler]
-        fn handler(info: &core::panic::PanicInfo<'_>) -> ! {
-            if let Some(location) = info.location() {
-                unsafe {
-                    pinocchio::syscalls::sol_panic_(
-                        location.file().as_ptr(),
-                        location.file().len() as u64,
-                        location.line() as u64,
-                        location.column() as u64,
-                    )
-                }
-            } else {
-                // Panic reporting.
-                const PANICKED: &str = "** PANICKED **";
-                unsafe {
-                    pinocchio::syscalls::sol_log_(PANICKED.as_ptr(), PANICKED.len() as u64);
-                    pinocchio::syscalls::abort();
-                }
-            }
-        }
-
-        /// A panic handler for when the program is compiled on a target different than
-        /// `"solana"`.
-        ///
-        /// This links the `std` library, which will set up a default panic handler.
-        #[cfg(not(any(target_os = "solana", target_arch = "bpf")))]
-        mod __private_panic_handler {
-            extern crate std as __std;
-        }
-    };
-}
-
 
 /// Resize an account and handle lamport transfers based on the new size
 ///
@@ -67,13 +22,7 @@ macro_rules! nostd_panic_handler {
 /// * `target_account` - The account to resize
 /// * `payer` - The account that will receive excess lamports or provide additional lamports
 /// * `new_size` - The new size for the account
-/// * `zero_out` - Whether to zero out the new space (true if shrinking, false if expanding)
-pub fn resize_account(
-    target_account: &AccountInfo,
-    payer: &AccountInfo,
-    new_size: usize,
-    zero_out: bool,
-) -> ProgramResult {
+pub fn resize_account(target_account: &mut AccountView, payer: &mut AccountView, new_size: usize) -> ProgramResult {
     // Check if the new size is bigger than 10KB
     if new_size > 1024 * 10 {
         return Err(ProgramError::InvalidAccountData);
@@ -86,7 +35,7 @@ pub fn resize_account(
 
     // Calculate rent requirements
     let rent = Rent::get()?;
-    let new_minimum_balance = rent.minimum_balance(new_size);
+    let new_minimum_balance = rent.try_minimum_balance(new_size)?;
 
     // First handle lamport transfers
     match new_minimum_balance.cmp(&target_account.lamports()) {
@@ -105,9 +54,8 @@ pub fn resize_account(
             let lamports_diff = target_account
                 .lamports()
                 .saturating_sub(new_minimum_balance);
-            *payer.try_borrow_mut_lamports()? = payer.lamports().saturating_add(lamports_diff);
-            *target_account.try_borrow_mut_lamports()? =
-                target_account.lamports().saturating_sub(lamports_diff);
+            payer.set_lamports(payer.lamports().saturating_add(lamports_diff));
+            target_account.set_lamports(target_account.lamports().saturating_sub(lamports_diff));
         }
         core::cmp::Ordering::Equal => {
             // No lamport transfer needed
@@ -115,7 +63,7 @@ pub fn resize_account(
     }
 
     // Now reallocate the account
-    target_account.realloc(new_size, zero_out)?;
+    target_account.resize(new_size)?;
 
     Ok(())
 }
@@ -273,14 +221,5 @@ impl<'info> ByteWriter<'info> {
 
     pub fn remaining_bytes(&self) -> usize {
         self.data.len() - self.offset
-    }
-}
-
-pub const UNINIT_BYTE: core::mem::MaybeUninit<u8> = core::mem::MaybeUninit::<u8>::uninit();
-
-#[inline(always)]
-pub fn write_bytes(destination: &mut [core::mem::MaybeUninit<u8>], source: &[u8]) {
-    for (d, s) in destination.iter_mut().zip(source.iter()) {
-        d.write(*s);
     }
 }

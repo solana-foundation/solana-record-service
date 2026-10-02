@@ -1,17 +1,14 @@
 use crate::{
     state::{OwnerType, Record},
-    token2022::{BurnChecked, CloseAccount, ThawAccount, Token},
+    token2022::Token,
     utils::Context,
 };
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    ProgramResult,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView, Address, ProgramResult,
 };
+use pinocchio_token_2022::instructions::{BurnChecked, CloseAccount, ThawAccount};
 
 /// BurnTokenizedRecord instruction.
 ///
@@ -33,17 +30,17 @@ use pinocchio::{
 /// 1. The authority must be either:
 ///    a. The record owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
-pub struct BurnTokenizedRecordAccounts<'info> {
-    destination: &'info AccountInfo,
-    record: &'info AccountInfo,
-    mint: &'info AccountInfo,
-    token_account: &'info AccountInfo,
+pub struct BurnTokenizedRecordAccounts {
+    destination: AccountView,
+    record: AccountView,
+    mint: AccountView,
+    token_account: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for BurnTokenizedRecordAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, destination, mint, token_account, record, _token_2022_program, rest @ ..] =
             accounts
         else {
@@ -60,19 +57,19 @@ impl<'info> TryFrom<&'info [AccountInfo]> for BurnTokenizedRecordAccounts<'info>
         )?;
 
         Ok(Self {
-            destination,
-            record,
-            mint,
-            token_account,
+            destination: *destination,
+            record: *record,
+            mint: *mint,
+            token_account: *token_account,
         })
     }
 }
 
-pub struct BurnTokenizedRecord<'info> {
-    accounts: BurnTokenizedRecordAccounts<'info>,
+pub struct BurnTokenizedRecord {
+    accounts: BurnTokenizedRecordAccounts,
 }
 
-impl<'info> TryFrom<Context<'info>> for BurnTokenizedRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for BurnTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
@@ -83,76 +80,42 @@ impl<'info> TryFrom<Context<'info>> for BurnTokenizedRecord<'info> {
     }
 }
 
-impl<'info> BurnTokenizedRecord<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Burn Tokenized Record");
+impl BurnTokenizedRecord {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
-        let bump = [
-            try_find_program_address(&[b"mint", self.accounts.record.key()], &crate::ID)
-                .ok_or(ProgramError::InvalidArgument)?
-                .1,
-        ];
+    pub fn execute(&mut self) -> ProgramResult {
+        let bump = [Address::try_find_program_address(&[b"mint", self.accounts.record.address().as_ref()], &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
-        let seeds = [
-            Seed::from(b"mint"),
-            Seed::from(self.accounts.record.key()),
-            Seed::from(&bump),
-        ];
+        let seeds = [Seed::from(b"mint"), Seed::from(self.accounts.record.address().as_ref()), Seed::from(&bump)];
 
         let signers = [Signer::from(&seeds)];
 
-        let is_frozen = unsafe {
-            Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)?
-        };
+        let is_frozen = unsafe { Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow()?)? };
 
         if is_frozen {
-            ThawAccount {
-                mint: self.accounts.mint,
-                account: self.accounts.token_account,
-                freeze_authority: self.accounts.mint,
-            }
-            .invoke_signed(&signers)?;
+            ThawAccount::new(&self.accounts.token_account, &self.accounts.mint, &self.accounts.mint)
+                .invoke_signed(&signers)?;
         }
 
         // Burn the mint
-        BurnChecked {
-            mint: self.accounts.mint,
-            account: self.accounts.token_account,
-            authority: self.accounts.mint,
-            amount: 1,
-            decimals: 0,
-        }
-        .invoke_signed(&signers)?;
+        BurnChecked::new(&self.accounts.token_account, &self.accounts.mint, &self.accounts.mint, 1, 0)
+            .invoke_signed(&signers)?;
 
         // Close the mint account
-        CloseAccount {
-            account: self.accounts.mint,
-            destination: self.accounts.destination,
-            authority: self.accounts.mint,
-        }
-        .invoke_signed(&signers)?;
+        CloseAccount::new(&self.accounts.mint, &self.accounts.destination, &self.accounts.mint)
+            .invoke_signed(&signers)?;
 
         // Set the record owner, to the owner of the token account and the owner type to pubkey
-        let record_owner =
-            unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow_data()?)? };
+        let record_owner = unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow()?)? };
 
         unsafe {
-            Record::update_is_frozen_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                is_frozen,
-            )?;
-            Record::update_owner_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                &record_owner,
-            )?;
-            Record::update_owner_type_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                OwnerType::Pubkey,
-            )?;
+            Record::update_is_frozen_unchecked(&mut self.accounts.record.try_borrow_mut()?, is_frozen)?;
+            Record::update_owner_unchecked(&mut self.accounts.record.try_borrow_mut()?, &record_owner)?;
+            Record::update_owner_type_unchecked(&mut self.accounts.record.try_borrow_mut()?, OwnerType::Pubkey)?;
         };
 
         Ok(())

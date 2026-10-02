@@ -3,9 +3,7 @@ use crate::{
     state::{Class, Record, CLASS_OFFSET},
     utils::{ByteReader, Context},
 };
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// UpdateRecord instruction.
 ///
@@ -23,15 +21,15 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::
 /// 
 /// # Security
 /// 1. The authority must be the class authority
-pub struct UpdateRecordAccounts<'info> {
-    payer: &'info AccountInfo,
-    record: &'info AccountInfo,
+pub struct UpdateRecordAccounts {
+    payer: AccountView,
+    record: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for UpdateRecordAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, payer, record, class, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -47,16 +45,19 @@ impl<'info> TryFrom<&'info [AccountInfo]> for UpdateRecordAccounts<'info> {
         Record::check_program_id_and_discriminator(record)?;
 
         // Check if the class is the correct class
-        if class.key().ne(&record.try_borrow_data()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if record.try_borrow()?[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        Ok(Self { payer, record })
+        Ok(Self {
+            payer: *payer,
+            record: *record,
+        })
     }
 }
 
 pub struct UpdateRecordData<'info> {
-    accounts: UpdateRecordAccounts<'info>,
+    accounts: UpdateRecordAccounts,
     data: &'info str,
 }
 
@@ -79,25 +80,21 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordData<'info> {
 
 impl<'info> UpdateRecordData<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Update Record Data");
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
+    pub fn execute(&mut self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
-        unsafe {
-            Record::update_data_unchecked(self.accounts.record, self.accounts.payer, self.data)
-        }
+        unsafe { Record::update_data_unchecked(&mut self.accounts.record, &mut self.accounts.payer, self.data) }
     }
 }
 
-pub struct UpdateRecordExpiry<'info> {
-    accounts: UpdateRecordAccounts<'info>,
+pub struct UpdateRecordExpiry {
+    accounts: UpdateRecordAccounts,
     expiry: i64,
 }
 
-impl<'info> TryFrom<Context<'info>> for UpdateRecordExpiry<'info> {
+impl<'info> TryFrom<Context<'info>> for UpdateRecordExpiry {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
@@ -117,17 +114,13 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordExpiry<'info> {
     }
 }
 
-impl<'info> UpdateRecordExpiry<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Update Record Expiry");
+impl UpdateRecordExpiry {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
+    pub fn execute(&mut self) -> ProgramResult {
         // Update the record data [this is safe, check safety docs]
-        unsafe {
-            Record::update_expiry_unchecked(&mut self.accounts.record.try_borrow_mut_data()?, self.expiry)
-        }
+        unsafe { Record::update_expiry_unchecked(&mut self.accounts.record.try_borrow_mut()?, self.expiry) }
     }
 }

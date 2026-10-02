@@ -144,7 +144,7 @@ fn keyed_account_for_class(
     let mut class_account = Account::new(
         100_000_000u64,
         class_account_data.len(),
-        &Pubkey::from(crate::ID),
+        &Pubkey::new_from_array(crate::ID.to_bytes()),
     );
     class_account
         .data_as_mut_slice()
@@ -181,7 +181,7 @@ fn keyed_account_for_record(
     let mut record_account = Account::new(
         100_000_000u64,
         record_account_data.len(),
-        &Pubkey::from(crate::ID),
+        &Pubkey::new_from_array(crate::ID.to_bytes()),
     );
     record_account
         .data_as_mut_slice()
@@ -229,7 +229,7 @@ fn keyed_account_for_record_with_metadata(
     let mut record_account = Account::new(
         100_000_000u64,
         record_account_data.len(),
-        &Pubkey::from(crate::ID),
+        &Pubkey::new_from_array(crate::ID.to_bytes()),
     );
     record_account
         .data_as_mut_slice()
@@ -278,7 +278,7 @@ fn keyed_account_for_record_with_metadata_and_additional_metadata(
     let mut record_account = Account::new(
         100_000_000u64,
         record_account_data.len(),
-        &Pubkey::from(crate::ID),
+        &Pubkey::new_from_array(crate::ID.to_bytes()),
     );
     record_account
         .data_as_mut_slice()
@@ -323,7 +323,7 @@ fn keyed_account_for_record_with_metadata_and_multiple_additional_metadata(
     let mut record_account = Account::new(
         100_000_000u64,
         record_account_data.len(),
-        &Pubkey::from(crate::ID),
+        &Pubkey::new_from_array(crate::ID.to_bytes()),
     );
     record_account
         .data_as_mut_slice()

@@ -1,17 +1,17 @@
 use crate::utils::{resize_account, ByteWriter};
 use core::{mem::size_of, str};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{error::ProgramError, AccountView, Address};
 
 const DISCRIMINATOR_OFFSET: usize = 0;
 const AUTHORITY_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
-pub const IS_PERMISSIONED_OFFSET: usize = AUTHORITY_OFFSET + size_of::<Pubkey>();
+pub const IS_PERMISSIONED_OFFSET: usize = AUTHORITY_OFFSET + size_of::<Address>();
 const IS_FROZEN_OFFSET: usize = IS_PERMISSIONED_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 
 #[repr(C)]
 pub struct Class<'info> {
     /// The authority that controls this class
-    pub authority: Pubkey,
+    pub authority: Address,
     /// Whether creating records is permissioned or not
     pub is_permissioned: bool,
     /// Whether the class is frozen or not
@@ -26,13 +26,13 @@ impl<'info> Class<'info> {
     pub const DISCRIMINATOR: u8 = 1;
     pub const MAX_CLASS_NAME_LEN: usize = 0xff;
     pub const MINIMUM_CLASS_SIZE: usize =
-        size_of::<u8>() + size_of::<Pubkey>() + size_of::<bool>() * 2 + size_of::<u8>();
+        size_of::<u8>() + size_of::<Address>() + size_of::<bool>() * 2 + size_of::<u8>();
 
     /// Check if the program id and discriminator are valid
     #[inline(always)]
-    pub fn check_program_id(class: &AccountInfo) -> Result<(), ProgramError> {
+    pub fn check_program_id(class: &AccountView) -> Result<(), ProgramError> {
         // Check Program ID
-        if unsafe { class.owner().ne(&crate::ID) } {
+        if !class.owned_by(&crate::ID) {
             return Err(ProgramError::IncorrectProgramId);
         }
 
@@ -55,31 +55,22 @@ impl<'info> Class<'info> {
     /// # Safety
     ///
     /// This function does not perform owner checks
-    pub unsafe fn check_authority_unchecked(
-        data: &[u8],
-        authority: &AccountInfo,
-    ) -> Result<(), ProgramError> {
+    pub unsafe fn check_authority_unchecked(data: &[u8], authority: &AccountView) -> Result<(), ProgramError> {
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if authority
-            .key()
-            .ne(&data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()])
-        {
+        if data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Address>()].ne(authority.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(())
     }
 
-    pub fn check_authority(
-        class: &AccountInfo,
-        authority: &AccountInfo,
-    ) -> Result<(), ProgramError> {
+    pub fn check_authority(class: &AccountView, authority: &AccountView) -> Result<(), ProgramError> {
         Self::check_program_id(class)?;
 
-        let data = class.try_borrow_data()?;
+        let data = class.try_borrow()?;
 
         unsafe {
             Self::check_discriminator_unchecked(&data)?;
@@ -87,13 +78,10 @@ impl<'info> Class<'info> {
         }
     }
 
-    pub fn check_permission(
-        class: &AccountInfo,
-        authority: Option<&AccountInfo>,
-    ) -> Result<(), ProgramError> {
+    pub fn check_permission(class: &AccountView, authority: Option<&AccountView>) -> Result<(), ProgramError> {
         Self::check_program_id(class)?;
 
-        let data = class.try_borrow_data()?;
+        let data = class.try_borrow()?;
 
         unsafe { Self::check_discriminator_unchecked(&data)? }
 
@@ -112,11 +100,8 @@ impl<'info> Class<'info> {
     /// # Safety
     ///
     /// This function does not perform owner checks
-    pub unsafe fn update_is_frozen_unchecked(
-        class: &'info AccountInfo,
-        is_frozen: bool,
-    ) -> Result<(), ProgramError> {
-        let mut data = class.try_borrow_mut_data()?;
+    pub unsafe fn update_is_frozen_unchecked(class: &mut AccountView, is_frozen: bool) -> Result<(), ProgramError> {
+        let mut data = class.try_borrow_mut()?;
 
         if data[IS_FROZEN_OFFSET] == is_frozen as u8 {
             return Ok(());
@@ -130,28 +115,24 @@ impl<'info> Class<'info> {
     /// # Safety
     ///
     /// This function does not perform owner checks
-    pub unsafe fn update_authority_unchecked(
-        class: &'info AccountInfo,
-        authority: Pubkey,
-    ) -> Result<(), ProgramError> {
-        let mut data = class.try_borrow_mut_data()?;
+    pub unsafe fn update_authority_unchecked(class: &mut AccountView, authority: Address) -> Result<(), ProgramError> {
+        let mut data = class.try_borrow_mut()?;
 
-        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Pubkey>()].clone_from_slice(&authority);
+        data[AUTHORITY_OFFSET..AUTHORITY_OFFSET + size_of::<Address>()].clone_from_slice(authority.as_ref());
 
         Ok(())
     }
-
 
     /// # Safety
     ///
     /// This function does not perform owner checks
     pub unsafe fn update_metadata_unchecked(
-        class: &'info AccountInfo,
-        payer: &'info AccountInfo,
-        metadata: &'info str,
+        class: &mut AccountView,
+        payer: &mut AccountView,
+        metadata: &str,
     ) -> Result<(), ProgramError> {
         let name_len = {
-            let data_ref = class.try_borrow_data()?;
+            let data_ref = class.try_borrow()?;
             data_ref[NAME_LEN_OFFSET] as usize
         };
 
@@ -160,16 +141,12 @@ impl<'info> Class<'info> {
         let new_len = offset + metadata.len();
 
         if new_len != current_len {
-            resize_account(class, payer, new_len, new_len < current_len)?;
+            resize_account(class, payer, new_len)?;
         }
 
         {
-            let mut data_ref = class.try_borrow_mut_data()?;
-
-            let metadata_buffer = unsafe {
-                core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), metadata.len())
-            };
-            metadata_buffer.clone_from_slice(metadata.as_bytes());
+            let mut data_ref = class.try_borrow_mut()?;
+            data_ref[offset..offset + metadata.len()].clone_from_slice(metadata.as_bytes());
         }
 
         Ok(())
@@ -178,17 +155,14 @@ impl<'info> Class<'info> {
     /// # Safety
     ///
     /// This function does not perform owner checks
-    pub unsafe fn initialize_unchecked(
-        &self,
-        account_info: &'info AccountInfo,
-    ) -> Result<(), ProgramError> {
+    pub unsafe fn initialize_unchecked(&self, account_info: &mut AccountView) -> Result<(), ProgramError> {
         let required_space = Self::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
 
         if required_space > account_info.data_len() {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let mut data = account_info.try_borrow_mut_data()?;
+        let mut data = account_info.try_borrow_mut()?;
 
         if data[DISCRIMINATOR_OFFSET] != 0x00 {
             return Err(ProgramError::AccountAlreadyInitialized);

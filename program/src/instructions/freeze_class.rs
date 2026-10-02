@@ -3,9 +3,7 @@ use crate::{
     utils::{ByteReader, Context},
 };
 use core::mem::size_of;
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 
 /// FreezeClass instruction.
 ///
@@ -20,14 +18,14 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 ///
 /// # Security
 /// 1. The authority account must be a signer and should be the owner of the class.
-pub struct FreezeClassAccounts<'info> {
-    class: &'info AccountInfo,
+pub struct FreezeClassAccounts {
+    class: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for FreezeClassAccounts<'info> {
+impl TryFrom<&[AccountView]> for FreezeClassAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, class] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -35,20 +33,20 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeClassAccounts<'info> {
         // Account Checks
         Class::check_authority(class, authority)?;
 
-        Ok(Self { class })
+        Ok(Self { class: *class })
     }
 }
 
 const IS_FROZEN_OFFSET: usize = 0;
-pub struct FreezeClass<'info> {
-    accounts: FreezeClassAccounts<'info>,
+pub struct FreezeClass {
+    accounts: FreezeClassAccounts,
     is_frozen: bool,
 }
 
 /// Minimum length of instruction data required for FreezeClass
 pub const FREEZE_CLASS_MIN_IX_LENGTH: usize = size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for FreezeClass<'info> {
+impl<'info> TryFrom<Context<'info>> for FreezeClass {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
@@ -71,19 +69,12 @@ impl<'info> TryFrom<Context<'info>> for FreezeClass<'info> {
     }
 }
 
-impl<'info> FreezeClass<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Freeze Class");
+impl FreezeClass {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
-        unsafe {
-            Class::update_is_frozen_unchecked(
-                self.accounts.class,
-                self.is_frozen,
-            )
-        }
+    pub fn execute(&mut self) -> ProgramResult {
+        unsafe { Class::update_is_frozen_unchecked(&mut self.accounts.class, self.is_frozen) }
     }
 }

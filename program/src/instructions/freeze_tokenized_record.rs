@@ -1,12 +1,15 @@
 use crate::{
     state::{Class, Record, CLASS_OFFSET, OWNER_OFFSET},
-    token2022::{FreezeAccount, ThawAccount, Token},
+    token2022::Token,
     utils::{ByteReader, Context},
 };
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}, ProgramResult
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView, Address, ProgramResult,
 };
+use pinocchio_token_2022::instructions::{FreezeAccount, ThawAccount};
 
 /// FreezeRecord instruction.
 ///
@@ -25,15 +28,15 @@ use pinocchio::{
 ///
 /// # Security
 /// The authority must be: the class authority
-pub struct FreezeTokenizedRecordAccounts<'info> {
-    mint: &'info AccountInfo,
-    token_account: &'info AccountInfo,
-    record: &'info AccountInfo,
+pub struct FreezeTokenizedRecordAccounts {
+    mint: AccountView,
+    token_account: AccountView,
+    record: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for FreezeTokenizedRecordAccounts {
     type Error = ProgramError;
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, mint, token_account, record, class, _token_2022_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -44,36 +47,36 @@ impl<'info> TryFrom<&'info [AccountInfo]> for FreezeTokenizedRecordAccounts<'inf
         // Check if the Record is correct
         Record::check_program_id_and_discriminator(record)?;
 
-        let record_data = record.try_borrow_data()?;
+        let record_data = record.try_borrow()?;
         // Check if the class is the correct class
-        if class.key().ne(&record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Pubkey>()]) {
+        if record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         // Check if the token is linked to the record
-        if mint.key().ne(&record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Pubkey>()]) {
+        if record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].ne(mint.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
         Ok(Self {
-            mint,
-            token_account,
-            record,
+            mint: *mint,
+            token_account: *token_account,
+            record: *record,
         })
     }
 }
 
 const IS_FROZEN_OFFSET: usize = 0;
 
-pub struct FreezeTokenizedRecord<'info> {
-    accounts: FreezeTokenizedRecordAccounts<'info>,
+pub struct FreezeTokenizedRecord {
+    accounts: FreezeTokenizedRecordAccounts,
     is_frozen: bool,
 }
 
 /// Minimum length of instruction data required for FreezeRecord
 pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 
-impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
@@ -96,50 +99,34 @@ impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord<'info> {
     }
 }
 
-impl<'info> FreezeTokenizedRecord<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Freeze Tokenized Record");
+impl FreezeTokenizedRecord {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
     pub fn execute(&self) -> ProgramResult {
         let is_frozen = unsafe {
-            Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow_data()?)?
+            Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow()?)?
         };
 
         if is_frozen.eq(&self.is_frozen) {
             return Ok(());
         }
 
-        let bump = [
-            try_find_program_address(&[b"mint", self.accounts.record.key()], &crate::ID)
-                .ok_or(ProgramError::InvalidArgument)?
-                .1,
-        ];
+        let bump = [Address::try_find_program_address(&[b"mint", self.accounts.record.address().as_ref()], &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
-        let seeds = [
-            Seed::from(b"mint"),
-            Seed::from(self.accounts.record.key()),
-            Seed::from(&bump),
-        ];
+        let seeds = [Seed::from(b"mint"), Seed::from(self.accounts.record.address().as_ref()), Seed::from(&bump)];
 
         let signers = [Signer::from(&seeds)];
 
         if self.is_frozen {
-            FreezeAccount {
-                mint: self.accounts.mint,
-                account: self.accounts.token_account,
-                freeze_authority: self.accounts.mint,
-            }
-            .invoke_signed(&signers)?;
+            FreezeAccount::new(&self.accounts.token_account, &self.accounts.mint, &self.accounts.mint)
+                .invoke_signed(&signers)?;
         } else {
-            ThawAccount {
-                mint: self.accounts.mint,
-                account: self.accounts.token_account,
-                freeze_authority: self.accounts.mint,
-            }
-            .invoke_signed(&signers)?;
+            ThawAccount::new(&self.accounts.token_account, &self.accounts.mint, &self.accounts.mint)
+                .invoke_signed(&signers)?;
         }
 
         Ok(())

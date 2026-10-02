@@ -1,9 +1,5 @@
-#![cfg_attr(not(test), no_std)]
 use instructions::*;
-use pinocchio::{
-    account_info::AccountInfo, default_allocator, program_entrypoint, program_error::ProgramError,
-    pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{address::declare_id, entrypoint, error::ProgramError, AccountView, Address, ProgramResult};
 use utils::Context;
 
 pub mod constants;
@@ -14,28 +10,13 @@ pub mod tests;
 pub mod token2022;
 pub mod utils;
 
-program_entrypoint!(process_instruction);
-default_allocator!();
+entrypoint!(process_instruction);
 
-#[cfg(not(test))]
-nostd_panic_handler!();
+declare_id!("srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn");
 
-// srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn
-pub const ID: Pubkey = [
-    0x0d, 0x07, 0x6d, 0xfe, 0xdc, 0x66, 0x80, 0x9f,
-    0xb0, 0x4b, 0x17, 0xdd, 0x2c, 0xef, 0xe2, 0xe6,
-    0xf2, 0x65, 0x86, 0x5d, 0xbd, 0x35, 0x41, 0x2d,
-    0xb9, 0x05, 0xe9, 0xcb, 0x33, 0x00, 0x60, 0xc9,
-];
-
-fn process_instruction(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    let (discriminator, data) = instruction_data
-        .split_first()
-        .ok_or(ProgramError::InvalidInstructionData)?;
+fn process_instruction(_program_id: &Address, accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
+    let (discriminator, data) = instruction_data.split_first().ok_or(ProgramError::InvalidInstructionData)?;
+    let accounts = &*accounts;
 
     match discriminator {
         0 => CreateClass::process(Context { accounts, data }),

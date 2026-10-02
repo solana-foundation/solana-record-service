@@ -12,9 +12,11 @@ default = ["perf"]
 perf = []
 
 [dependencies]
-pinocchio = "0.8.3"
-pinocchio-system = "0.2.3"
-pinocchio-associated-token-account = "0.1.1"
+pinocchio = { version = "0.11.2", features = ["account-resize", "cpi"] }
+pinocchio-associated-token-account = "0.4.0"
+pinocchio-system = "0.6.1"
+pinocchio-token-2022 = "0.4.0"
+solana-address = { version = "2.8.0", features = ["curve25519"] }
 
 [dev-dependencies]
 solana-record-service-client = { workspace = true }

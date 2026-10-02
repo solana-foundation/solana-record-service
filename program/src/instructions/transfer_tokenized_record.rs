@@ -1,13 +1,10 @@
-use crate::{state::Record, token2022::TransferChecked, utils::Context};
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
+use crate::{state::Record, utils::Context};
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
-    ProgramResult,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView, Address, ProgramResult,
 };
+use pinocchio_token_2022::instructions::TransferChecked;
 
 /// TransferRecord instruction.
 ///
@@ -30,17 +27,17 @@ use pinocchio::{
 ///    a. The mint's owner, or
 ///    b. if the class is permissioned, the authority must be the permissioned authority
 /// 2. The record must not be frozen
-pub struct TransferTokenizedRecordAccounts<'info> {
-    mint: &'info AccountInfo,
-    token_account: &'info AccountInfo,
-    new_token_account: &'info AccountInfo,
-    record: &'info AccountInfo,
+pub struct TransferTokenizedRecordAccounts {
+    mint: AccountView,
+    token_account: AccountView,
+    new_token_account: AccountView,
+    record: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for TransferTokenizedRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for TransferTokenizedRecordAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, mint, token_account, new_token_account, record, _system_program, rest @ ..] =
             accounts
         else {
@@ -61,19 +58,19 @@ impl<'info> TryFrom<&'info [AccountInfo]> for TransferTokenizedRecordAccounts<'i
         )?;
 
         Ok(Self {
-            mint,
-            token_account,
-            new_token_account,
-            record,
+            mint: *mint,
+            token_account: *token_account,
+            new_token_account: *new_token_account,
+            record: *record,
         })
     }
 }
 
-pub struct TransferTokenizedRecord<'info> {
-    accounts: TransferTokenizedRecordAccounts<'info>,
+pub struct TransferTokenizedRecord {
+    accounts: TransferTokenizedRecordAccounts,
 }
 
-impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
@@ -84,36 +81,28 @@ impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord<'info> {
     }
 }
 
-impl<'info> TransferTokenizedRecord<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Transfer Tokenized Record");
+impl TransferTokenizedRecord {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let bump = [
-            try_find_program_address(&[b"mint", self.accounts.record.key()], &crate::ID)
-                .ok_or(ProgramError::InvalidArgument)?
-                .1,
-        ];
+        let bump = [Address::try_find_program_address(&[b"mint", self.accounts.record.address().as_ref()], &crate::ID)
+            .ok_or(ProgramError::InvalidArgument)?
+            .1];
 
-        let seeds = [
-            Seed::from(b"mint"),
-            Seed::from(self.accounts.record.key()),
-            Seed::from(&bump),
-        ];
+        let seeds = [Seed::from(b"mint"), Seed::from(self.accounts.record.address().as_ref()), Seed::from(&bump)];
 
         let signers = [Signer::from(&seeds)];
 
-        TransferChecked {
-            source: self.accounts.token_account,
-            mint: self.accounts.mint,
-            destination: self.accounts.new_token_account,
-            authority: self.accounts.mint,
-            amount: 1,
-            decimals: 0,
-        }
+        TransferChecked::new(
+            &self.accounts.token_account,
+            &self.accounts.mint,
+            &self.accounts.new_token_account,
+            &self.accounts.mint,
+            1,
+            0,
+        )
         .invoke_signed(&signers)?;
 
         Ok(())

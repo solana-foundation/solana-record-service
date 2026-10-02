@@ -1,16 +1,12 @@
 #[cfg(not(feature = "perf"))]
-use crate::constants::{MAX_METADATA_LEN, MAX_SEED_LEN};
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
+use crate::constants::MAX_METADATA_LEN;
 
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::try_find_program_address,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign, CreateAccount, Transfer};
 
@@ -35,16 +31,16 @@ use crate::{
 ///
 /// # Security
 /// 1. The authority account must be a signer
-pub struct CreateClassAccounts<'info> {
-    authority: &'info AccountInfo,
-    payer: &'info AccountInfo,
-    class: &'info AccountInfo,
+pub struct CreateClassAccounts {
+    authority: AccountView,
+    payer: AccountView,
+    class: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
+impl TryFrom<&[AccountView]> for CreateClassAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, payer, class, _system_program] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
@@ -55,9 +51,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for CreateClassAccounts<'info> {
         }
 
         Ok(Self {
-            authority,
-            payer,
-            class,
+            authority: *authority,
+            payer: *payer,
+            class: *class,
         })
     }
 }
@@ -67,7 +63,7 @@ const IS_FROZEN_OFFSET: usize = IS_PERMISSIONED_OFFSET + size_of::<bool>();
 const NAME_LEN_OFFSET: usize = IS_FROZEN_OFFSET + size_of::<bool>();
 
 pub struct CreateClass<'info> {
-    accounts: CreateClassAccounts<'info>,
+    accounts: CreateClassAccounts,
     is_permissioned: bool,
     is_frozen: bool,
     name: &'info str,
@@ -128,29 +124,23 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
 
 impl<'info> CreateClass<'info> {
     pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Create Class");
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
+    pub fn execute(&mut self) -> ProgramResult {
         let space = Class::MINIMUM_CLASS_SIZE + self.name.len() + self.metadata.len();
-        let rent = Rent::get()?.minimum_balance(space);
+        let rent = Rent::get()?.try_minimum_balance(space)?;
         let lamports = rent.saturating_sub(self.accounts.class.lamports());
 
-        let seeds = [
-            b"class",
-            self.accounts.authority.key().as_ref(),
-            self.name.as_bytes(),
-        ];
+        let seeds = [b"class", self.accounts.authority.address().as_ref(), self.name.as_bytes()];
 
-        let bump: [u8; 1] = [try_find_program_address(&seeds, &crate::ID)
+        let bump: [u8; 1] = [Address::try_find_program_address(&seeds, &crate::ID)
             .ok_or(ProgramError::InvalidArgument)?
             .1];
 
         let seeds = [
             Seed::from(b"class"),
-            Seed::from(self.accounts.authority.key()),
+            Seed::from(self.accounts.authority.address().as_ref()),
             Seed::from(self.name.as_bytes()),
             Seed::from(&bump),
         ];
@@ -160,29 +150,29 @@ impl<'info> CreateClass<'info> {
         // Create the account with our program as owner
         if self.accounts.class.lamports() > 0 {
             Allocate {
-                account: self.accounts.class,
+                account: &self.accounts.class,
                 space: space as u64,
             }
             .invoke_signed(&signers)?;
 
             Assign {
-                account: self.accounts.class,
+                account: &self.accounts.class,
                 owner: &crate::ID,
             }
             .invoke_signed(&signers)?;
 
             if self.accounts.class.lamports() < lamports {
                 Transfer {
-                    from: self.accounts.payer,
-                    to: self.accounts.class,
+                    from: &self.accounts.payer,
+                    to: &self.accounts.class,
                     lamports: lamports - self.accounts.class.lamports(),
                 }
                 .invoke()?;
             }
         } else {
             CreateAccount {
-                from: self.accounts.payer,
-                to: self.accounts.class,
+                from: &self.accounts.payer,
+                to: &self.accounts.class,
                 lamports,
                 space: space as u64,
                 owner: &crate::ID,
@@ -191,13 +181,13 @@ impl<'info> CreateClass<'info> {
         }        
 
         let class = Class {
-            authority: *self.accounts.authority.key(),
+            authority: *self.accounts.authority.address(),
             is_permissioned: self.is_permissioned,
             is_frozen: self.is_frozen,
             name: self.name,
             metadata: self.metadata,
         };
 
-        unsafe { class.initialize_unchecked(self.accounts.class) }
+        unsafe { class.initialize_unchecked(&mut self.accounts.class) }
     }
 }
