@@ -20,4 +20,5 @@ _Supersedes 1.0.0. The package is renumbered so the program, the Rust client and
 
 ### Added
 
+- Publishing is manual (`workflow_dispatch`), gated on a green test run, a branch guard and a dry-run default. It authenticates to npm over OIDC instead of a long-lived token, and pushes a git tag and a GitHub Release.
 - PDA helpers `findClassPda`, `findRecordPda`, `findMintPda` and `findGroupPda`, and PDA defaults for the class, record, mint and group accounts in the async instruction builders.

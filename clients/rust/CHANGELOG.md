@@ -22,5 +22,6 @@ _Supersedes 0.1.0. The crate is renumbered so the program, the Rust client and t
 
 ### Added
 
+- Publishing is manual (`workflow_dispatch`), gated on a green test run, a branch guard and a dry-run default. It authenticates to crates.io over OIDC instead of a long-lived token, and pushes a git tag and a GitHub Release.
 - `fetch` feature: `fetch_class`, `fetch_record` and their `fetch_all_*` variants over `solana-rpc-client`.
 - `Class::find_pda` / `create_pda` and `Record::find_pda` / `create_pda` derive the class and record addresses.

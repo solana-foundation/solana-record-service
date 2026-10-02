@@ -140,6 +140,20 @@ cargo add solana-record-service-client
 use solana_record_service_client::instructions::*;
 ```
 
+## CI
+
+| Workflow       | Description                                                    |
+| -------------- | -------------------------------------------------------------- |
+| **Build**      | Compile the program and the TypeScript client                  |
+| **Test**       | Rust unit and Rust integration tests                           |
+| **Format**     | Rust and TypeScript formatting                                 |
+| **Lint**       | Clippy and oxlint                                              |
+| **IDL Check**  | Fail on drift between the program and the committed IDL        |
+| **Security**   | `cargo audit` and `pnpm audit`                                 |
+| **PR hygiene** | Linked issue, commit signatures, AI disclosure and attribution |
+
+Publishing is manual. `Publish Rust Client` and `Publish TypeScript Client` are `workflow_dispatch` only, gated on a green test run and a branch guard, default to a dry run, and authenticate to the registries over OIDC. `Release` builds the program with `solana-verify` and upgrades devnet directly, or exports a single Squads transaction (verify PDA, IDL metadata and program upgrade) for mainnet.
+
 ## Security
 
 Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.md), not in a public issue.

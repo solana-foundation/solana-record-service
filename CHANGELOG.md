@@ -22,3 +22,5 @@ _Not yet deployed. The currently deployed binary predates this version. The prog
 
 - The IDL is generated from the program source with Codama derive macros and committed under `idl/`.
 - `just` is the single task runner for build, test, lint, format and client generation.
+- CI gates on every pull request: build, integration and client tests, formatting, clippy, IDL drift, `cargo audit` and `pnpm audit`.
+- A `Release` workflow builds the program with `solana-verify`, upgrades devnet directly, and exports a Squads transaction for mainnet.
