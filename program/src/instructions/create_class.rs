@@ -50,11 +50,7 @@ impl TryFrom<&[AccountView]> for CreateClassAccounts {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        Ok(Self {
-            authority: *authority,
-            payer: *payer,
-            class: *class,
-        })
+        Ok(Self { authority: *authority, payer: *payer, class: *class })
     }
 }
 
@@ -93,8 +89,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         // Read the variable length data
-        let mut variable_data: ByteReader<'info> =
-            ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
 
         // Read the name
         let name: &'info str = variable_data.read_str_with_length()?;
@@ -112,13 +107,7 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
             return Err(ProgramError::InvalidArgument);
         }
 
-        Ok(Self {
-            accounts,
-            is_permissioned,
-            is_frozen,
-            name,
-            metadata,
-        })
+        Ok(Self { accounts, is_permissioned, is_frozen, name, metadata })
     }
 }
 
@@ -134,9 +123,8 @@ impl<'info> CreateClass<'info> {
 
         let seeds = [b"class", self.accounts.authority.address().as_ref(), self.name.as_bytes()];
 
-        let bump: [u8; 1] = [Address::try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1];
+        let bump: [u8; 1] =
+            [Address::try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
 
         let seeds = [
             Seed::from(b"class"),
@@ -149,17 +137,9 @@ impl<'info> CreateClass<'info> {
 
         // Create the account with our program as owner
         if self.accounts.class.lamports() > 0 {
-            Allocate {
-                account: &self.accounts.class,
-                space: space as u64,
-            }
-            .invoke_signed(&signers)?;
+            Allocate { account: &self.accounts.class, space: space as u64 }.invoke_signed(&signers)?;
 
-            Assign {
-                account: &self.accounts.class,
-                owner: &crate::ID,
-            }
-            .invoke_signed(&signers)?;
+            Assign { account: &self.accounts.class, owner: &crate::ID }.invoke_signed(&signers)?;
 
             if self.accounts.class.lamports() < lamports {
                 Transfer {
@@ -178,7 +158,7 @@ impl<'info> CreateClass<'info> {
                 owner: &crate::ID,
             }
             .invoke_signed(&signers)?;
-        }        
+        }
 
         let class = Class {
             authority: *self.accounts.authority.address(),

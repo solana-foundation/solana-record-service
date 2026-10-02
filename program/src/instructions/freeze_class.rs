@@ -62,10 +62,7 @@ impl<'info> TryFrom<Context<'info>> for FreezeClass {
         // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
-        Ok(Self {
-            accounts,
-            is_frozen,
-        })
+        Ok(Self { accounts, is_frozen })
     }
 }
 

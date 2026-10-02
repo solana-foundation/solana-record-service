@@ -38,9 +38,7 @@ impl TryFrom<&[AccountView]> for TransferTokenizedRecordAccounts {
     type Error = ProgramError;
 
     fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
-        let [authority, mint, token_account, new_token_account, record, _system_program, rest @ ..] =
-            accounts
-        else {
+        let [authority, mint, token_account, new_token_account, record, _system_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
@@ -49,20 +47,9 @@ impl TryFrom<&[AccountView]> for TransferTokenizedRecordAccounts {
         }
 
         // Check if authority is the record owner or has a delegate
-        Record::check_owner_or_delegate_tokenized(
-            record,
-            rest.first(),
-            authority,
-            mint,
-            token_account,
-        )?;
+        Record::check_owner_or_delegate_tokenized(record, rest.first(), authority, mint, token_account)?;
 
-        Ok(Self {
-            mint: *mint,
-            token_account: *token_account,
-            new_token_account: *new_token_account,
-            record: *record,
-        })
+        Ok(Self { mint: *mint, token_account: *token_account, new_token_account: *new_token_account, record: *record })
     }
 }
 

@@ -1,7 +1,7 @@
-use core::mem::size_of;
 use crate::constants::MAX_METADATA_LEN;
 use crate::state::Class;
 use crate::utils::{ByteReader, Context};
+use core::mem::size_of;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// UpdateClass instruction.
@@ -34,10 +34,7 @@ impl TryFrom<&[AccountView]> for UpdateClassAccounts {
 
         Class::check_authority(class, authority)?;
 
-        Ok(Self {
-            payer: *payer,
-            class: *class,
-        })
+        Ok(Self { payer: *payer, class: *class })
     }
 }
 

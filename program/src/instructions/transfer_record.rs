@@ -66,10 +66,7 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord {
         // Deserialize new owner
         let new_owner: Address = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;
 
-        Ok(Self {
-            accounts,
-            new_owner,
-        })
+        Ok(Self { accounts, new_owner })
     }
 }
 

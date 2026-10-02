@@ -52,12 +52,7 @@ impl TryFrom<&[AccountView]> for CreateRecordAccounts {
         // Check class permission
         Class::check_permission(class, rest.first())?;
 
-        Ok(Self {
-            owner: *owner,
-            payer: *payer,
-            class: *class,
-            record: *record,
-        })
+        Ok(Self { owner: *owner, payer: *payer, class: *class, record: *record })
     }
 }
 
@@ -91,8 +86,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         let expiry: i64 = ByteReader::read_with_offset(ctx.data, EXPIRY_OFFSET)?;
 
         // Deserialize variable length data
-        let mut variable_data: ByteReader<'info> =
-            ByteReader::new_with_offset(ctx.data, SEED_LEN_OFFSET);
+        let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, SEED_LEN_OFFSET);
 
         // Deserialize `seed`
         let seed: &[u8] = variable_data.read_bytes_with_length()?;
@@ -105,12 +99,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         // Deserialize `data`
         let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;
 
-        Ok(Self {
-            accounts,
-            expiry,
-            seed,
-            data,
-        })
+        Ok(Self { accounts, expiry, seed, data })
     }
 }
 
@@ -126,9 +115,8 @@ impl<'info> CreateRecord<'info> {
 
         let seeds = [b"record", self.accounts.class.address().as_ref(), self.seed];
 
-        let bump: [u8; 1] = [Address::try_find_program_address(&seeds, &crate::ID)
-            .ok_or(ProgramError::InvalidArgument)?
-            .1];
+        let bump: [u8; 1] =
+            [Address::try_find_program_address(&seeds, &crate::ID).ok_or(ProgramError::InvalidArgument)?.1];
 
         let seeds = [
             Seed::from(b"record"),
@@ -141,17 +129,9 @@ impl<'info> CreateRecord<'info> {
 
         // Create the account with our program as owner
         if self.accounts.record.lamports() > 0 {
-            Allocate {
-                account: &self.accounts.record,
-                space: space as u64,
-            }
-            .invoke_signed(&signers)?;
+            Allocate { account: &self.accounts.record, space: space as u64 }.invoke_signed(&signers)?;
 
-            Assign {
-                account: &self.accounts.record,
-                owner: &crate::ID,
-            }
-            .invoke_signed(&signers)?;
+            Assign { account: &self.accounts.record, owner: &crate::ID }.invoke_signed(&signers)?;
 
             if self.accounts.record.lamports() < lamports {
                 Transfer {
@@ -170,7 +150,7 @@ impl<'info> CreateRecord<'info> {
                 owner: &crate::ID,
             }
             .invoke_signed(&signers)?;
-        }    
+        }
 
         let record = Record {
             class: *self.accounts.class.address(),

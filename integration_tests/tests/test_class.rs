@@ -2,6 +2,7 @@ use helpers::{
     class_account, create_class, create_record, funded_keypair, instruction_error, lamports,
     program_test_context, send, TestContext,
 };
+use solana_address::Address;
 use solana_instruction_error::InstructionError;
 use solana_keypair::Keypair;
 use solana_record_service_client::{
@@ -9,11 +10,15 @@ use solana_record_service_client::{
     instructions::{FreezeClassBuilder, UpdateClassAuthorityBuilder, UpdateClassMetadataBuilder},
 };
 use solana_signer::Signer;
-use solana_address::Address;
 
 mod helpers;
 
-fn update_metadata(ctx: &mut TestContext, authority: &Keypair, class: Address, metadata: &str) -> Result<(), solana_transaction_error::TransactionError> {
+fn update_metadata(
+    ctx: &mut TestContext,
+    authority: &Keypair,
+    class: Address,
+    metadata: &str,
+) -> Result<(), solana_transaction_error::TransactionError> {
     let ix = UpdateClassMetadataBuilder::new()
         .authority(authority.pubkey())
         .payer(ctx.payer.pubkey())
@@ -121,7 +126,8 @@ fn frozen_class_rejects_new_records() {
     let class = create_class(&mut ctx, &authority, "twitter", "", false, false);
 
     let freeze = |ctx: &mut TestContext, is_frozen: bool| {
-        let ix = FreezeClassBuilder::new().authority(authority.pubkey()).class(class).is_frozen(is_frozen).instruction();
+        let ix =
+            FreezeClassBuilder::new().authority(authority.pubkey()).class(class).is_frozen(is_frozen).instruction();
         send(ctx, &[ix], &[&authority])
     };
 

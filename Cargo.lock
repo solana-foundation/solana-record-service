@@ -4121,7 +4121,7 @@ dependencies = [
 
 [[package]]
 name = "solana-record-service"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "codama",
  "pinocchio",
@@ -4134,7 +4134,7 @@ dependencies = [
 
 [[package]]
 name = "solana-record-service-client"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "borsh",
  "num-derive 0.4.2",
@@ -5297,7 +5297,7 @@ dependencies = [
 
 [[package]]
 name = "tests-solana-record-service"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "borsh",
  "litesvm",

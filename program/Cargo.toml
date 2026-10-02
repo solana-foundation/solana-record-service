@@ -1,7 +1,7 @@
 [package]
 name = "solana-record-service"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 
 [lib]
 name = "srs"
@@ -22,3 +22,6 @@ pinocchio-associated-token-account = { workspace = true }
 pinocchio-system = { workspace = true }
 pinocchio-token-2022 = { workspace = true }
 solana-address = { workspace = true }
+
+[lints]
+workspace = true

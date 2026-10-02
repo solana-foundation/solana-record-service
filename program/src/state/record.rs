@@ -365,7 +365,10 @@ impl<'info> Record<'info> {
     /// # Safety
     ///
     /// This function does not perform owner checks
-    pub unsafe fn delete_record_unchecked(record: &mut AccountView, payer: &mut AccountView) -> Result<(), ProgramError> {
+    pub unsafe fn delete_record_unchecked(
+        record: &mut AccountView,
+        payer: &mut AccountView,
+    ) -> Result<(), ProgramError> {
         // Resize to 0 bytes
         record.resize(0)?;
         // Transfer ALL lamports back to payer to fully close the account

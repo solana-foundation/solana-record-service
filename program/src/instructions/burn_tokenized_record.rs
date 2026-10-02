@@ -41,27 +41,14 @@ impl TryFrom<&[AccountView]> for BurnTokenizedRecordAccounts {
     type Error = ProgramError;
 
     fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
-        let [authority, destination, mint, token_account, record, _token_2022_program, rest @ ..] =
-            accounts
-        else {
+        let [authority, destination, mint, token_account, record, _token_2022_program, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         // Check if authority is the record owner or has a delegate
-        Record::check_owner_or_delegate_tokenized(
-            record,
-            rest.first(),
-            authority,
-            mint,
-            token_account,
-        )?;
+        Record::check_owner_or_delegate_tokenized(record, rest.first(), authority, mint, token_account)?;
 
-        Ok(Self {
-            destination: *destination,
-            record: *record,
-            mint: *mint,
-            token_account: *token_account,
-        })
+        Ok(Self { destination: *destination, record: *record, mint: *mint, token_account: *token_account })
     }
 }
 

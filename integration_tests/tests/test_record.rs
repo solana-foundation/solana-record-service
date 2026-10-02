@@ -257,9 +257,6 @@ fn delete_record_rejects_a_stranger() {
     let mut f = setup(false);
     let stranger = funded_keypair(&mut f.ctx);
 
-    assert_eq!(
-        delete(&mut f, &stranger, true).unwrap_err(),
-        instruction_error(InstructionError::InvalidAccountData)
-    );
+    assert_eq!(delete(&mut f, &stranger, true).unwrap_err(), instruction_error(InstructionError::InvalidAccountData));
     assert!(!is_closed(&f.ctx, &f.record));
 }

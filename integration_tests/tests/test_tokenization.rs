@@ -59,7 +59,13 @@ fn burn(f: &mut Fixture, signer: &Keypair, holder: &Address, with_class: bool) -
     send(&mut f.ctx, &[ix], &[signer])
 }
 
-fn transfer(f: &mut Fixture, signer: &Keypair, from: &Address, to: &Address, with_class: bool) -> Result<(), TransactionError> {
+fn transfer(
+    f: &mut Fixture,
+    signer: &Keypair,
+    from: &Address,
+    to: &Address,
+    with_class: bool,
+) -> Result<(), TransactionError> {
     let class = with_class.then_some(f.class);
     let mint = mint_pda(&f.record);
     let ix = TransferTokenizedRecordBuilder::new()
@@ -126,7 +132,10 @@ fn mint_tokenized_record_creates_the_group_mint_and_token() {
         Option::<Address>::from(mint_state.get_extension::<MintCloseAuthority>().unwrap().close_authority),
         Some(mint)
     );
-    assert_eq!(Option::<Address>::from(mint_state.get_extension::<MetadataPointer>().unwrap().metadata_address), Some(mint));
+    assert_eq!(
+        Option::<Address>::from(mint_state.get_extension::<MetadataPointer>().unwrap().metadata_address),
+        Some(mint)
+    );
     let member_pointer = mint_state.get_extension::<GroupMemberPointer>().unwrap();
     assert_eq!(Option::<Address>::from(member_pointer.member_address), Some(mint));
     assert_eq!(Option::<Address>::from(member_pointer.authority), Some(group_pda(&f.class)));
@@ -147,7 +156,10 @@ fn mint_tokenized_record_creates_the_group_mint_and_token() {
 
     let group_data = f.ctx.svm.get_account(&group_pda(&f.class)).unwrap();
     let group_state = StateWithExtensions::<Mint>::unpack(&group_data.data).unwrap();
-    assert_eq!(Option::<Address>::from(group_state.get_extension::<GroupPointer>().unwrap().group_address), Some(group_pda(&f.class)));
+    assert_eq!(
+        Option::<Address>::from(group_state.get_extension::<GroupPointer>().unwrap().group_address),
+        Some(group_pda(&f.class))
+    );
     let group = group_state.get_extension::<TokenGroup>().unwrap();
     assert_eq!(u64::from(group.size), 1);
     assert_eq!(u64::from(group.max_size), u64::MAX);
@@ -164,7 +176,8 @@ fn second_record_joins_the_existing_group() {
     let (mint, _) = mint_tokenized_record(&mut f.ctx, f.class, record, &bob.pubkey(), &bob).unwrap();
 
     let mint_data = f.ctx.svm.get_account(&mint).unwrap();
-    let member = *StateWithExtensions::<Mint>::unpack(&mint_data.data).unwrap().get_extension::<TokenGroupMember>().unwrap();
+    let member =
+        *StateWithExtensions::<Mint>::unpack(&mint_data.data).unwrap().get_extension::<TokenGroupMember>().unwrap();
     assert_eq!(u64::from(member.member_number), 2);
 }
 

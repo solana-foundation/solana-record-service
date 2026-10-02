@@ -1,10 +1,10 @@
 [package]
 name = "solana-record-service-client"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 description = "Rust client for the Solana Record Service"
-license = "MIT"
-repository = "https://github.com/solana-foundation/solana-record-service"
+license = { workspace = true }
+repository = { workspace = true }
 include = ["Cargo.toml", "src/**/*.rs"]
 
 [features]

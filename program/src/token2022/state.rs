@@ -53,23 +53,16 @@ impl<'info> Mint<'info> {
 
         let data = account_info.try_borrow()?;
 
-        Ok(
-            u64::from_le_bytes(
-                data[TOKEN_ACCOUNT_SUPPLY_OFFSET..TOKEN_ACCOUNT_SUPPLY_OFFSET + size_of::<u64>()]
-                    .try_into()
-                    .unwrap()
-            )
-        )
+        Ok(u64::from_le_bytes(
+            data[TOKEN_ACCOUNT_SUPPLY_OFFSET..TOKEN_ACCOUNT_SUPPLY_OFFSET + size_of::<u64>()].try_into().unwrap(),
+        ))
     }
 }
 
 const TOKEN_MINT_OFFSET: usize = 0;
 const TOKEN_OWNER_OFFSET: usize = TOKEN_MINT_OFFSET + size_of::<Address>();
-const TOKEN_IS_FROZEN_OFFSET: usize = TOKEN_OWNER_OFFSET
-    + size_of::<Address>()
-    + size_of::<u64>()
-    + size_of::<u32>()
-    + size_of::<Address>();
+const TOKEN_IS_FROZEN_OFFSET: usize =
+    TOKEN_OWNER_OFFSET + size_of::<Address>() + size_of::<u64>() + size_of::<u32>() + size_of::<Address>();
 
 #[repr(C)]
 pub struct Token<'info> {

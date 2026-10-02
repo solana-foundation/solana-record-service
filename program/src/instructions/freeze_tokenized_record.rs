@@ -58,11 +58,7 @@ impl TryFrom<&[AccountView]> for FreezeTokenizedRecordAccounts {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        Ok(Self {
-            mint: *mint,
-            token_account: *token_account,
-            record: *record,
-        })
+        Ok(Self { mint: *mint, token_account: *token_account, record: *record })
     }
 }
 
@@ -79,7 +75,7 @@ pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
 impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord {
     type Error = ProgramError;
 
-    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {        
+    fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = FreezeTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
@@ -92,10 +88,7 @@ impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord {
         // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
-        Ok(Self {
-            accounts,
-            is_frozen,
-        })
+        Ok(Self { accounts, is_frozen })
     }
 }
 
@@ -105,9 +98,7 @@ impl FreezeTokenizedRecord {
     }
 
     pub fn execute(&self) -> ProgramResult {
-        let is_frozen = unsafe {
-            Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow()?)?
-        };
+        let is_frozen = unsafe { Token::get_is_frozen_unchecked(&self.accounts.token_account.try_borrow()?)? };
 
         if is_frozen.eq(&self.is_frozen) {
             return Ok(());

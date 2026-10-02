@@ -37,10 +37,7 @@ impl TryFrom<&[AccountView]> for DeleteRecordAccounts {
         // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_or_deleted(record, rest.first(), authority, rest.last())?;
 
-        Ok(Self {
-            payer: *payer,
-            record: *record,
-        })
+        Ok(Self { payer: *payer, record: *record })
     }
 }
 

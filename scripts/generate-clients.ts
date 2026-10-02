@@ -48,20 +48,18 @@ function shapeProgram(codama: Codama) {
 
                     const tokenizable = node.instructions
                         .filter(instruction => instruction.name in TOKENIZABLE_VARIANTS)
-                        .map(
-                            (instruction): InstructionNode => ({
-                                ...instruction,
-                                ...TOKENIZABLE_VARIANTS[instruction.name],
-                                arguments: instruction.arguments.map(argument =>
-                                    argument.name === 'data'
-                                        ? instructionArgumentNode({
-                                              name: 'metadata',
-                                              type: definedTypeLinkNode('metadata'),
-                                          })
-                                        : argument,
-                                ),
-                            }),
-                        );
+                        .map((instruction): InstructionNode => ({
+                            ...instruction,
+                            ...TOKENIZABLE_VARIANTS[instruction.name],
+                            arguments: instruction.arguments.map(argument =>
+                                argument.name === 'data'
+                                    ? instructionArgumentNode({
+                                          name: 'metadata',
+                                          type: definedTypeLinkNode('metadata'),
+                                      })
+                                    : argument,
+                            ),
+                        }));
 
                     return {
                         ...node,

@@ -42,18 +42,11 @@ pub fn resize_account(target_account: &mut AccountView, payer: &mut AccountView,
         core::cmp::Ordering::Greater => {
             // Need more lamports for rent exemption
             let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
-            Transfer {
-                from: payer,
-                to: target_account,
-                lamports: lamports_diff,
-            }
-            .invoke()?;
+            Transfer { from: payer, to: target_account, lamports: lamports_diff }.invoke()?;
         }
         core::cmp::Ordering::Less => {
             // Can return excess lamports to payer
-            let lamports_diff = target_account
-                .lamports()
-                .saturating_sub(new_minimum_balance);
+            let lamports_diff = target_account.lamports().saturating_sub(new_minimum_balance);
             payer.set_lamports(payer.lamports().saturating_add(lamports_diff));
             target_account.set_lamports(target_account.lamports().saturating_sub(lamports_diff));
         }
@@ -100,8 +93,7 @@ impl<'info> ByteReader<'info> {
 
     pub fn read_str(&mut self, len: usize) -> Result<&'info str, ProgramError> {
         let str_bytes = self.read_bytes(len)?;
-        let str =
-            core::str::from_utf8(str_bytes).map_err(|_| ProgramError::InvalidInstructionData)?;
+        let str = core::str::from_utf8(str_bytes).map_err(|_| ProgramError::InvalidInstructionData)?;
         Ok(str)
     }
 
@@ -127,10 +119,7 @@ impl<'info> ByteReader<'info> {
         self.read_bytes(len as usize)
     }
 
-    pub fn read_with_offset<T: Sized + Copy>(
-        data: &'info [u8],
-        offset: usize,
-    ) -> Result<T, ProgramError> {
+    pub fn read_with_offset<T: Sized + Copy>(data: &'info [u8], offset: usize) -> Result<T, ProgramError> {
         let size = size_of::<T>();
 
         if offset + size > data.len() {
@@ -194,10 +183,7 @@ impl<'info> ByteWriter<'info> {
     }
 
     pub fn write_bytes_with_length(&mut self, bytes: &[u8]) -> Result<(), ProgramError> {
-        let len: u8 = bytes
-            .len()
-            .try_into()
-            .map_err(|_| ProgramError::ArithmeticOverflow)?;
+        let len: u8 = bytes.len().try_into().map_err(|_| ProgramError::ArithmeticOverflow)?;
         self.write(len)?;
         self.write_bytes(bytes)
     }
