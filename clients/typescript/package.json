@@ -1,5 +1,5 @@
 {
-  "name": "srs-lib",
+  "name": "@solana/record",
   "version": "2.0.0",
   "repository": "git@github.com:solana-foundation/solana-record-service.git",
   "sideEffects": false,

@@ -1,12 +1,16 @@
-# Changelog: `srs-lib` (TypeScript client)
+# Changelog: `@solana/record` (TypeScript client)
 
 TypeScript SDK for the Solana Record Service program. Published to npm; tagged `ts-client-vX.Y.Z`.
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
-Releases before 2.0.0 predate this changelog; see the git history and [npm](https://www.npmjs.com/package/srs-lib) for that period.
+Releases before 2.0.0 were published as `srs-lib` and predate this changelog; see the git history and [npm](https://www.npmjs.com/package/srs-lib) for that period.
 
 ## [Unreleased]
+
+### Changed
+
+- The package is renamed from `srs-lib` to `@solana/record`. `srs-lib` receives no further releases.
 
 ## [2.0.0]
 

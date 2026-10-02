@@ -7,7 +7,7 @@ use solana_instruction::Instruction;
 use solana_instruction_error::InstructionError;
 use solana_keypair::Keypair;
 use solana_program_pack::Pack;
-use solana_record_service_client::{
+use solana_record::{
     accounts::{Class, Record},
     instructions::{
         CreateClassBuilder, CreateRecordBuilder, CreateRecordTokenizableBuilder, FreezeRecordBuilder,

@@ -1,12 +1,16 @@
-# Changelog: `solana-record-service-client` (Rust client)
+# Changelog: `solana-record` (Rust client)
 
 Rust SDK for the Solana Record Service program. Published to crates.io; tagged `rust-client-vX.Y.Z`.
 
 Versioning follows [Semantic Versioning](https://semver.org/).
 
-Releases before 2.0.0 predate this changelog; see the git history and [crates.io](https://crates.io/crates/solana-record-service-client) for that period.
+Releases before 2.0.0 were published as `solana-record-service-client` and predate this changelog; see the git history and [crates.io](https://crates.io/crates/solana-record-service-client) for that period.
 
 ## [Unreleased]
+
+### Changed
+
+- The crate is renamed from `solana-record-service-client` to `solana-record`. Import it as `solana_record`. `solana-record-service-client` receives no further releases.
 
 ## [2.0.0]
 

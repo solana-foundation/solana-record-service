@@ -1,11 +1,11 @@
 use helpers::{
-    class_account, create_class, create_record, funded_keypair, instruction_error, lamports,
-    program_test_context, send, TestContext,
+    class_account, create_class, create_record, funded_keypair, instruction_error, lamports, program_test_context,
+    send, TestContext,
 };
 use solana_address::Address;
 use solana_instruction_error::InstructionError;
 use solana_keypair::Keypair;
-use solana_record_service_client::{
+use solana_record::{
     accounts::{Class, CLASS_DISCRIMINATOR},
     instructions::{FreezeClassBuilder, UpdateClassAuthorityBuilder, UpdateClassMetadataBuilder},
 };
@@ -52,7 +52,7 @@ fn create_class_twice_fails() {
     let authority = funded_keypair(&mut ctx);
     create_class(&mut ctx, &authority, "twitter", "", false, false);
 
-    let ix = solana_record_service_client::instructions::CreateClassBuilder::new()
+    let ix = solana_record::instructions::CreateClassBuilder::new()
         .authority(authority.pubkey())
         .payer(ctx.payer.pubkey())
         .class(Class::find_pda(&authority.pubkey(), "twitter".into()).0)
@@ -163,7 +163,7 @@ fn freeze_class_rejects_another_authority() {
 fn create_class_rejects_a_flag_byte_other_than_zero_or_one() {
     let mut ctx = program_test_context();
     let authority = funded_keypair(&mut ctx);
-    let mut ix = solana_record_service_client::instructions::CreateClassBuilder::new()
+    let mut ix = solana_record::instructions::CreateClassBuilder::new()
         .authority(authority.pubkey())
         .payer(ctx.payer.pubkey())
         .class(Class::find_pda(&authority.pubkey(), "twitter".into()).0)
@@ -184,7 +184,7 @@ fn create_class_rejects_a_flag_byte_other_than_zero_or_one() {
 fn class_metadata_is_capped_at_255_bytes() {
     let mut ctx = program_test_context();
     let authority = funded_keypair(&mut ctx);
-    let ix = solana_record_service_client::instructions::CreateClassBuilder::new()
+    let ix = solana_record::instructions::CreateClassBuilder::new()
         .authority(authority.pubkey())
         .payer(ctx.payer.pubkey())
         .class(Class::find_pda(&authority.pubkey(), "twitter".into()).0)

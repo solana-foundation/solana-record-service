@@ -14,8 +14,8 @@ This repository contains:
 
 - A Rust Solana program built with [Pinocchio](https://github.com/anza-xyz/pinocchio)
 - IDL and client generation via [Codama](https://github.com/codama-idl/codama)
-- A TypeScript client (`srs-lib`) in `clients/typescript`
-- A Rust client (`solana-record-service-client`) in `clients/rust`
+- A TypeScript client (`@solana/record`) in `clients/typescript`
+- A Rust client (`solana-record`) in `clients/rust`
 
 ## Program ID
 
@@ -68,8 +68,8 @@ solana-record-service/
 │       └── lib.rs           # Entrypoint and discriminator routing
 ├── idl/                     # Codama IDL generated from the program (committed)
 ├── clients/
-│   ├── typescript/          # srs-lib, built on @solana/kit
-│   └── rust/                # solana-record-service-client
+│   ├── typescript/          # @solana/record, built on @solana/kit
+│   └── rust/                # solana-record
 ├── integration_tests/       # litesvm integration tests
 ├── scripts/                 # Client generation
 ├── .githooks/               # pre-push: format and lint checks
@@ -121,11 +121,11 @@ Generated client sources under `clients/*/src/generated/` are not committed. The
 TypeScript:
 
 ```bash
-pnpm add srs-lib
+pnpm add @solana/record
 ```
 
 ```typescript
-import { findClassPda, findRecordPda, getCreateRecordInstructionAsync } from 'srs-lib';
+import { findClassPda, findRecordPda, getCreateRecordInstructionAsync } from '@solana/record';
 ```
 
 The package exports the Codama-generated instruction builders, account decoders and PDA finders (`findClassPda`, `findRecordPda`, `findMintPda`, `findGroupPda`). It is built on `@solana/kit` v8, declared as a peer dependency.
@@ -133,11 +133,11 @@ The package exports the Codama-generated instruction builders, account decoders 
 Rust:
 
 ```bash
-cargo add solana-record-service-client
+cargo add solana-record
 ```
 
 ```rust
-use solana_record_service_client::instructions::*;
+use solana_record::instructions::*;
 ```
 
 ## CI

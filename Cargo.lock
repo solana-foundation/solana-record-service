@@ -4142,20 +4142,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-record-service"
-version = "2.0.0"
-dependencies = [
- "codama",
- "pinocchio",
- "pinocchio-associated-token-account",
- "pinocchio-system",
- "pinocchio-token-2022",
- "serde_json",
- "solana-address 2.9.0",
-]
-
-[[package]]
-name = "solana-record-service-client"
+name = "solana-record"
 version = "2.0.0"
 dependencies = [
  "borsh",
@@ -4170,6 +4157,19 @@ dependencies = [
  "solana-rpc-client",
  "spl-collections",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "solana-record-service"
+version = "2.0.0"
+dependencies = [
+ "codama",
+ "pinocchio",
+ "pinocchio-associated-token-account",
+ "pinocchio-system",
+ "pinocchio-token-2022",
+ "serde_json",
+ "solana-address 2.9.0",
 ]
 
 [[package]]
@@ -5328,7 +5328,7 @@ dependencies = [
  "solana-instruction-error",
  "solana-keypair",
  "solana-program-pack",
- "solana-record-service-client",
+ "solana-record",
  "solana-signer",
  "solana-transaction",
  "solana-transaction-error",

@@ -10,4 +10,4 @@ Expect a response as fast as possible in the advisory, typically within 72 hours
 
 ## Scope
 
-The on-chain program at `srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn` and the published clients (`solana-record-service-client` on crates.io, `srs-lib` on npm) are in scope.
+The on-chain program at `srsWjm76StJucL7atFyPSdXFaVLNPFqEt1uFEDPrZsn` and the published clients (`solana-record` on crates.io, `@solana/record` on npm) are in scope.

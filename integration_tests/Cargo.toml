@@ -12,7 +12,7 @@ solana-instruction = { workspace = true }
 solana-instruction-error = { workspace = true }
 solana-keypair = { workspace = true }
 solana-program-pack = { workspace = true }
-solana-record-service-client = { workspace = true }
+solana-record = { workspace = true }
 solana-signer = { workspace = true }
 solana-transaction = { workspace = true }
 solana-transaction-error = { workspace = true }

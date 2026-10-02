@@ -1,5 +1,5 @@
 [package]
-name = "solana-record-service-client"
+name = "solana-record"
 version = { workspace = true }
 edition = { workspace = true }
 description = "Rust client for the Solana Record Service"

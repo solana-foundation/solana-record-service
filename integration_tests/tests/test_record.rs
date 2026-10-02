@@ -5,7 +5,7 @@ use helpers::{
 use solana_address::Address;
 use solana_instruction_error::InstructionError;
 use solana_keypair::Keypair;
-use solana_record_service_client::{
+use solana_record::{
     accounts::{Record, RECORD_DISCRIMINATOR},
     instructions::{DeleteRecordBuilder, TransferRecordBuilder, UpdateRecordBuilder, UpdateRecordExpiryBuilder},
     types::OwnerType,
