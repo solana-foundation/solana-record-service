@@ -24,9 +24,8 @@ const typescriptClientsDir = path.join(projectRoot, 'clients', 'typescript');
 
 const readIdl = () => createFromJson(fs.readFileSync(idlPath, 'utf-8'));
 
-// A tokenizable record stores Token-2022 metadata as its data, which `MintTokenizedRecord`
-// later reads in place. The program cannot tell the two encodings apart, so the tokenizable
-// variants share the discriminator of the instruction they mirror and only retype `data`.
+// `MintTokenizedRecord` reads Token-2022 metadata from the record data in place. The program
+// cannot tell it from plain data, so these variants reuse the discriminator and only retype `data`.
 const TOKENIZABLE_VARIANTS: Record<string, { name: string; docs: string[] }> = {
     createRecord: {
         name: 'createRecordTokenizable',
@@ -92,9 +91,7 @@ rustCodama.accept(
 const tsCodama = readIdl();
 shapeProgram(tsCodama);
 
-// The renderer takes the package folder, writes to its src/generated, and syncs
-// the dependency ranges below into clients/typescript/package.json on every run,
-// so bumping kit means editing them here rather than in the manifest.
+// Renderer syncs dependency versions to package.json on every run; edit here, not the manifest.
 void tsCodama.accept(
     renderJavaScriptVisitor(typescriptClientsDir, {
         deleteFolderBeforeRendering: true,

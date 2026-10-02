@@ -16,13 +16,6 @@ use crate::{
 
 /// CreateClass instruction.
 ///
-/// This function:
-/// 1. Calculates required account space and rent
-/// 2. Derives the PDA for the class account
-/// 3. Creates the new account
-/// 4. Transfers the minimum rent needed to make the account rent-exempt
-/// 5. Initializes the class data
-///
 /// # Accounts
 /// 1. `authority` - The account that will own the class (must be a signer)
 /// 2. `payer` - The account that will pay for the class account
@@ -44,7 +37,6 @@ impl TryFrom<&[AccountView]> for CreateClassAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Authority Check
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -69,22 +61,16 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize `is_permissioned`
         let is_permissioned: bool = ByteReader::read_bool_with_offset(ctx.data, IS_PERMISSIONED_OFFSET)?;
 
-        // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_bool_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
-        // Read the variable length data
         let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
 
-        // Read the name
         let name: &'info str = variable_data.read_str_with_length()?;
 
-        // Read the remaining data as metadata
         let metadata: &'info str = variable_data.read_str(variable_data.remaining_bytes())?;
 
         if metadata.len() > MAX_METADATA_LEN {
@@ -119,7 +105,6 @@ impl<'info> CreateClass<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        // Create the account with our program as owner
         if self.accounts.class.lamports() > 0 {
             Allocate { account: &self.accounts.class, space: space as u64 }.invoke_signed(&signers)?;
 

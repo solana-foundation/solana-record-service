@@ -14,12 +14,6 @@ use crate::{
 
 /// CreateRecord instruction.
 ///
-/// This function:
-/// 1. Calculates required account space and rent
-/// 2. Derives the PDA for the record account
-/// 3. Creates the new account
-/// 4. Initializes the record data
-///
 /// # Accounts
 /// 1. `owner` - The account that will own the record
 /// 2. `payer` - The account that will pay for the record account
@@ -46,7 +40,6 @@ impl TryFrom<&[AccountView]> for CreateRecordAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check class permission
         Class::check_permission(class, rest.first())?;
 
         Ok(Self { owner: *owner, payer: *payer, class: *class, record: *record })
@@ -67,19 +60,14 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = CreateRecordAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize `expiry`
         let expiry: i64 = ByteReader::read_with_offset(ctx.data, EXPIRY_OFFSET)?;
 
-        // Deserialize variable length data
         let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, SEED_LEN_OFFSET);
 
-        // Deserialize `seed`
         let seed: &[u8] = variable_data.read_bytes_with_length()?;
 
-        // Deserialize `data`
         let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;
 
         Ok(Self { accounts, expiry, seed, data })
@@ -110,7 +98,6 @@ impl<'info> CreateRecord<'info> {
 
         let signers = [Signer::from(&seeds)];
 
-        // Create the account with our program as owner
         if self.accounts.record.lamports() > 0 {
             Allocate { account: &self.accounts.record, space: space as u64 }.invoke_signed(&signers)?;
 

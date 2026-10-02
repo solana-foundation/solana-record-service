@@ -5,11 +5,6 @@ use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// UpdateClass instruction.
 ///
-/// This function:
-/// 1. Loads the current class state
-/// 2. Updates the metadata
-/// 3. Saves the updated state
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to update the class (must be a signer)
 /// 2. `payer` - The account that will pay for the class account
@@ -37,7 +32,6 @@ impl TryFrom<&[AccountView]> for UpdateClassAccounts {
     }
 }
 
-// UpdateClassMetadata
 pub struct UpdateClassMetadata<'info> {
     accounts: UpdateClassAccounts,
     metadata: &'info str,
@@ -49,13 +43,10 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassMetadata<'info> {
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
 
-        // Create a byte reader
         let mut data = ByteReader::new(ctx.data);
 
-        // Deserialize metadata
         let metadata = data.read_str(data.remaining_bytes())?;
 
-        // Validate metadata length
         if metadata.len() > MAX_METADATA_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -74,7 +65,6 @@ impl<'info> UpdateClassMetadata<'info> {
     }
 }
 
-// UpdateClassAuthority
 pub struct UpdateClassAuthority {
     accounts: UpdateClassAccounts,
     authority: Address,
@@ -86,7 +76,6 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassAuthority {
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize authority
         let authority: Address = ByteReader::read_with_offset(ctx.data, 0)?;
 
         Ok(UpdateClassAuthority { accounts, authority })

@@ -13,11 +13,6 @@ use pinocchio_token_2022::instructions::{FreezeAccount, ThawAccount};
 
 /// FreezeRecord instruction.
 ///
-/// This function:
-/// 1. Loads the current record state
-/// 2. Updates the frozen status
-/// 3. Saves the updated state
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to freeze/unfreeze the record (must be a signer)
 /// 2. `mint` - The mint account that that is linked to the record
@@ -41,19 +36,15 @@ impl TryFrom<&[AccountView]> for FreezeTokenizedRecordAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check if authority is the class authority
         Class::check_authority(class, authority)?;
 
-        // Check if the Record is correct
         Record::check_program_id_and_discriminator(record)?;
 
         let record_data = record.try_borrow()?;
-        // Check if the class is the correct class
         if record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if the token is linked to the record
         if record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].ne(mint.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -73,10 +64,8 @@ impl<'info> TryFrom<Context<'info>> for FreezeTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = FreezeTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_bool_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         Ok(Self { accounts, is_frozen })

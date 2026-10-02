@@ -17,45 +17,31 @@ pub struct Context<'info> {
 /// 1. Calculate the new minimum balance required for rent exemption
 /// 2. Transfer lamports if the new size requires more or less balance
 /// 3. Reallocate the account to the new size
-///
-/// # Arguments
-/// * `target_account` - The account to resize
-/// * `payer` - The account that will receive excess lamports or provide additional lamports
-/// * `new_size` - The new size for the account
 pub fn resize_account(target_account: &mut AccountView, payer: &mut AccountView, new_size: usize) -> ProgramResult {
-    // Check if the new size is bigger than 10KB
     if new_size > 1024 * 10 {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // If the account is already the correct size, return early
     if new_size == target_account.data_len() {
         return Ok(());
     }
 
-    // Calculate rent requirements
     let rent = Rent::get()?;
     let new_minimum_balance = rent.try_minimum_balance(new_size)?;
 
-    // First handle lamport transfers
     match new_minimum_balance.cmp(&target_account.lamports()) {
         core::cmp::Ordering::Greater => {
-            // Need more lamports for rent exemption
             let lamports_diff = new_minimum_balance.saturating_sub(target_account.lamports());
             Transfer { from: payer, to: target_account, lamports: lamports_diff }.invoke()?;
         }
         core::cmp::Ordering::Less => {
-            // Can return excess lamports to payer
             let lamports_diff = target_account.lamports().saturating_sub(new_minimum_balance);
             payer.set_lamports(payer.lamports().saturating_add(lamports_diff));
             target_account.set_lamports(target_account.lamports().saturating_sub(lamports_diff));
         }
-        core::cmp::Ordering::Equal => {
-            // No lamport transfer needed
-        }
+        core::cmp::Ordering::Equal => {}
     }
 
-    // Now reallocate the account
     target_account.resize(new_size)?;
 
     Ok(())

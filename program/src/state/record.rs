@@ -14,7 +14,6 @@ use pinocchio_token_2022::instructions::CloseAccount;
 
 use super::{Class, IS_PERMISSIONED_OFFSET};
 
-/// Offsets
 const DISCRIMINATOR_OFFSET: usize = 0;
 pub const CLASS_OFFSET: usize = DISCRIMINATOR_OFFSET + size_of::<u8>();
 const OWNER_TYPE_OFFSET: usize = CLASS_OFFSET + size_of::<Address>();
@@ -76,12 +75,10 @@ impl<'info> Record<'info> {
     /// Check if the program id and discriminator are valid
     #[inline(always)]
     pub fn check_program_id_and_discriminator(account_info: &AccountView) -> Result<(), ProgramError> {
-        // Check Program ID
         if !account_info.owned_by(&crate::ID) {
             return Err(ProgramError::IncorrectProgramId);
         }
 
-        // Check discriminator
         let data = account_info.try_borrow()?;
         if data[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
             return Err(ProgramError::InvalidAccountData);
@@ -113,12 +110,11 @@ impl<'info> Record<'info> {
         authority: &AccountView,
         mint: Option<&AccountView>,
     ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
 
         let data = record.try_borrow()?;
 
-        // Check if the Mint has been burned without passing through the BurnTokenizedRecord instruction
+        // A token burned outside `BurnTokenizedRecord` leaves the record owned by an empty mint.
         if data[OWNER_TYPE_OFFSET].eq(&(OwnerType::Token as u8)) {
             let mint = mint.ok_or(ProgramError::InvalidAccountData)?;
 
@@ -130,7 +126,6 @@ impl<'info> Record<'info> {
                 return Err(ProgramError::InvalidAccountData);
             }
 
-            // Close the Mint and get back the rent
             let bump = [Address::try_find_program_address(&[b"mint", record.address().as_ref()], &crate::ID)
                 .ok_or(ProgramError::InvalidArgument)?
                 .1];
@@ -139,23 +134,19 @@ impl<'info> Record<'info> {
 
             let signers = [Signer::from(&seeds)];
 
-            // Close the mint account
             CloseAccount::new(mint, authority, mint).invoke_signed(&signers)?;
 
             return Ok(());
         }
 
-        // Check if the authority is signer
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Check if the authority is the owner
         if data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].eq(authority.address().as_array()) {
             return Ok(());
         }
 
-        // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
         if data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
@@ -170,27 +161,22 @@ impl<'info> Record<'info> {
         class: Option<&AccountView>,
         authority: &AccountView,
     ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
 
-        // Check if the authority is signer
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         let data = record.try_borrow()?;
 
-        // Check if the authority is the owner
         if data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].eq(authority.address().as_array()) {
             return Ok(());
         }
 
-        // Check if the owner type is pubkey
         if data[OWNER_TYPE_OFFSET].ne(&(OwnerType::Pubkey as u8)) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate the delegate
         let class = class.ok_or(ProgramError::MissingRequiredSignature)?;
         if data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
@@ -207,47 +193,38 @@ impl<'info> Record<'info> {
         mint: &AccountView,
         token_account: &AccountView,
     ) -> Result<(), ProgramError> {
-        // Check the program id and the discriminator
         Self::check_program_id_and_discriminator(record)?;
 
-        // Check if the authority is signer
         if !authority.is_signer() {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Check if the mint is owned by the token program
         Mint::check_program_id(mint)?;
 
         let mint_data = mint.try_borrow()?;
 
-        // Check if the mint is the correct discriminator
         unsafe {
             Mint::check_discriminator_unchecked(&mint_data)?;
         }
 
         let record_data = record.try_borrow()?;
 
-        // Check if the mint is the owner
         if record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].ne(mint.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if the token account is owned by the token program
         Token::check_program_id(token_account)?;
 
         let token_data = token_account.try_borrow()?;
 
-        // Check if the token account is the correct discriminator
         unsafe {
             Token::check_discriminator_unchecked(&token_data)?;
         }
 
-        // Check if the authority is the owner
         if authority.address().eq(unsafe { &Token::get_owner_unchecked(&token_data)? }) {
             return Ok(());
         }
 
-        // Validate the delegate
         let class = class.ok_or(ProgramError::InvalidAccountData)?;
         if record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
@@ -264,12 +241,10 @@ impl<'info> Record<'info> {
         data: &mut RefMut<'_, [u8]>,
         owner_type: OwnerType,
     ) -> Result<(), ProgramError> {
-        // Check if the owner_type is the same
         if data[OWNER_TYPE_OFFSET].eq(&(owner_type as u8)) {
             return Ok(());
         }
 
-        // Update the owner_type
         data[OWNER_TYPE_OFFSET] = owner_type as u8;
 
         Ok(())
@@ -280,12 +255,10 @@ impl<'info> Record<'info> {
     ///
     /// This function does not perform owner checks
     pub unsafe fn update_is_frozen_unchecked(data: &mut RefMut<'_, [u8]>, is_frozen: bool) -> Result<(), ProgramError> {
-        // Check if the is_frozen is the same
         if data[IS_FROZEN_OFFSET].eq(&(is_frozen as u8)) {
             return Ok(());
         }
 
-        // Update the is_frozen
         data[IS_FROZEN_OFFSET] = is_frozen as u8;
 
         Ok(())
@@ -296,17 +269,14 @@ impl<'info> Record<'info> {
     ///
     /// This function does not perform owner checks
     pub unsafe fn update_owner_unchecked(data: &mut RefMut<'_, [u8]>, new_owner: &Address) -> Result<(), ProgramError> {
-        // Check if the record is frozen
         if data[IS_FROZEN_OFFSET].eq(&1u8) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check if the new_owner is the same
         if data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].eq(new_owner.as_array()) {
             return Ok(());
         }
 
-        // Update the owner
         data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].clone_from_slice(new_owner.as_ref());
 
         Ok(())
@@ -317,12 +287,10 @@ impl<'info> Record<'info> {
     ///
     /// This function does not perform owner checks
     pub unsafe fn update_expiry_unchecked(data: &mut RefMut<'_, [u8]>, new_expiry: i64) -> Result<(), ProgramError> {
-        // Check if the record is frozen
         if data[IS_FROZEN_OFFSET].eq(&1u8) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Update the expiry
         data[EXPIRY_OFFSET..EXPIRY_OFFSET + size_of::<i64>()].clone_from_slice(&new_expiry.to_le_bytes());
 
         Ok(())
@@ -369,10 +337,8 @@ impl<'info> Record<'info> {
         record: &mut AccountView,
         payer: &mut AccountView,
     ) -> Result<(), ProgramError> {
-        // Resize to 0 bytes
         record.resize(0)?;
-        // Transfer ALL lamports back to payer to fully close the account
-        // This allows CreateAccount to work when re-creating the record
+        // Draining every lamport fully closes the account, so `CreateAccount` can recreate it.
         let lamports = record.lamports();
         payer.set_lamports(payer.lamports().saturating_add(lamports));
         record.set_lamports(0);
@@ -386,19 +352,15 @@ impl<'info> Record<'info> {
     pub unsafe fn get_metadata_len_unchecked(data: &Ref<'_, [u8]>) -> Result<usize, ProgramError> {
         let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
 
-        // Read seed_len and skip name
         let seed_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + seed_len;
 
-        // Read ticker_len and skip ticker
         let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + ticker_len;
 
-        // Read uri_len and skip uri
         let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + uri_len;
 
-        // Read additional_metadata_len and skip additional_metadata
         let additional_metadata_len =
             u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>();
@@ -422,15 +384,12 @@ impl<'info> Record<'info> {
     ) -> Result<(&'a [u8], Option<&'a [u8]>), ProgramError> {
         let mut offset = SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize;
 
-        // Read seed_len and skip seed
         let seed_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + seed_len;
 
-        // Read ticker_len and skip ticker
         let ticker_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + ticker_len;
 
-        // Read uri_len and skip uri
         let uri_len = u32::from_le_bytes(data[offset..offset + size_of::<u32>()].try_into().unwrap()) as usize;
         offset += size_of::<u32>() + uri_len;
 

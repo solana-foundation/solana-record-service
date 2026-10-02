@@ -6,11 +6,6 @@ use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 
 /// FreezeClass instruction.
 ///
-/// This function:
-/// 1. Loads the current class state
-/// 2. Updates the frozen status
-/// 3. Saves the updated state
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to freeze/unfreeze the class (must be a signer)
 /// 2. `class` - The class account to be frozen/unfrozen
@@ -29,7 +24,6 @@ impl TryFrom<&[AccountView]> for FreezeClassAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Account Checks
         Class::check_authority(class, authority)?;
 
         Ok(Self { class: *class })
@@ -46,10 +40,8 @@ impl<'info> TryFrom<Context<'info>> for FreezeClass {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = FreezeClassAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize `is_frozen`
         let is_frozen: bool = ByteReader::read_bool_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         Ok(Self { accounts, is_frozen })

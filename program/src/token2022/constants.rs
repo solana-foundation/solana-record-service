@@ -1,4 +1,3 @@
-// Token2022 Constants
 pub const TOKEN_2022_MINT_LEN: usize = 0x52;
 pub const TOKEN_2022_MINT_BASE_LEN: usize = 0x54;
 pub const TOKEN_2022_PERMANENT_DELEGATE_LEN: usize = 0x24;

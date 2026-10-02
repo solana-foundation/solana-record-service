@@ -30,13 +30,6 @@ use pinocchio_token_2022::instructions::{
 
 /// MintTokenizedRecord instruction.
 ///
-/// This instruction:
-/// 1. Validates the authority and record
-/// 2. Updates the record's status to Tokenized
-/// 3. Creates a Token2022 token mint
-/// 4. Creates a Token2022 token account
-/// 5. Mints a token to the token account
-///
 /// # Accounts
 /// 1. `owner` - The owner of the record
 /// 2. `payer` - The account that will pay for the mint account
@@ -75,17 +68,14 @@ impl TryFrom<&[AccountView]> for MintTokenizedRecordAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check if authority is the record owner
         Record::check_owner_or_delegate(record, Some(class), authority)?;
 
         let record_data = record.try_borrow()?;
 
-        // Check if the owner of the record is the same as the owner of the token account
         if record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()].ne(owner.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Check that the class of the record is the same as the class passed in
         if record_data[CLASS_OFFSET..CLASS_OFFSET + size_of::<Address>()].ne(class.address().as_array()) {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -124,7 +114,6 @@ impl<'info> TryFrom<Context<'info>> for MintTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = MintTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })
@@ -137,47 +126,30 @@ impl MintTokenizedRecord {
     }
 
     pub fn execute(&mut self) -> ProgramResult {
-        // Get Mint length
         let mint_bump = self.derive_mint_address_bump()?;
         let group_bump = self.derive_group_address_bump()?;
 
-        // Check if the group already exists
         if !Mint::check_discriminator(&self.accounts.group)? {
-            // Create the group mint account if needed
             self.create_group_mint_account(&group_bump)?;
-            // Initialize the group pointer extension
             self.initialize_group_pointer()?;
-            // Initialize the group mint account
             self.initialize_group_mint_account()?;
-            // Initialize the group
             self.initialize_group(&group_bump)?;
         }
 
-        // Create mint account
         self.create_mint_account(&mint_bump)?;
-        // Initialize mint close authority extension
         self.initialize_mint_close_authority()?;
-        // Initialize permanent delegate extension
         self.initialize_permanent_delegate()?;
-        // Initialize the metadata pointer extension
         self.initialize_metadata_pointer()?;
-        // Initialize the group member pointer extension
         self.initialize_group_member_pointer()?;
-        // Initialize mint
         self.initialize_mint()?;
-        // Initialize metadata
         self.initialize_metadata(&mint_bump)?;
-        // Initialize the group member
         self.initialize_group_member(&group_bump, &mint_bump)?;
-        // Initialize token account for user
         self.initialize_token_account()?;
-        // Mint record token
         self.mint_to_token_account(&mint_bump)?;
 
         let record_address = *self.accounts.record.address();
         let mut record_data = self.accounts.record.try_borrow_mut()?;
 
-        // 1. Check if the current record is frozen, if it is, we need to freeze the token as well
         if record_data[IS_FROZEN_OFFSET] == 1 {
             let seeds = [Seed::from(b"mint"), Seed::from(record_address.as_ref()), Seed::from(&mint_bump)];
 
@@ -185,11 +157,9 @@ impl MintTokenizedRecord {
                 .invoke_signed(&[Signer::from(&seeds)])?;
         }
 
-        // 2. Update the record_owner to be the mint
         record_data[OWNER_OFFSET..OWNER_OFFSET + size_of::<Address>()]
             .clone_from_slice(self.accounts.mint.address().as_ref());
 
-        // 3. Update the record_type to be tokenized
         unsafe { Record::update_owner_type_unchecked(&mut record_data, OwnerType::Token) }
     }
 
@@ -206,7 +176,6 @@ impl MintTokenizedRecord {
     }
 
     fn create_group_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
-        // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN + TOKEN_2022_MINT_BASE_LEN + TOKEN_2022_GROUP_POINTER_LEN;
 
         let lamports = Rent::get()?.try_minimum_balance(space + TOKEN_2022_GROUP_LEN)?;
@@ -278,7 +247,6 @@ impl MintTokenizedRecord {
     }
 
     fn create_mint_account(&self, bump: &[u8; 1]) -> Result<(), ProgramError> {
-        // Space of all our static extensions
         let space = TOKEN_2022_MINT_LEN
             + TOKEN_2022_MINT_BASE_LEN
             + TOKEN_2022_PERMANENT_DELEGATE_LEN
@@ -286,9 +254,7 @@ impl MintTokenizedRecord {
             + TOKEN_2022_METADATA_POINTER_LEN
             + TOKEN_2022_MEMBER_POINTER_LEN;
 
-        // To avoid resizing the mint, we calculate the correct lamports for our token AOT with:
-        // 1. `space` - The sum of the above static extension lengths
-        // 2. `metadata_data.len()` - The full length of the metadata data
+        // Fund the mint for its final size up front, so the metadata and member extensions never resize it.
         let lamports = Rent::get()?.try_minimum_balance(
             space
                 + unsafe { Record::get_metadata_len_unchecked(&self.accounts.record.try_borrow()?)? }

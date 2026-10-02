@@ -12,11 +12,6 @@ use pinocchio_token_2022::instructions::{BurnChecked, CloseAccount, ThawAccount}
 
 /// BurnTokenizedRecord instruction.
 ///
-/// This function:
-/// 1. Burns the mint
-/// 2. Closes the mint account
-/// 3. Sets the record owner to the owner of the token account and the owner type to pubkey
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to burn the record token (must be a signer)
 /// 2. `destination` - The account that will get refunded for the record account
@@ -45,7 +40,6 @@ impl TryFrom<&[AccountView]> for BurnTokenizedRecordAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_tokenized(record, rest.first(), authority, mint, token_account)?;
 
         Ok(Self { destination: *destination, record: *record, mint: *mint, token_account: *token_account })
@@ -60,7 +54,6 @@ impl<'info> TryFrom<Context<'info>> for BurnTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = BurnTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })
@@ -88,15 +81,12 @@ impl BurnTokenizedRecord {
                 .invoke_signed(&signers)?;
         }
 
-        // Burn the mint
         BurnChecked::new(&self.accounts.token_account, &self.accounts.mint, &self.accounts.mint, 1, 0)
             .invoke_signed(&signers)?;
 
-        // Close the mint account
         CloseAccount::new(&self.accounts.mint, &self.accounts.destination, &self.accounts.mint)
             .invoke_signed(&signers)?;
 
-        // Set the record owner, to the owner of the token account and the owner type to pubkey
         let record_owner = unsafe { Token::get_owner_unchecked(&self.accounts.token_account.try_borrow()?)? };
 
         unsafe {

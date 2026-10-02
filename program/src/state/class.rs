@@ -40,7 +40,6 @@ impl<'info> Class<'info> {
     /// Check if the program id and discriminator are valid
     #[inline(always)]
     pub fn check_program_id(class: &AccountView) -> Result<(), ProgramError> {
-        // Check Program ID
         if !class.owned_by(&crate::ID) {
             return Err(ProgramError::IncorrectProgramId);
         }

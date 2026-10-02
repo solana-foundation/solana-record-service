@@ -3,12 +3,6 @@ use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 
 /// DeleteRecord instruction.
 ///
-/// This function:
-/// 1. Reallocates the record account data to 0 bytes
-/// 2. Transfers the lamports from the record to the payer
-/// 3. If the record has an authority delegate, it will close the delegate account
-///    as well
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
 /// 2. `payer` - The account that will get refunded for the record account
@@ -34,7 +28,6 @@ impl TryFrom<&[AccountView]> for DeleteRecordAccounts {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_or_deleted(record, rest.first(), authority, rest.last())?;
 
         Ok(Self { payer: *payer, record: *record })
@@ -49,7 +42,6 @@ impl<'info> TryFrom<Context<'info>> for DeleteRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = DeleteRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })

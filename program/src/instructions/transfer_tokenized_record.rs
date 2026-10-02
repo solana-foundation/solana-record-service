@@ -8,11 +8,6 @@ use pinocchio_token_2022::instructions::TransferChecked;
 
 /// TransferRecord instruction.
 ///
-/// This function:
-/// 1. Loads the current record state
-/// 2. Updates the owner to the new owner
-/// 3. Saves the updated state
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to update the record (must be a signer)
 /// 2. `mint` - The mint account that that is linked to the record
@@ -46,7 +41,6 @@ impl TryFrom<&[AccountView]> for TransferTokenizedRecordAccounts {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_tokenized(record, rest.first(), authority, mint, token_account)?;
 
         Ok(Self { mint: *mint, token_account: *token_account, new_token_account: *new_token_account, record: *record })
@@ -61,7 +55,6 @@ impl<'info> TryFrom<Context<'info>> for TransferTokenizedRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = TransferTokenizedRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })

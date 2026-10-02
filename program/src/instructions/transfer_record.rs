@@ -6,11 +6,6 @@ use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// TransferRecord instruction.
 ///
-/// This function:
-/// 1. Loads the current record state
-/// 2. Updates the owner to the new owner
-/// 3. Saves the updated state
-///
 /// # Accounts
 /// 1. `authority` - The account that has permission to transfer the record (must be a signer)
 /// 2. `record` - The record account to be transferred
@@ -50,10 +45,8 @@ impl<'info> TryFrom<Context<'info>> for TransferRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
 
-        // Deserialize new owner
         let new_owner: Address = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;
 
         Ok(Self { accounts, new_owner })
@@ -66,7 +59,6 @@ impl TransferRecord {
     }
 
     pub fn execute(&mut self) -> ProgramResult {
-        // Update the record to be transferred [this is safe, check safety docs]
         unsafe { Record::update_owner_unchecked(&mut self.accounts.record.try_borrow_mut()?, &self.new_owner) }
     }
 }
