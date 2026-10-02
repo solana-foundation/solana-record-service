@@ -2,7 +2,6 @@ use crate::{
     state::Record,
     utils::{ByteReader, Context},
 };
-use core::mem::size_of;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// TransferRecord instruction.
@@ -47,21 +46,12 @@ pub struct TransferRecord {
     new_owner: Address,
 }
 
-/// Minimum length of instruction data required for TransferRecord
-pub const TRANSFER_RECORD_MIN_IX_LENGTH: usize = size_of::<Address>();
-
 impl<'info> TryFrom<Context<'info>> for TransferRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
-
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < TRANSFER_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         // Deserialize new owner
         let new_owner: Address = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;

@@ -98,14 +98,8 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordExpiry {
         // Deserialize our accounts array
         let accounts = UpdateRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < size_of::<i64>() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Deserialize `data`
-        let expiry = i64::from_le_bytes(ctx.data[0..8].try_into().map_err(|_| ProgramError::InvalidInstructionData)?);
+        let expiry: i64 = ByteReader::read_with_offset(ctx.data, 0)?;
 
         Ok(Self { accounts, expiry })
     }

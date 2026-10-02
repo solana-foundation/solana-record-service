@@ -82,10 +82,7 @@ impl<'info> ByteReader<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let value = unsafe {
-            let ptr = self.data[self.offset..].as_ptr() as *const T;
-            *ptr
-        };
+        let value = unsafe { (self.data[self.offset..].as_ptr() as *const T).read_unaligned() };
 
         self.offset += size;
         Ok(value)
@@ -126,12 +123,17 @@ impl<'info> ByteReader<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let value = unsafe {
-            let ptr = data[offset..].as_ptr() as *const T;
-            *ptr
-        };
+        let value = unsafe { (data[offset..].as_ptr() as *const T).read_unaligned() };
 
         Ok(value)
+    }
+
+    pub fn read_bool_with_offset(data: &'info [u8], offset: usize) -> Result<bool, ProgramError> {
+        match Self::read_with_offset::<u8>(data, offset)? {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
     }
 
     pub fn remaining_bytes(&self) -> usize {
@@ -155,10 +157,7 @@ impl<'info> ByteWriter<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        unsafe {
-            let ptr = self.data[self.offset..].as_mut_ptr() as *mut T;
-            *ptr = value;
-        }
+        unsafe { (self.data[self.offset..].as_mut_ptr() as *mut T).write_unaligned(value) };
 
         self.offset += size;
         Ok(())
@@ -197,10 +196,7 @@ impl<'info> ByteWriter<'info> {
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        unsafe {
-            let ptr = data[offset..].as_mut_ptr() as *mut T;
-            *ptr = value;
-        }
+        unsafe { (data[offset..].as_mut_ptr() as *mut T).write_unaligned(value) };
 
         Ok(())
     }

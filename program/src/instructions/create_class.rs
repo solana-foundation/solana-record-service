@@ -1,4 +1,3 @@
-#[cfg(not(feature = "perf"))]
 use crate::constants::MAX_METADATA_LEN;
 
 use core::mem::size_of;
@@ -66,9 +65,6 @@ pub struct CreateClass<'info> {
     metadata: &'info str,
 }
 
-/// Minimum length of instruction data required for CreateClass
-pub const CREATE_CLASS_MIN_IX_LENGTH: usize = size_of::<bool>() * 2 + size_of::<u8>();
-
 impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
     type Error = ProgramError;
 
@@ -76,17 +72,11 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         // Deserialize our accounts array
         let accounts = CreateClassAccounts::try_from(ctx.accounts)?;
 
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < CREATE_CLASS_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Deserialize `is_permissioned`
-        let is_permissioned: bool = ByteReader::read_with_offset(ctx.data, IS_PERMISSIONED_OFFSET)?;
+        let is_permissioned: bool = ByteReader::read_bool_with_offset(ctx.data, IS_PERMISSIONED_OFFSET)?;
 
         // Deserialize `is_frozen`
-        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
+        let is_frozen: bool = ByteReader::read_bool_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         // Read the variable length data
         let mut variable_data: ByteReader<'info> = ByteReader::new_with_offset(ctx.data, NAME_LEN_OFFSET);
@@ -94,15 +84,9 @@ impl<'info> TryFrom<Context<'info>> for CreateClass<'info> {
         // Read the name
         let name: &'info str = variable_data.read_str_with_length()?;
 
-        #[cfg(not(feature = "perf"))]
-        if name.len() > Class::MAX_CLASS_NAME_LEN {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Read the remaining data as metadata
         let metadata: &'info str = variable_data.read_str(variable_data.remaining_bytes())?;
 
-        #[cfg(not(feature = "perf"))]
         if metadata.len() > MAX_METADATA_LEN {
             return Err(ProgramError::InvalidArgument);
         }

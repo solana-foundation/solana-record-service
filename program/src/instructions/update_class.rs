@@ -1,7 +1,6 @@
 use crate::constants::MAX_METADATA_LEN;
 use crate::state::Class;
 use crate::utils::{ByteReader, Context};
-use core::mem::size_of;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// UpdateClass instruction.
@@ -87,16 +86,8 @@ impl<'info> TryFrom<Context<'info>> for UpdateClassAuthority {
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         let accounts = UpdateClassAccounts::try_from(ctx.accounts)?;
 
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < size_of::<Address>() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Deserialize authority
-        let authority: [u8; 32] =
-            ctx.data[0..size_of::<Address>()].try_into().map_err(|_| ProgramError::InvalidInstructionData)?;
-        let authority = Address::new_from_array(authority);
+        let authority: Address = ByteReader::read_with_offset(ctx.data, 0)?;
 
         Ok(UpdateClassAuthority { accounts, authority })
     }

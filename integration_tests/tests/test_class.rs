@@ -158,3 +158,46 @@ fn freeze_class_rejects_another_authority() {
     );
     assert!(!class_account(&ctx, &class).is_frozen);
 }
+
+#[test]
+fn create_class_rejects_a_flag_byte_other_than_zero_or_one() {
+    let mut ctx = program_test_context();
+    let authority = funded_keypair(&mut ctx);
+    let mut ix = solana_record_service_client::instructions::CreateClassBuilder::new()
+        .authority(authority.pubkey())
+        .payer(ctx.payer.pubkey())
+        .class(Class::find_pda(&authority.pubkey(), "twitter".into()).0)
+        .is_permissioned(true)
+        .is_frozen(false)
+        .name("twitter".into())
+        .metadata("".into())
+        .instruction();
+    ix.data[1] = 2;
+
+    assert_eq!(
+        send(&mut ctx, &[ix], &[&authority]).unwrap_err(),
+        instruction_error(InstructionError::InvalidInstructionData)
+    );
+}
+
+#[test]
+fn class_metadata_is_capped_at_255_bytes() {
+    let mut ctx = program_test_context();
+    let authority = funded_keypair(&mut ctx);
+    let ix = solana_record_service_client::instructions::CreateClassBuilder::new()
+        .authority(authority.pubkey())
+        .payer(ctx.payer.pubkey())
+        .class(Class::find_pda(&authority.pubkey(), "twitter".into()).0)
+        .is_permissioned(false)
+        .is_frozen(false)
+        .name("twitter".into())
+        .metadata("m".repeat(256).as_str().into())
+        .instruction();
+    assert_eq!(send(&mut ctx, &[ix], &[&authority]).unwrap_err(), instruction_error(InstructionError::InvalidArgument));
+
+    let class = create_class(&mut ctx, &authority, "twitter", &"m".repeat(255), false, false);
+    assert_eq!(
+        update_metadata(&mut ctx, &authority, class, &"m".repeat(256)).unwrap_err(),
+        instruction_error(InstructionError::InvalidInstructionData)
+    );
+}

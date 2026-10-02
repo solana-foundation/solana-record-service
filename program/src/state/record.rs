@@ -51,7 +51,7 @@ pub struct Record<'info> {
     pub data: &'info str,
 }
 
-#[repr(C)]
+#[repr(u8)]
 #[derive(Copy, Clone, CodamaType)]
 pub enum OwnerType {
     /// The owner is a pubkey
@@ -410,7 +410,7 @@ impl<'info> Record<'info> {
             offset += size_of::<u32>() + value_len;
         }
 
-        Ok(offset - (SEED_LEN_OFFSET - size_of::<u8>() - data[SEED_LEN_OFFSET] as usize))
+        Ok(offset - (SEED_LEN_OFFSET + size_of::<u8>() + data[SEED_LEN_OFFSET] as usize))
     }
 
     #[inline(always)]
@@ -463,7 +463,7 @@ impl<'info> Record<'info> {
 
         ByteWriter::write_with_offset(&mut data, DISCRIMINATOR_OFFSET, Self::DISCRIMINATOR)?;
         ByteWriter::write_with_offset(&mut data, CLASS_OFFSET, self.class)?;
-        ByteWriter::write_with_offset(&mut data, OWNER_TYPE_OFFSET, self.owner_type)?;
+        ByteWriter::write_with_offset(&mut data, OWNER_TYPE_OFFSET, self.owner_type as u8)?;
         ByteWriter::write_with_offset(&mut data, OWNER_OFFSET, self.owner)?;
         ByteWriter::write_with_offset(&mut data, IS_FROZEN_OFFSET, self.is_frozen)?;
         ByteWriter::write_with_offset(&mut data, EXPIRY_OFFSET, self.expiry)?;

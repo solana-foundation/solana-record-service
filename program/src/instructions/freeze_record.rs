@@ -52,9 +52,6 @@ pub struct FreezeRecord {
     is_frozen: bool,
 }
 
-/// Minimum length of instruction data required for FreezeRecord
-pub const FREEZE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>();
-
 impl<'info> TryFrom<Context<'info>> for FreezeRecord {
     type Error = ProgramError;
 
@@ -62,14 +59,8 @@ impl<'info> TryFrom<Context<'info>> for FreezeRecord {
         // Deserialize our accounts array
         let accounts = FreezeRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < FREEZE_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         // Deserialize `is_frozen`
-        let is_frozen: bool = ByteReader::read_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
+        let is_frozen: bool = ByteReader::read_bool_with_offset(ctx.data, IS_FROZEN_OFFSET)?;
 
         Ok(Self { accounts, is_frozen })
     }

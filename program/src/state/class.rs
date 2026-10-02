@@ -34,7 +34,6 @@ pub struct Class<'info> {
 
 impl<'info> Class<'info> {
     pub const DISCRIMINATOR: u8 = 1;
-    pub const MAX_CLASS_NAME_LEN: usize = 0xff;
     pub const MINIMUM_CLASS_SIZE: usize =
         size_of::<u8>() + size_of::<Address>() + size_of::<bool>() * 2 + size_of::<u8>();
 

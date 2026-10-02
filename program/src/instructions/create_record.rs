@@ -1,6 +1,3 @@
-#[cfg(not(feature = "perf"))]
-use crate::constants::MAX_SEED_LEN;
-
 use core::mem::size_of;
 use pinocchio::{
     cpi::{Seed, Signer},
@@ -66,21 +63,12 @@ pub struct CreateRecord<'info> {
     data: &'info str,
 }
 
-/// Minimum length of instruction data required for CreateRecord
-pub const CREATE_RECORD_MIN_IX_LENGTH: usize = size_of::<u8>() * 2;
-
 impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
         // Deserialize our accounts array
         let accounts = CreateRecordAccounts::try_from(ctx.accounts)?;
-
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < CREATE_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         // Deserialize `expiry`
         let expiry: i64 = ByteReader::read_with_offset(ctx.data, EXPIRY_OFFSET)?;
@@ -90,11 +78,6 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
 
         // Deserialize `seed`
         let seed: &[u8] = variable_data.read_bytes_with_length()?;
-
-        #[cfg(not(feature = "perf"))]
-        if seed.len() > MAX_SEED_LEN {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         // Deserialize `data`
         let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;

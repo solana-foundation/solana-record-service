@@ -16,6 +16,7 @@ _Not yet deployed. The currently deployed binary predates this version. The prog
 ### Changed
 
 - Built on Pinocchio 0.11 and the pinocchio-token-2022 CPI builders. The instruction and account layouts are unchanged, so existing classes and records stay readable.
+- The `perf` feature is removed. `CreateClass` now always rejects metadata over 255 bytes, as `UpdateClassMetadata` already did; the remaining checks it gated were already enforced by the instruction parser or PDA derivation.
 - The release profile enables `overflow-checks` and fat LTO. Arithmetic that silently wrapped in release builds now aborts the instruction, and the next deployment will not reproduce the build hash of any prior deployment.
 
 ### Added
@@ -24,3 +25,9 @@ _Not yet deployed. The currently deployed binary predates this version. The prog
 - `just` is the single task runner for build, test, lint, format and client generation.
 - CI gates on every pull request: build, integration and client tests, formatting, clippy, IDL drift, `cargo audit` and `pnpm audit`.
 - A `Release` workflow builds the program with `solana-verify`, upgrades devnet directly, and exports a Squads transaction for mainnet.
+
+### Fixed
+
+- Boolean arguments other than 0 or 1 are rejected with `InvalidInstructionData` instead of being stored as an invalid `bool`.
+- `UpdateClassAuthority` and `UpdateRecordExpiry` return `InvalidInstructionData` for short instruction data instead of aborting.
+- `MintTokenizedRecord` funds the mint for its final size. It previously over-funded by the rent of 2 + 2 × seed length bytes.

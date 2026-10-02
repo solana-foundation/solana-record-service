@@ -7,10 +7,6 @@ edition = { workspace = true }
 name = "srs"
 crate-type = ["lib", "cdylib"]
 
-[features]
-default = ["perf"]
-perf = []
-
 [build-dependencies]
 codama = { workspace = true }
 serde_json = { workspace = true }
