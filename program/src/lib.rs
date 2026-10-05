@@ -1,3 +1,5 @@
+#![no_std]
+
 use instructions::*;
 use pinocchio::{address::declare_id, entrypoint, error::ProgramError, AccountView, Address, ProgramResult};
 use utils::Context;

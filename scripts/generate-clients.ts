@@ -22,8 +22,6 @@ const idlPath = path.join(projectRoot, 'idl', 'solana_record_service.json');
 const rustClientsDir = path.join(projectRoot, 'clients', 'rust');
 const typescriptClientsDir = path.join(projectRoot, 'clients', 'typescript');
 
-const readIdl = () => createFromJson(fs.readFileSync(idlPath, 'utf-8'));
-
 // `MintTokenizedRecord` reads Token-2022 metadata from the record data in place. The program
 // cannot tell it from plain data, so these variants reuse the discriminator and only retype `data`.
 const TOKENIZABLE_VARIANTS: Record<string, { name: string; docs: string[] }> = {
@@ -74,9 +72,10 @@ function shapeProgram(codama: Codama) {
     );
 }
 
-const rustCodama = readIdl();
-shapeProgram(rustCodama);
-rustCodama.accept(
+const codama = createFromJson(fs.readFileSync(idlPath, 'utf-8'));
+shapeProgram(codama);
+
+codama.accept(
     renderRustVisitor(rustClientsDir, {
         anchorTraits: false,
         deleteFolderBeforeRendering: true,
@@ -88,11 +87,8 @@ rustCodama.accept(
     }),
 );
 
-const tsCodama = readIdl();
-shapeProgram(tsCodama);
-
 // Renderer syncs dependency versions to package.json on every run; edit here, not the manifest.
-void tsCodama.accept(
+void codama.accept(
     renderJavaScriptVisitor(typescriptClientsDir, {
         deleteFolderBeforeRendering: true,
         // `@solana/kit` re-exports the program client core helpers on a subpath.

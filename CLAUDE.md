@@ -58,10 +58,10 @@ and `execute` takes `&mut self`. A copy points at the same runtime account,
 so a lamport or data write through any copy is visible through all of them,
 and the runtime borrow flags still apply.
 
-**The program links `std`.** Platform tools' `liballoc` needs the alloc error
-handler that `std` provides, so the program uses `entrypoint!` rather than
-`no_std` with `nostd_panic_handler!`; the latter fails to link with an
-undefined `__rdl_alloc_error_handler`.
+**`#![no_std]` still links `std`.** The program's own code avoids `std`, but
+the `codama` dependency is not `no_std`, so `std` ends up in the binary and
+`entrypoint!` uses its panic handler. `nostd_panic_handler!` fails with a
+duplicate `panic_impl`. SAS and subscriptions use the same setup.
 
 **Rent comes from `lamports_per_byte` alone.** Pinocchio 0.11's `Rent`
 ignores the exemption threshold, which matches the live clusters (threshold

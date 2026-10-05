@@ -1,12 +1,14 @@
-extern crate alloc;
-
-use alloc::vec::Vec;
+use crate::utils::{write_bytes, UNINIT_BYTE};
+use core::slice::from_raw_parts;
 use pinocchio::{
     cpi::{invoke_signed, Signer},
+    error::ProgramError,
     instruction::{InstructionAccount, InstructionView},
     AccountView, Address, ProgramResult,
 };
 use pinocchio_token_2022::ID as TOKEN_2022_PROGRAM_ID;
+
+const MAX_INSTRUCTION_DATA_LEN: usize = 2_000;
 
 /// Initializes the Token-2022 TokenMetadata extension on a mint.
 ///
@@ -23,7 +25,14 @@ impl InitializeMetadata<'_> {
     const DISCRIMINATOR: [u8; 8] = [0xd2, 0xe1, 0x1e, 0xa2, 0x58, 0xb8, 0x4d, 0x8d];
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let data: Vec<u8> = [Self::DISCRIMINATOR.as_slice(), self.metadata_data].concat();
+        let data_len = Self::DISCRIMINATOR.len() + self.metadata_data.len();
+        if data_len > MAX_INSTRUCTION_DATA_LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut data = [UNINIT_BYTE; MAX_INSTRUCTION_DATA_LEN];
+        write_bytes(&mut data, &Self::DISCRIMINATOR);
+        write_bytes(&mut data[Self::DISCRIMINATOR.len()..], self.metadata_data);
 
         invoke_signed(
             &InstructionView {
@@ -34,7 +43,8 @@ impl InitializeMetadata<'_> {
                     InstructionAccount::readonly(self.mint.address()),
                     InstructionAccount::readonly_signer(self.mint_authority.address()),
                 ],
-                data: &data,
+                // SAFETY: the first `data_len` bytes were written above.
+                data: unsafe { from_raw_parts(data.as_ptr() as *const u8, data_len) },
             },
             &[self.metadata, self.update_authority, self.mint, self.mint_authority],
             signers,
@@ -56,8 +66,15 @@ impl UpdateMetadata<'_> {
     const FIELD_KEY_VARIANT: u8 = 3;
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let data: Vec<u8> =
-            [Self::DISCRIMINATOR.as_slice(), &[Self::FIELD_KEY_VARIANT], self.additional_metadata].concat();
+        let data_len = Self::DISCRIMINATOR.len() + 1 + self.additional_metadata.len();
+        if data_len > MAX_INSTRUCTION_DATA_LEN {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut data = [UNINIT_BYTE; MAX_INSTRUCTION_DATA_LEN];
+        write_bytes(&mut data, &Self::DISCRIMINATOR);
+        write_bytes(&mut data[Self::DISCRIMINATOR.len()..], &[Self::FIELD_KEY_VARIANT]);
+        write_bytes(&mut data[Self::DISCRIMINATOR.len() + 1..], self.additional_metadata);
 
         invoke_signed(
             &InstructionView {
@@ -66,7 +83,8 @@ impl UpdateMetadata<'_> {
                     InstructionAccount::writable(self.metadata.address()),
                     InstructionAccount::readonly_signer(self.update_authority.address()),
                 ],
-                data: &data,
+                // SAFETY: the first `data_len` bytes were written above.
+                data: unsafe { from_raw_parts(data.as_ptr() as *const u8, data_len) },
             },
             &[self.metadata, self.update_authority],
             signers,
@@ -87,8 +105,10 @@ impl InitializeGroup<'_> {
     const DISCRIMINATOR: [u8; 8] = [0x79, 0x71, 0x6c, 0x27, 0x36, 0x33, 0x00, 0x04];
 
     pub fn invoke_signed(&self, signers: &[Signer]) -> ProgramResult {
-        let data: Vec<u8> =
-            [Self::DISCRIMINATOR.as_slice(), self.update_authority.as_ref(), &self.max_size.to_le_bytes()].concat();
+        let mut data = [0u8; 48];
+        data[..8].copy_from_slice(&Self::DISCRIMINATOR);
+        data[8..40].copy_from_slice(self.update_authority.as_ref());
+        data[40..].copy_from_slice(&self.max_size.to_le_bytes());
 
         invoke_signed(
             &InstructionView {
