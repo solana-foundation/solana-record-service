@@ -1,15 +1,7 @@
 use crate::{state::Record, utils::Context};
-#[cfg(not(feature = "perf"))]
-use pinocchio::{log::sol_log, sysvars::{Sysvar, rent::Rent}};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 
 /// DeleteRecord instruction.
-///
-/// This function:
-/// 1. Reallocates the record account data to 0 bytes
-/// 2. Transfers the lamports from the record to the payer
-/// 3. If the record has an authority delegate, it will close the delegate account
-///    as well
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to delete the record (must be a signer)
@@ -23,55 +15,48 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 /// 1. The authority must be either:
 ///    a. The record owner, or
 ///    b. if the class is permissioned, the authority can be the permissioned authority
-pub struct DeleteRecordAccounts<'info> {
-    payer: &'info AccountInfo,
-    record: &'info AccountInfo,
+pub struct DeleteRecordAccounts {
+    payer: AccountView,
+    record: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for DeleteRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for DeleteRecordAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, payer, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
-        // Check if authority is the record owner or has a delegate
         Record::check_owner_or_delegate_or_deleted(record, rest.first(), authority, rest.last())?;
 
-        Ok(Self {
-            payer,
-            record,
-        })
+        Ok(Self { payer: *payer, record: *record })
     }
 }
 
-pub struct DeleteRecord<'info> {
-    accounts: DeleteRecordAccounts<'info>,
+pub struct DeleteRecord {
+    accounts: DeleteRecordAccounts,
 }
 
-impl<'info> TryFrom<Context<'info>> for DeleteRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for DeleteRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = DeleteRecordAccounts::try_from(ctx.accounts)?;
 
         Ok(Self { accounts })
     }
 }
 
-impl<'info> DeleteRecord<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Delete Record");
+impl DeleteRecord {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
+    pub fn execute(&mut self) -> ProgramResult {
         // Safety: The account has already been validated
         unsafe {
-            Record::delete_record_unchecked(self.accounts.record, self.accounts.payer)?;
+            Record::delete_record_unchecked(&mut self.accounts.record, &mut self.accounts.payer)?;
         }
 
         Ok(())

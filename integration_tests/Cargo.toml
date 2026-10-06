@@ -1,0 +1,25 @@
+[package]
+name = "tests-solana-record-service"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
+
+[dependencies]
+borsh = { workspace = true }
+litesvm = { workspace = true }
+solana-address = { workspace = true }
+solana-instruction = { workspace = true }
+solana-instruction-error = { workspace = true }
+solana-keypair = { workspace = true }
+solana-program-pack = { workspace = true }
+solana-record = { workspace = true }
+solana-signer = { workspace = true }
+solana-transaction = { workspace = true }
+solana-transaction-error = { workspace = true }
+spl-associated-token-account-interface = { workspace = true }
+spl-token-2022-interface = { workspace = true }
+spl-token-group-interface = { workspace = true }
+spl-token-metadata-interface = { workspace = true }
+
+[lints]
+workspace = true

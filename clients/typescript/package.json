@@ -1,0 +1,44 @@
+{
+  "name": "@solana/record",
+  "version": "2.0.0",
+  "repository": "git@github.com:solana-foundation/solana-record-service.git",
+  "sideEffects": false,
+  "main": "./dist/src/index.js",
+  "module": "./dist/src/index.mjs",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/src/index.mjs",
+      "require": "./dist/src/index.js"
+    },
+    "./accounts": {
+      "types": "./dist/types/generated/accounts/index.d.ts",
+      "import": "./dist/src/accounts.mjs",
+      "require": "./dist/src/accounts.js"
+    },
+    "./instructions": {
+      "types": "./dist/types/generated/instructions/index.d.ts",
+      "import": "./dist/src/instructions.mjs",
+      "require": "./dist/src/instructions.js"
+    }
+  },
+  "files": [
+    "./dist/src",
+    "./dist/types",
+    "./src/"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsup && tsc -p ./tsconfig.declarations.json",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@solana/kit": "^8.3.0",
+    "@types/node": "^20.19.43",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@solana/kit": "^8.0.0"
+  }
+}

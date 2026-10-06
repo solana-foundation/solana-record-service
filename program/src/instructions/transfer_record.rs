@@ -2,19 +2,9 @@ use crate::{
     state::Record,
     utils::{ByteReader, Context},
 };
-use core::mem::size_of;
-#[cfg(not(feature = "perf"))]
-use pinocchio::log::sol_log;
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 /// TransferRecord instruction.
-///
-/// This function:
-/// 1. Loads the current record state
-/// 2. Updates the owner to the new owner
-/// 3. Saves the updated state
 ///
 /// # Accounts
 /// 1. `authority` - The account that has permission to transfer the record (must be a signer)
@@ -26,71 +16,49 @@ use pinocchio::{
 ///    a. The record owner, or
 ///    b. if the class is permissioned, the authority can be the permissioned authority
 /// 2. The record must not be frozen
-pub struct TransferRecordAccounts<'info> {
-    record: &'info AccountInfo,
+pub struct TransferRecordAccounts {
+    record: AccountView,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for TransferRecordAccounts<'info> {
+impl TryFrom<&[AccountView]> for TransferRecordAccounts {
     type Error = ProgramError;
 
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
+    fn try_from(accounts: &[AccountView]) -> Result<Self, Self::Error> {
         let [authority, record, rest @ ..] = accounts else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
 
         Record::check_owner_or_delegate(record, rest.first(), authority)?;
 
-        Ok(Self { record })
+        Ok(Self { record: *record })
     }
 }
 
 const NEW_OWNER_OFFSET: usize = 0;
 
-pub struct TransferRecord<'info> {
-    accounts: TransferRecordAccounts<'info>,
-    new_owner: Pubkey,
+pub struct TransferRecord {
+    accounts: TransferRecordAccounts,
+    new_owner: Address,
 }
 
-/// Minimum length of instruction data required for TransferRecord
-pub const TRANSFER_RECORD_MIN_IX_LENGTH: usize = size_of::<Pubkey>();
-
-impl<'info> TryFrom<Context<'info>> for TransferRecord<'info> {
+impl<'info> TryFrom<Context<'info>> for TransferRecord {
     type Error = ProgramError;
 
     fn try_from(ctx: Context<'info>) -> Result<Self, Self::Error> {
-        // Deserialize our accounts array
         let accounts = TransferRecordAccounts::try_from(ctx.accounts)?;
 
-        // Check minimum instruction data length
-        #[cfg(not(feature = "perf"))]
-        if ctx.data.len() < TRANSFER_RECORD_MIN_IX_LENGTH {
-            return Err(ProgramError::InvalidArgument);
-        }
+        let new_owner: Address = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;
 
-        // Deserialize new owner
-        let new_owner: Pubkey = ByteReader::read_with_offset(ctx.data, NEW_OWNER_OFFSET)?;
-
-        Ok(Self {
-            accounts,
-            new_owner,
-        })
+        Ok(Self { accounts, new_owner })
     }
 }
 
-impl<'info> TransferRecord<'info> {
-    pub fn process(ctx: Context<'info>) -> ProgramResult {
-        #[cfg(not(feature = "perf"))]
-        sol_log("Transfer Record");
+impl TransferRecord {
+    pub fn process(ctx: Context<'_>) -> ProgramResult {
         Self::try_from(ctx)?.execute()
     }
 
-    pub fn execute(&self) -> ProgramResult {
-        // Update the record to be transferred [this is safe, check safety docs]
-        unsafe {
-            Record::update_owner_unchecked(
-                &mut self.accounts.record.try_borrow_mut_data()?,
-                &self.new_owner,
-            )
-        }
+    pub fn execute(&mut self) -> ProgramResult {
+        unsafe { Record::update_owner_unchecked(&mut self.accounts.record.try_borrow_mut()?, &self.new_owner) }
     }
 }

@@ -1,31 +1,23 @@
 [package]
 name = "solana-record-service"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 
 [lib]
 name = "srs"
 crate-type = ["lib", "cdylib"]
 
-[features]
-default = ["perf"]
-perf = []
+[build-dependencies]
+codama = { workspace = true }
+serde_json = { workspace = true }
 
 [dependencies]
-pinocchio = "0.8.3"
-pinocchio-system = "0.2.3"
-pinocchio-associated-token-account = "0.1.1"
+codama = { workspace = true }
+pinocchio = { workspace = true }
+pinocchio-associated-token-account = { workspace = true }
+pinocchio-system = { workspace = true }
+pinocchio-token-2022 = { workspace = true }
+solana-address = { workspace = true }
 
-[dev-dependencies]
-solana-record-service-client = { workspace = true }
-mollusk-svm = "0.4.0"
-mollusk-svm-programs-token = "0.4.0"
-spl-token-2022 = "8.0.1"
-solana-precompiles = "2.2.2"
-solana-account = "2.2.1"
-solana-pubkey = "2.2.1"
-solana-feature-set = "2.2.1"
-solana-program = "2.2.1"
-kaigan = ">=0.2.6"
-borsh = "^0.10"
-hex = "0.4.3"
+[lints]
+workspace = true

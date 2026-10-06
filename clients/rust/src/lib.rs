@@ -1,0 +1,24 @@
+mod generated;
+
+use generated::*;
+
+pub mod accounts {
+    pub use super::generated::accounts::*;
+}
+
+pub mod instructions {
+    pub use super::generated::instructions::*;
+}
+
+#[cfg(feature = "fetch")]
+pub mod shared {
+    pub use super::generated::shared::*;
+}
+
+pub mod programs {
+    pub use super::generated::programs::*;
+}
+
+pub mod types {
+    pub use super::generated::types::*;
+}
