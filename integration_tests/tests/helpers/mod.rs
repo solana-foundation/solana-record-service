@@ -126,7 +126,7 @@ pub fn create_record_ix(
         .class(class)
         .record(Record::find_pda(&class, seed.into()).0)
         .authority(authority.map(|a| a.pubkey()))
-        .expiration(0)
+        .expiry(0)
         .seed(seed.into())
         .data(data.into())
         .instruction()
@@ -174,7 +174,7 @@ pub fn create_tokenizable_record(
         .class(class)
         .record(record)
         .authority(authority.map(|a| a.pubkey()))
-        .expiration(0)
+        .expiry(0)
         .seed(seed.into())
         .metadata(metadata)
         .instruction();

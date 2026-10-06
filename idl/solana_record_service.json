@@ -835,7 +835,7 @@
           },
           {
             "kind": "instructionArgumentNode",
-            "name": "expiration",
+            "name": "expiry",
             "type": {
               "endian": "le",
               "format": "i64",

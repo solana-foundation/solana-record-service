@@ -11,6 +11,7 @@ Releases before 2.0.0 were published as `srs-lib` and predate this changelog; se
 ### Changed
 
 - The package is renamed from `srs-lib` to `@solana/record`. `srs-lib` receives no further releases.
+- **Breaking:** the `createRecord` and `createRecordTokenizable` argument `expiration` is renamed to `expiry`, matching the `Record` field and `updateRecordExpiry`.
 
 ## [2.0.0]
 
