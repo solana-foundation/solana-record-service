@@ -104,7 +104,7 @@ pub enum SolanaRecordServiceInstruction {
     ))]
     #[codama(account(name = "authority", optional, signer, docs = "Optional authority for permissioned classes"))]
     CreateRecord {
-        expiration: i64,
+        expiry: i64,
         #[codama(type = bytes)]
         #[codama(size_prefix = number(u8))]
         seed: Vec<u8>,

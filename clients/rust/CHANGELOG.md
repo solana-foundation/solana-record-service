@@ -11,6 +11,7 @@ Releases before 2.0.0 were published as `solana-record-service-client` and preda
 ### Changed
 
 - The crate is renamed from `solana-record-service-client` to `solana-record`. Import it as `solana_record`. `solana-record-service-client` receives no further releases.
+- **Breaking:** the `CreateRecord` and `CreateRecordTokenizable` argument `expiration` is renamed to `expiry`, matching the `Record` field and `UpdateRecordExpiry`. The builder method is now `.expiry(...)`.
 
 ## [2.0.0]
 
