@@ -29,7 +29,7 @@ codegen-units = 1
 [workspace.dependencies]
 borsh = "1.5.5"
 codama = "0.9.3"
-litesvm = "0.12.0"
+litesvm = "0.18.1"
 num-derive = "0.4"
 num-traits = "0.2"
 pinocchio = { version = "0.11.2", features = ["account-resize", "cpi"] }
@@ -39,7 +39,7 @@ pinocchio-token-2022 = "0.4.0"
 serde_json = "1.0"
 solana-account = "~3.4"
 solana-account-info = "~3.1"
-solana-address = { version = "2.8.0", features = ["curve25519", "decode"] }
+solana-address = { version = "2.7.0", features = ["curve25519", "decode"] }
 solana-cpi = "~3.1"
 solana-instruction = "3.1"
 solana-instruction-error = "2.0"
@@ -49,7 +49,7 @@ solana-program-pack = "3.0"
 solana-record = { path = "clients/rust" }
 solana-rpc-client = "3.1.8"
 solana-signer = "3.0"
-solana-transaction = "3.0"
+solana-transaction = "4.1.5"
 solana-transaction-error = "3.0"
 spl-associated-token-account-interface = "2.0.0"
 spl-collections = { version = "0.1.2", features = ["borsh"] }

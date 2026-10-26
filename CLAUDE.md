@@ -66,7 +66,7 @@ duplicate `panic_impl`. SAS and subscriptions use the same setup.
 **Rent comes from `lamports_per_byte` alone.** Pinocchio 0.11's `Rent`
 ignores the exemption threshold, which matches the live clusters (threshold
 1.0). Test runtimes that still report a 2.0 threshold under-fund every account
-the program creates; litesvm 0.12 does not.
+the program creates; litesvm does not.
 
 **Token-2022 metadata and group CPIs are hand-written.** `pinocchio-token-2022`
 has no builders for `InitializeTokenMetadata`, `UpdateField`, `InitializeGroup`
@@ -74,6 +74,12 @@ or `InitializeMember`, so they live in `token2022/extensions.rs`. The metadata
 bytes are passed through from the record as stored. `test_tokenization.rs`
 re-parses the minted state with the SPL interface crates, so an encoding change
 fails there.
+
+**litesvm holds `solana-address` at 2.7.** litesvm 0.18 requires
+`solana-address ~2.7.0`, and the program shares the workspace lockfile, so the
+program cannot take 2.8 until a litesvm release relaxes that bound. litesvm
+also sets the Rust floor: bumping it means bumping `rust-toolchain.toml` and
+the CI setup action together.
 
 **The release profile changed the binary.** `overflow-checks` and fat LTO are
 on, so arithmetic that used to wrap now aborts the instruction, and the next
