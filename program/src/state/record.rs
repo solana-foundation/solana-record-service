@@ -1,7 +1,7 @@
 use crate::{
     token2022::{CloseAccount, Mint, Token}, utils::{resize_account, ByteWriter}
 };
-use core::{mem::size_of, str};
+use core::mem::size_of;
 use pinocchio::{
     account_info::{AccountInfo, Ref, RefMut}, instruction::{Seed, Signer}, program_error::ProgramError, pubkey::{try_find_program_address, Pubkey}
 };
@@ -33,7 +33,7 @@ pub struct Record<'info> {
     /// The record name/key
     pub seed: &'info [u8],
     /// The record's data content
-    pub data: &'info str,
+    pub data: &'info [u8],
 }
 
 #[repr(C)]
@@ -357,7 +357,7 @@ impl<'info> Record<'info> {
     pub unsafe fn update_data_unchecked(
         record: &'info AccountInfo,
         payer: &'info AccountInfo,
-        data: &'info str,
+        data: &'info [u8],
     ) -> Result<(), ProgramError> {
         let seed_len = {
             let data_ref = record.try_borrow_data()?;
@@ -380,7 +380,7 @@ impl<'info> Record<'info> {
             let data_buffer = unsafe {
                 core::slice::from_raw_parts_mut(data_ref.as_mut_ptr().add(offset), data.len())
             };
-            data_buffer.clone_from_slice(data.as_bytes());
+            data_buffer.clone_from_slice(data);
         }
 
         Ok(())
@@ -519,7 +519,7 @@ impl<'info> Record<'info> {
 
         let mut variable_data = ByteWriter::new_with_offset(&mut data, SEED_LEN_OFFSET);
         variable_data.write_bytes_with_length(self.seed)?;
-        variable_data.write_str(self.data)?;
+        variable_data.write_bytes(self.data)?;
 
         Ok(())
     }

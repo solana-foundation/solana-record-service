@@ -71,7 +71,7 @@ pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts<'info>,
     expiry: i64,
     seed: &'info [u8],
-    data: &'info str,
+    data: &'info [u8],
 }
 
 /// Minimum length of instruction data required for CreateRecord
@@ -108,7 +108,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
         }
 
         // Deserialize `data`
-        let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;
+        let data: &[u8] = variable_data.read_bytes(variable_data.remaining_bytes())?;
 
         Ok(Self {
             accounts,

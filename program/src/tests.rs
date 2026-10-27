@@ -1211,6 +1211,93 @@ fn update_record() {
 }
 
 #[test]
+fn create_record_with_non_utf8_data() {
+    let (owner, owner_data) = keyed_account_for_owner();
+    let (class, class_data) = keyed_account_for_class_default();
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, owner, false, 0, b"test", &[0xff, 0x80, 0x00]);
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = CreateRecord {
+        owner,
+        payer: owner,
+        class,
+        record,
+        system_program,
+        authority: None,
+    }
+    .instruction(CreateRecordInstructionArgs {
+        expiration: 0,
+        seed: make_u8prefix_vec_u8(b"test"),
+        data: make_remainder_vec(&[0xff, 0x80, 0x00]),
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/srs",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (owner, owner_data),
+            (class, class_data),
+            (record, Account::default()),
+            (system_program, system_program_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record).data(&record_data.data).build(),
+        ],
+    );
+}
+
+#[test]
+fn update_record_with_non_utf8_data() {
+    let (authority, authority_data) = keyed_account_for_authority();
+    let (payer, payer_data) = keyed_account_for_random_authority();
+    let (class, class_data) = keyed_account_for_class_default();
+    let (record, record_data) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", b"test");
+    let (_, record_data_updated) =
+        keyed_account_for_record(class, 0, OWNER, false, 0, b"test", &[0xff, 0x80, 0x00]);
+    let (system_program, system_program_data) = keyed_account_for_system_program();
+
+    let instruction = UpdateRecord {
+        authority,
+        payer,
+        record,
+        class,
+        system_program,
+    }
+    .instruction(UpdateRecordInstructionArgs {
+        data: make_remainder_vec(&[0xff, 0x80, 0x00]),
+    });
+
+    let mollusk = Mollusk::new(
+        &SOLANA_RECORD_SERVICE_ID,
+        "../target/deploy/srs",
+    );
+
+    mollusk.process_and_validate_instruction(
+        &instruction,
+        &[
+            (authority, authority_data),
+            (payer, payer_data),
+            (record, record_data),
+            (class, class_data),
+            (system_program, system_program_data),
+        ],
+        &[
+            Check::success(),
+            Check::account(&record)
+                .data(&record_data_updated.data)
+                .build(),
+        ],
+    );
+}
+
+#[test]
 fn update_record_with_metadata() {
     // Authority
     let (authority, authority_data) = keyed_account_for_authority();
