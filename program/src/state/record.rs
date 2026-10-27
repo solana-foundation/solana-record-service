@@ -3,7 +3,7 @@ use crate::{
     utils::{resize_account, ByteWriter},
 };
 use codama::{CodamaAccount, CodamaType};
-use core::{mem::size_of, str};
+use core::mem::size_of;
 use pinocchio::{
     account::{Ref, RefMut},
     cpi::{Seed, Signer},
@@ -47,7 +47,7 @@ pub struct Record<'info> {
     pub seed: &'info [u8],
     /// The record's data content
     #[codama(type = bytes)]
-    pub data: &'info str,
+    pub data: &'info [u8],
 }
 
 #[repr(u8)]
@@ -303,7 +303,7 @@ impl<'info> Record<'info> {
     pub unsafe fn update_data_unchecked(
         record: &mut AccountView,
         payer: &mut AccountView,
-        data: &str,
+        data: &[u8],
     ) -> Result<(), ProgramError> {
         let seed_len = {
             let data_ref = record.try_borrow()?;
@@ -323,7 +323,7 @@ impl<'info> Record<'info> {
             if data_ref[DISCRIMINATOR_OFFSET].ne(&Self::DISCRIMINATOR) {
                 return Err(ProgramError::InvalidAccountData);
             }
-            data_ref[offset..offset + data.len()].clone_from_slice(data.as_bytes());
+            data_ref[offset..offset + data.len()].clone_from_slice(data);
         }
 
         Ok(())
@@ -429,7 +429,7 @@ impl<'info> Record<'info> {
 
         let mut variable_data = ByteWriter::new_with_offset(&mut data, SEED_LEN_OFFSET);
         variable_data.write_bytes_with_length(self.seed)?;
-        variable_data.write_str(self.data)?;
+        variable_data.write_bytes(self.data)?;
 
         Ok(())
     }

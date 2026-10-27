@@ -47,7 +47,7 @@ impl TryFrom<&[AccountView]> for UpdateRecordAccounts {
 
 pub struct UpdateRecordData<'info> {
     accounts: UpdateRecordAccounts,
-    data: &'info str,
+    data: &'info [u8],
 }
 
 impl<'info> TryFrom<Context<'info>> for UpdateRecordData<'info> {
@@ -58,7 +58,7 @@ impl<'info> TryFrom<Context<'info>> for UpdateRecordData<'info> {
 
         let mut instruction_data = ByteReader::new(ctx.data);
 
-        let data: &str = instruction_data.read_str(instruction_data.remaining_bytes())?;
+        let data: &[u8] = instruction_data.read_bytes(instruction_data.remaining_bytes())?;
 
         Ok(Self { accounts, data })
     }
