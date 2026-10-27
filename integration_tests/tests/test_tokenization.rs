@@ -353,6 +353,33 @@ fn burned_record_can_be_updated_and_minted_again() {
 }
 
 #[test]
+fn metadata_with_length_prefix_bytes_above_127_is_accepted() {
+    let long_name = "a".repeat(128);
+    let mut f = setup(false, metadata(&long_name, &[]));
+    let authority = f.authority.insecure_clone();
+    let owner = f.owner.insecure_clone();
+    assert_eq!(record_metadata(&f.ctx, &f.record), metadata(&long_name, &[]));
+
+    let longer_name = "b".repeat(200);
+    let ix = UpdateRecordTokenizableBuilder::new()
+        .authority(authority.pubkey())
+        .payer(f.ctx.payer.pubkey())
+        .record(f.record)
+        .class(f.class)
+        .metadata(metadata(&longer_name, &[]))
+        .instruction();
+    send(&mut f.ctx, &[ix], &[&authority]).unwrap();
+    assert_eq!(record_metadata(&f.ctx, &f.record), metadata(&longer_name, &[]));
+
+    let (mint, _) = mint_record(&mut f, &owner).unwrap();
+
+    let mint_data = f.ctx.svm.get_account(&mint).unwrap();
+    let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data.data).unwrap();
+    let token_metadata = mint_state.get_variable_len_extension::<TokenMetadata>().unwrap();
+    assert_eq!(token_metadata.name, longer_name);
+}
+
+#[test]
 fn record_with_burned_token_can_be_deleted() {
     let mut f = setup(false, metadata("Alice", &[]));
     let owner = f.owner.insecure_clone();

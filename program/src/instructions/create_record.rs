@@ -53,7 +53,7 @@ pub struct CreateRecord<'info> {
     accounts: CreateRecordAccounts,
     expiry: i64,
     seed: &'info [u8],
-    data: &'info str,
+    data: &'info [u8],
 }
 
 impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
@@ -68,7 +68,7 @@ impl<'info> TryFrom<Context<'info>> for CreateRecord<'info> {
 
         let seed: &[u8] = variable_data.read_bytes_with_length()?;
 
-        let data: &str = variable_data.read_str(variable_data.remaining_bytes())?;
+        let data: &[u8] = variable_data.read_bytes(variable_data.remaining_bytes())?;
 
         Ok(Self { accounts, expiry, seed, data })
     }
