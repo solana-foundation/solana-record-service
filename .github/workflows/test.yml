@@ -1,0 +1,44 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [release/program-v1]
+  push:
+    branches: [release/program-v1]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BASE_IMAGE: solanafoundation/solana-verifiable-build:3.1.14
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # v1
+        with:
+          toolchain: stable
+
+      - name: Install solana-verify
+        run: cargo install solana-verify --locked
+
+      - name: Build verified program
+        uses: solana-foundation/github-actions/build-verified@e6ed2eb93c55eca911dbc711fb08683b42926a28
+        with:
+          program: srs
+          base-image: ${{ env.BASE_IMAGE }}
+
+      - name: Program hash
+        run: solana-verify get-executable-hash target/deploy/srs.so
+
+      - name: Run tests
+        working-directory: program
+        run: cargo test --lib -- --test-threads=1
