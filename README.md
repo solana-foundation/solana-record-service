@@ -160,6 +160,8 @@ Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.m
 
 The program has been audited by [OtterSec](https://osec.io) against commits [`32a5654`](https://github.com/solana-foundation/solana-record-service/commit/32a5654166800427692bc3805e5d54b875f1079a) and [`ee7b214`](https://github.com/solana-foundation/solana-record-service/commit/ee7b2148c818ec28144f3caf29fec9a351ff8e82) on `release/program-v1`, with no findings. View the [audit report](audits/2026-ottersec-solana-foundation-solana-record-service-audit.pdf). Changes on `master` since then are unaudited.
 
+Audit status, audited-through commit, and the current unaudited delta are tracked in [audits/AUDIT_STATUS.md](audits/AUDIT_STATUS.md).
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Changelogs are kept per artifact: the [program](CHANGELOG.md), the [Rust client](clients/rust/CHANGELOG.md), and the [TypeScript client](clients/typescript/CHANGELOG.md).
