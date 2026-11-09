@@ -158,9 +158,13 @@ Publishing is manual. `Publish Rust Client` and `Publish TypeScript Client` are 
 
 Report vulnerabilities privately through the process in [SECURITY.md](SECURITY.md), not in a public issue.
 
-The program has been audited by [OtterSec](https://osec.io) against commits [`32a5654`](https://github.com/solana-foundation/solana-record-service/commit/32a5654166800427692bc3805e5d54b875f1079a) and [`ee7b214`](https://github.com/solana-foundation/solana-record-service/commit/ee7b2148c818ec28144f3caf29fec9a351ff8e82) on `release/program-v1`, with no findings. View the [audit report](audits/2026-ottersec-solana-foundation-solana-record-service-audit.pdf). Changes on `master` since then are unaudited.
+The program has been reviewed by three auditors:
 
-Audit status, audited-through commit, and the current unaudited delta are tracked in [audits/AUDIT_STATUS.md](audits/AUDIT_STATUS.md).
+- [Zenith](https://zenith.security) at [`d98ba1e`](https://github.com/solana-foundation/solana-record-service/commit/d98ba1eb6a09de1b6cf8f2bc6e3b6418f5886e25) ([report](audits/2025-zenith-solana-foundation-solana-record-service-audit.pdf)).
+- [Accretion](https://accretion.xyz) at [`ba0f649`](https://github.com/solana-foundation/solana-record-service/commit/ba0f64964eccc0b559ee01012d0d547aa52cec00) ([report](audits/2026-accretion-solana-foundation-solana-record-service-audit.pdf)).
+- [OtterSec](https://osec.io) against [`32a5654`](https://github.com/solana-foundation/solana-record-service/commit/32a5654166800427692bc3805e5d54b875f1079a) and [`ee7b214`](https://github.com/solana-foundation/solana-record-service/commit/ee7b2148c818ec28144f3caf29fec9a351ff8e82) on `release/program-v1`, with no findings ([report](audits/2026-ottersec-solana-foundation-solana-record-service-audit.pdf)).
+
+Changes on `master` since then are unaudited. Audit status, audited-through commit, and the current unaudited delta are tracked in [audits/AUDIT_STATUS.md](audits/AUDIT_STATUS.md).
 
 ## Contributing
 
