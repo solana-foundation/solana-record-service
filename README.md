@@ -152,7 +152,7 @@ use solana_record::instructions::*;
 | **Security**   | `cargo audit` and `pnpm audit`                                 |
 | **PR hygiene** | Linked issue, commit signatures, AI disclosure and attribution |
 
-Publishing is manual. `Publish Rust Client` and `Publish TypeScript Client` are `workflow_dispatch` only, gated on a green test run and a branch guard, default to a dry run, and authenticate to the registries over OIDC. `Release` builds the program with `solana-verify` and upgrades devnet directly, or exports a single Squads transaction (verify PDA, IDL metadata and program upgrade) for mainnet.
+Publishing is manual. `Publish Rust Client` and `Publish TypeScript Client` are `workflow_dispatch` only, gated on a green test run and a branch guard, default to a dry run, and authenticate to the registries over OIDC. `Release` builds the program with `solana-verify` and, on devnet and mainnet alike, exports a single Squads transaction (verify PDA, IDL metadata and program upgrade) for that network's multisig.
 
 ## Security
 
